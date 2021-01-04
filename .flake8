@@ -1,0 +1,8 @@
+[flake8]
+max-line-length = 120
+exclude =  # Folders to exclude
+    venv,
+    .git
+per-file-ignores =  # Error codes to ignore, per file level
+    # module imported but unused
+    */__init__.py:F401

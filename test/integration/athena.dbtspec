@@ -1,0 +1,21 @@
+target:
+  type: athena
+  database: "{{ env_var('DBT_TEST_ATHENA_DATABASE', 'awsdatacatalog') }}"
+  schema: "{{ env_var('DBT_TEST_ATHENA_SCHEMA', 'dbt_integration_tests') }}"
+  region_name: "{{ env_var('DBT_TEST_ATHENA_REGION', 'eu-west-1') }}"
+  s3_staging_dir: "{{ env_var('DBT_TEST_ATHENA_S3_STAGING_DIR') }}"
+sequences:
+  test_dbt_empty: empty
+  test_dbt_base: base
+  test_dbt_ephemeral: ephemeral
+
+  # Experimental support for incremental models
+  test_dbt_incremental: incremental
+
+  # Snapshot not supported
+  # test_dbt_snapshot_strategy_timestamp: snapshot_strategy_timestamp
+  # test_dbt_snapshot_strategy_check_cols: snapshot_strategy_check_cols
+
+  test_dbt_data_test: data_test
+  test_dbt_schema_test: schema_test
+  test_dbt_ephemeral_data_tests: data_test_ephemeral_models
