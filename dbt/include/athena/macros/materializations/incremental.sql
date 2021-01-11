@@ -47,6 +47,11 @@
       {{ build_sql }}
   {% endcall %}
 
+  -- set table properties
+  {% if not to_drop %}
+    {{ set_table_classification(target_relation) }}
+  {% endif %}
+
   {% do persist_docs(target_relation, model) %}
 
   {{ run_hooks(post_hooks, inside_transaction=True) }}

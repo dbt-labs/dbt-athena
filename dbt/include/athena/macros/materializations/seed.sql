@@ -23,6 +23,7 @@
     )
     stored as parquet
     location '{{ adapter.s3_uuid_table_location() }}'
+    tblproperties ('classification'='parquet')
   {% endset %}
 
   {% call statement('_') -%}

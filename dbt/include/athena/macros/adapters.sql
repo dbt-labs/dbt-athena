@@ -1,4 +1,16 @@
 
+{% macro ilike(column, value) -%}
+	regexp_like({{ column }}, '(?i)\A{{ value }}\Z')
+{%- endmacro %}
+
+{% macro set_table_classification(relation) -%}
+    {%- set format = config.get('format', default='parquet') -%}
+
+    {% call statement('set_table_classification', auto_begin=False) -%}
+        alter table {{ relation }} set tblproperties ('classification' = '{{ format }}')
+    {%- endcall %}
+{%- endmacro %}
+
 {% macro athena__create_table_as(temporary, relation, sql) -%}
   {%- set external_location = config.get('external_location', default=none) -%}
   {%- set partitioned_by = config.get('partitioned_by', default=none) -%}
@@ -102,10 +114,6 @@
     drop {{ relation.type }} if exists {{ relation }}
   {%- endcall %}
 {% endmacro %}
-
-{% macro ilike(column, value) -%}
-	regexp_like({{ column }}, '(?i)\A{{ value }}\Z')
-{%- endmacro %}
 
 {% macro athena__current_timestamp() -%}
     -- pyathena converts time zoned timestamps to strings so lets avoid them

@@ -19,6 +19,9 @@
     {{ create_table_as(False, target_relation, sql) }}
   {% endcall -%}
 
+  -- set table properties
+  {{ set_table_classification(target_relation) }}
+
   {{ run_hooks(post_hooks) }}
 
   {% do persist_docs(target_relation, model) %}
