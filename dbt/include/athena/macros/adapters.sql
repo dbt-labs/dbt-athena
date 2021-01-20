@@ -81,7 +81,7 @@
       on tables.table_catalog = views.table_catalog
       and tables.table_schema = views.table_schema
       and tables.table_name = views.table_name
-    where {{ ilike('tables.table_schema', schema) }}
+    where {{ ilike('tables.table_schema', schema_relation.schema) }}
   {% endcall %}
   {{ return(load_result('list_relations_without_caching').table) }}
 {% endmacro %}
