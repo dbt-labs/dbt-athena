@@ -12,7 +12,7 @@ from pyathena.formatter import Formatter
 from pyathena.formatter import _DEFAULT_FORMATTERS, _escape_hive, _escape_presto
 
 from dbt.adapters.base import Credentials
-from dbt.contracts.connection import Connection
+from dbt.contracts.connection import Connection, AdapterResponse
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.exceptions import RuntimeException, FailedToConnectException
 from dbt.logger import GLOBAL_LOGGER as logger
@@ -78,11 +78,17 @@ class AthenaConnectionManager(SQLConnectionManager):
         return connection
 
     @classmethod
-    def get_status(cls, cursor) -> str:
+    def get_response(cls, cursor) -> AdapterResponse:
         if cursor.state == AthenaQueryExecution.STATE_SUCCEEDED:
-            return "OK"
+            code = "OK"
         else:
-            return "ERROR"
+            code = "ERROR"
+
+        return AdapterResponse(
+            _message="{} {}".format(code, cursor.rowcount),
+            rows_affected=cursor.rowcount,
+            code=code
+        )
 
     def cancel(self, connection: Connection):
         connection.handle.cancel()
