@@ -23,6 +23,7 @@ class AthenaCredentials(Credentials):
     s3_staging_dir: str
     region_name: str
     schema: str
+    work_group: Optional[str]
     _ALIASES = {
         "catalog": "database"
     }
@@ -33,7 +34,7 @@ class AthenaCredentials(Credentials):
         return "athena"
 
     def _connection_keys(self) -> Tuple[str, ...]:
-        return "s3_staging_dir", "region_name", "database", "schema"
+        return "s3_staging_dir", "work_group", "region_name", "database", "schema"
 
 
 class AthenaConnectionManager(SQLConnectionManager):
@@ -60,6 +61,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                 s3_staging_dir=creds.s3_staging_dir,
                 region_name=creds.region_name,
                 schema_name=creds.schema,
+                work_group=creds.work_group,
                 formatter=AthenaParameterFormatter()
             )
 
