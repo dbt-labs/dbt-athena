@@ -1,12 +1,15 @@
-from typing import ContextManager, Tuple, Optional, List
+from typing import ContextManager, Tuple, Optional, List, Dict, Any
 from dataclasses import dataclass
 from contextlib import contextmanager
 from copy import deepcopy
 from decimal import Decimal
+from concurrent.futures.thread import ThreadPoolExecutor
 
 from pyathena.connection import Connection as AthenaConnection
+from pyathena.result_set import AthenaResultSet
 from pyathena.model import AthenaQueryExecution
-from pyathena.error import ProgrammingError
+from pyathena.cursor import Cursor
+from pyathena.error import ProgrammingError, OperationalError
 from pyathena.formatter import Formatter
 # noinspection PyProtectedMember
 from pyathena.formatter import _DEFAULT_FORMATTERS, _escape_hive, _escape_presto
@@ -37,6 +40,52 @@ class AthenaCredentials(Credentials):
         return "s3_staging_dir", "work_group", "region_name", "database", "schema"
 
 
+class AthenaCursor(Cursor):
+    def __init__(self, **kwargs):
+        super(AthenaCursor, self).__init__(**kwargs)
+        self._executor = ThreadPoolExecutor()
+
+    def _collect_result_set(self, query_id: str) -> AthenaResultSet:
+        query_execution = self._poll(query_id)
+        return self._result_set_class(
+            connection=self._connection,
+            converter=self._converter,
+            query_execution=query_execution,
+            arraysize=self._arraysize,
+            retry_config=self._retry_config,
+        )
+
+    def execute(
+        self,
+        operation: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        work_group: Optional[str] = None,
+        s3_staging_dir: Optional[str] = None,
+        cache_size: int = 0,
+        cache_expiration_time: int = 0,
+    ):
+        query_id = self._execute(
+            operation,
+            parameters=parameters,
+            work_group=work_group,
+            s3_staging_dir=s3_staging_dir,
+            cache_size=cache_size,
+            cache_expiration_time=cache_expiration_time,
+        )
+        query_execution = self._executor.submit(self._collect_result_set, query_id).result()
+        if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
+            self.result_set = self._result_set_class(
+                self._connection,
+                self._converter,
+                query_execution,
+                self.arraysize,
+                self._retry_config,
+            )
+        else:
+            raise OperationalError(query_execution.state_change_reason)
+        return self
+
+
 class AthenaConnectionManager(SQLConnectionManager):
     TYPE = "athena"
 
@@ -62,6 +111,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                 region_name=creds.region_name,
                 schema_name=creds.schema,
                 work_group=creds.work_group,
+                cursor_class=AthenaCursor,
                 formatter=AthenaParameterFormatter()
             )
 
