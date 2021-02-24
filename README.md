@@ -89,15 +89,17 @@ The following features of dbt are not implemented on Athena:
 
 ### Running tests
 
-#### `pytest-dbt-adapter`
+First, install the adapter and its dependencies using `make` (see [Makefile](Makefile)):
 
-* `pip install -r dev_requirements.txt`
-* Set required environmental variables
-  * `DBT_TEST_ATHENA_S3_STAGING_DIR`
-  * `DBT_TEST_ATHENA_REGION`
-  * `DBT_TEST_ATHENA_DATABASE`
-  * `DBT_TEST_ATHENA_SCHEMA`
-* `pytest test/integration/athena.dbtspec`
+```bash
+make install_deps
+```
+
+Next, configure the environment variables in [dev.env](dev.env) to match your Athena development environment. Finally, run the tests using `make`:
+
+```bash
+make run_tests
+```
 
 ### Community
 
