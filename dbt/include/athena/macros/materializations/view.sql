@@ -1,9 +1,50 @@
+{% macro create_or_replace_view(run_outside_transaction_hooks=True) %}
+  {%- set identifier = model['alias'] -%}
+  {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
+  {%- set exists_as_view = (old_relation is not none and old_relation.is_view) -%}
+  {%- set target_relation = api.Relation.create(
+      identifier=identifier, schema=schema, database=database,
+      type='view') -%}
+  {% if run_outside_transaction_hooks %}
+      -- no transactions on BigQuery
+      {{ run_hooks(pre_hooks, inside_transaction=False) }}
+  {% endif %}
+  -- `BEGIN` happens here on Snowflake
+  {{ run_hooks(pre_hooks, inside_transaction=True) }}
+  -- If there's a table with the same name and we weren't told to full refresh,
+  -- that's an error. If we were told to full refresh, drop it. This behavior differs
+  -- for Snowflake and BigQuery, so multiple dispatch is used.
+  {%- if old_relation is not none and old_relation.is_table -%}
+    {{ handle_existing_table(should_full_refresh(), old_relation) }}
+  {%- endif -%}
+
+  -- build model
+  {% call statement('main') -%}
+    {{ create_view_as(target_relation, sql) }}
+  {%- endcall %}
+
+  -- set table properties
+  {{ set_table_classification(target_relation, 'view') }}
+
+  {{ run_hooks(post_hooks, inside_transaction=True) }}
+
+  {{ adapter.commit() }}
+
+  {% if run_outside_transaction_hooks %}
+      -- No transactions on BigQuery
+      {{ run_hooks(post_hooks, inside_transaction=False) }}
+  {% endif %}
+
+  {{ return({'relations': [target_relation]}) }}
+
+{% endmacro %}
+
 
 {% materialization view, adapter='athena' -%}
-    {%- set identifier = model['alias'] -%}
+    {% set to_return = create_or_replace_view(run_outside_transaction_hooks=False) %}
 
     {% set target_relation = this.incorporate(type='view') %}
     {% do persist_docs(target_relation, model) %}
 
-    {{ return(create_or_replace_view(run_outside_transaction_hooks=False)) }}
+    {% do return(to_return) %}
 {%- endmaterialization %}

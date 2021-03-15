@@ -20,7 +20,7 @@
   {% endcall -%}
 
   -- set table properties
-  {{ set_table_classification(target_relation) }}
+  {{ set_table_classification(target_relation, 'parquet') }}
 
   {{ run_hooks(post_hooks) }}
 
