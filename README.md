@@ -21,12 +21,12 @@
 
 A dbt profile can be configured to run against AWS Athena using the following configuration:
 
-| Option         	| Description                                               	| Required? 	| Example            	|
-|----------------	|-----------------------------------------------------------	|-----------	|--------------------	|
-| s3_staging_dir 	| S3 location to store Athena query results and metadata    	| Required  	| `s3://bucket/dbt/` 	|
-| region_name    	| AWS region of your Athena instance                        	| Required  	| `eu-west-1`        	|
-| schema         	| Specify the schema (Athena database) to build models into 	| Required  	| `dbt`              	|
-| database       	| Specify the database (Data catalog) to build models into  	| Required  	| `awsdatacatalog`   	|
+| Option         	| Description                                                                    	| Required? 	| Example            	|
+|----------------	|--------------------------------------------------------------------------------	|-----------	|--------------------	|
+| s3_staging_dir 	| S3 location to store Athena query results and metadata                         	| Required  	| `s3://bucket/dbt/` 	|
+| region_name    	| AWS region of your Athena instance                                             	| Required  	| `eu-west-1`        	|
+| schema         	| Specify the schema (Athena database) to build models into (lowercase **only**) 	| Required  	| `dbt`              	|
+| database       	| Specify the database (Data catalog) to build models into (lowercase **only**)  	| Required  	| `awsdatacatalog`   	|
 
 **Example profiles.yml entry:**
 ```yaml
@@ -54,6 +54,13 @@ _Additional information_
 * `external_location` (`default=none`)
   * The location where Athena saves your table in Amazon S3
   * If `none` then it will default to `{s3_staging_dir}/tables`
+  * **Note** If you are using a static value, when your table is recreated Athena will not remove the underlying redundant 
+    data causing a `HIVE_PATH_ALREADY_EXISTS` error. Ideally you should set a dynamic value to avoid this issue.
+    Here are some example of dynamic values.
+    * `external_location="s3://dbt-tables/example-directory/" + run_started_at.isoformat()`
+      * [run_started_at][run_started_at]
+    * `external_location="s3://dbt-tables/example-directory/" + invocation_id`
+      * [invocation_id][invocation_id]
 * `partitioned_by` (`default=none`)
   * An array list of columns by which the table will be partitioned
   * Limited to creation of 100 partitions (_currently_)
@@ -69,6 +76,8 @@ _Additional information_
   
 More information: [CREATE TABLE AS][create-table-as]
 
+[run_started_at]: https://docs.getdbt.com/reference/dbt-jinja-functions/run_started_at
+[invocation_id]: https://docs.getdbt.com/reference/dbt-jinja-functions/invocation_id
 [create-table-as]: https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html
 
 #### Supported functionality
@@ -84,6 +93,7 @@ The following features of dbt are not implemented on Athena:
 #### Known issues
 
 * Quoting is not currently supported
+* Tables, schemas and database should only be lowercase
 * **Only** supports Athena engine 2
   * [Changing Athena Engine Versions][engine-change]
 
