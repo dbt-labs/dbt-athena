@@ -21,12 +21,13 @@
 
 A dbt profile can be configured to run against AWS Athena using the following configuration:
 
-| Option         	| Description                                                                    	| Required? 	| Example            	|
-|----------------	|--------------------------------------------------------------------------------	|-----------	|--------------------	|
-| s3_staging_dir 	| S3 location to store Athena query results and metadata                         	| Required  	| `s3://bucket/dbt/` 	|
-| region_name    	| AWS region of your Athena instance                                             	| Required  	| `eu-west-1`        	|
-| schema         	| Specify the schema (Athena database) to build models into (lowercase **only**) 	| Required  	| `dbt`              	|
-| database       	| Specify the database (Data catalog) to build models into (lowercase **only**)  	| Required  	| `awsdatacatalog`   	|
+| Option          | Description                                                                     | Required?  | Example             |
+|---------------- |-------------------------------------------------------------------------------- |----------- |-------------------- |
+| s3_staging_dir  | S3 location to store Athena query results and metadata                          | Required   | `s3://bucket/dbt/`  |
+| region_name     | AWS region of your Athena instance                                              | Required   | `eu-west-1`         |
+| schema          | Specify the schema (Athena database) to build models into (lowercase **only**)  | Required   | `dbt`               |
+| database        | Specify the database (Data catalog) to build models into (lowercase **only**)   | Required   | `awsdatacatalog`    |
+| poll_interval   | Interval in seconds to use for polling the status of query results in Athena    | Optional   | `5`                 |
 
 **Example profiles.yml entry:**
 ```yaml
