@@ -42,31 +42,34 @@
 
                     from {{ information_schema }}.columns
 
+                ),
+
+                catalog as (
+
+                    select
+                        tables.table_database,
+                        tables.table_schema,
+                        tables.table_name,
+                        tables.table_type,
+                        tables.table_comment,
+                        columns.column_name,
+                        columns.column_index,
+                        columns.column_type,
+                        columns.column_comment,
+                        tables.table_owner
+
+                    from tables
+                    join columns
+                        on tables."table_database" = columns."table_database"
+                        and tables."table_schema" = columns."table_schema"
+                        and tables."table_name" = columns."table_name"
+
                 )
 
-                select
-                    tables.table_database,
-                    tables.table_schema,
-                    tables.table_name,
-                    tables.table_type,
-                    tables.table_comment,
-                    columns.column_name,
-                    columns.column_index,
-                    columns.column_type,
-                    columns.column_comment,
-                    tables.table_owner
-
-                from tables
-                join columns
-                    on tables."table_database" = columns."table_database"
-                    and tables."table_schema" = columns."table_schema"
-                    and tables."table_name" = columns."table_name"
-                where "columns"."table_schema" != 'information_schema'
-                and (
-                    {%- for schema in schemas -%}
-                    upper (tables."table_schema") = upper ('{{ schema }}') {%- if not loop.last %} or {% endif -%}
-                    {%- endfor -%}
-                )
+                {%- for schema in schemas -%}
+                select * from catalog where lower("table_schema") = lower('{{ schema }}')
+                {%- if not loop.last %} union all {% endif -%}
+                {%- endfor -%}
             )
         )
   {%- endset -%}
