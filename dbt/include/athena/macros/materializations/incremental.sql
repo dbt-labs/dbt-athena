@@ -49,7 +49,7 @@
 
   -- set table properties
   {% if not to_drop %}
-    {{ set_table_classification(target_relation) }}
+    {{ set_table_classification(target_relation, 'parquet') }}
   {% endif %}
 
   {% do persist_docs(target_relation, model) %}
