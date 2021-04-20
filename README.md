@@ -94,6 +94,20 @@ The following features of dbt are not implemented on Athena:
 #### Known issues
 
 * Quoting is not currently supported
+  * If you need to quote your sources, escape the quote characters in your source definitions:
+  
+  ```yaml
+  version: 2
+
+  sources:
+    - name: my_source
+      tables:
+        - name: first_table
+          identifier: "first table"       # Not like that
+        - name: second_table
+          idenfitier: "\"second table\""  # Like this
+  ```
+
 * Tables, schemas and database should only be lowercase
 * **Only** supports Athena engine 2
   * [Changing Athena Engine Versions][engine-change]
