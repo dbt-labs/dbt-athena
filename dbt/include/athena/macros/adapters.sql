@@ -18,7 +18,7 @@
     {{ relation }}
 
     with (
-      {%- if external_location is not none %}
+      {%- if external_location is not none and not temporary %}
         external_location='{{ external_location }}',
       {%- endif %}
       {%- if partitioned_by is not none %}
