@@ -27,6 +27,7 @@ class AthenaCredentials(Credentials):
     region_name: str
     schema: str
     work_group: Optional[str]
+    aws_profile_name: Optional[str]
     poll_interval: float = 1.0
     _ALIASES = {
         "catalog": "database"
@@ -38,7 +39,7 @@ class AthenaCredentials(Credentials):
         return "athena"
 
     def _connection_keys(self) -> Tuple[str, ...]:
-        return "s3_staging_dir", "work_group", "region_name", "database", "schema", "poll_interval"
+        return "s3_staging_dir", "work_group", "region_name", "database", "schema", "poll_interval", "aws_profile_name"
 
 
 class AthenaCursor(Cursor):
@@ -115,6 +116,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                 cursor_class=AthenaCursor,
                 formatter=AthenaParameterFormatter(),
                 poll_interval=creds.poll_interval,
+                profile_name=creds.aws_profile_name
             )
 
             connection.state = "open"

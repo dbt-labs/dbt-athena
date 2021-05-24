@@ -35,7 +35,7 @@ Notes:
 ### Credentials
 
 This plugin does not accept any credentials directly. Instead, [credentials are determined automatically](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html) based on `aws cli`/`boto3` conventions and
-stored login info.
+stored login info. You can configure the AWS profile name to use via `aws_profile_name`. Checkout DBT profile configuration below for details.
 
 ### Configuring your profile
 
@@ -48,6 +48,7 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | schema          | Specify the schema (Athena database) to build models into (lowercase **only**)  | Required   | `dbt`               |
 | database        | Specify the database (Data catalog) to build models into (lowercase **only**)   | Required   | `awsdatacatalog`    |
 | poll_interval   | Interval in seconds to use for polling the status of query results in Athena    | Optional   | `5`                 |
+| aws_profile_name| Profile to use from your AWS shared credentials file.                           | Optional   | `my-profile`        |
 
 **Example profiles.yml entry:**
 ```yaml
@@ -60,6 +61,7 @@ athena:
       region_name: eu-west-1
       schema: dbt
       database: awsdatacatalog
+      aws_profile_name: my-profile
 ```
 
 _Additional information_
