@@ -27,7 +27,7 @@ class AthenaCredentials(Credentials):
     region_name: str
     schema: str
     work_group: Optional[str] = None
-    aws_profile_name: Optional[str]
+    aws_profile_name: Optional[str] = None
     poll_interval: float = 1.0
     _ALIASES = {
         "catalog": "database"
