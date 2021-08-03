@@ -38,6 +38,9 @@
       {% set build_sql = create_table_as(False, target_relation, sql) %}
   {% else %}
       {% set tmp_relation = make_temp_relation(target_relation) %}
+      {% if tmp_relation is not none %}
+          {% do adapter.drop_relation(tmp_relation) %}
+      {% endif %}
       {% do run_query(create_table_as(True, tmp_relation, sql)) %}
       {% set build_sql = incremental_insert(tmp_relation, target_relation) %}
       {% do to_drop.append(tmp_relation) %}
