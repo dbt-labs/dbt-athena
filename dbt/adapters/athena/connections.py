@@ -22,7 +22,6 @@ from dbt.adapters.sql import SQLConnectionManager
 from dbt.exceptions import RuntimeException, FailedToConnectException
 from dbt.logger import GLOBAL_LOGGER as logger
 
-
 @dataclass
 class AthenaCredentials(Credentials):
     s3_staging_dir: str

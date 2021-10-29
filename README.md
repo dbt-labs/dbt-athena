@@ -3,8 +3,8 @@
 * Supports dbt version `0.20.0`
 * Supports [Seeds][seeds]
 * Correctly detects views and their columns
-* **Experimental** support for [incremental models][incremental]
-  * **Only** inserts
+* Support [incremental models][incremental]
+  * Support two incremental update strategies: `insert_overwrite` and `append`
   * Does **not** support the use of `unique_key`
 * **Only** supports Athena engine 2
   * [Changing Athena Engine Versions][engine-change]
@@ -64,6 +64,7 @@ athena:
       schema: dbt
       database: awsdatacatalog
       aws_profile_name: my-profile
+      work_group: my-workgroup
 ```
 
 _Additional information_
@@ -79,13 +80,7 @@ _Additional information_
 * `external_location` (`default=none`)
   * The location where Athena saves your table in Amazon S3
   * If `none` then it will default to `{s3_staging_dir}/tables`
-  * **Note** If you are using a static value, when your table is recreated Athena will not remove the underlying redundant 
-    data causing a `HIVE_PATH_ALREADY_EXISTS` error. Ideally you should set a dynamic value to avoid this issue.
-    Here are some example of dynamic values.
-    * `external_location="s3://dbt-tables/example-directory/" + run_started_at.isoformat()`
-      * [run_started_at][run_started_at]
-    * `external_location="s3://dbt-tables/example-directory/" + invocation_id`
-      * [invocation_id][invocation_id]
+  * If you are using a static value, when your table/partition is recreated underlying data will be cleaned up and overwritten by new data
 * `partitioned_by` (`default=none`)
   * An array list of columns by which the table will be partitioned
   * Limited to creation of 100 partitions (_currently_)
@@ -107,8 +102,8 @@ More information: [CREATE TABLE AS][create-table-as]
 
 #### Supported functionality
 
-**Experimental** support for incremental models.
-* **Only** inserts
+Support for incremental models:
+* Support two incremental update strategies with partitioned tables: `insert_overwrite` and `append`
 * Does **not** support the use of `unique_key`
 
 Due to the nature of AWS Athena, not all core dbt functionality is supported.
