@@ -29,7 +29,7 @@ package_version = _dbt_presto_version()
 description = """The athena adapter plugin for dbt (data build tool)"""
 
 
-dbt_version = "0.20.0"
+dbt_version = "0.21.0"
 
 if not package_version.startswith(dbt_version):
     raise ValueError(
@@ -59,7 +59,7 @@ setup(
         ]
     },
     install_requires=[
-        "dbt-core==0.20.0",
+        "dbt-core==0.21.0",
         "pyathena==2.2.0",
     ]
 )
