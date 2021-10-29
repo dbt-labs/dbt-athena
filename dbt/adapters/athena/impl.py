@@ -47,8 +47,11 @@ class AthenaAdapter(SQLAdapter):
         self, database_name: str, table_name: str, where_condition: str
     ):
         # Look up Glue partitions & clean up
-        glue_client = boto3.client('glue')
-        s3_resource = boto3.resource('s3')
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        glue_client = boto3.client('glue', region_name=client.region_name)
+        s3_resource = boto3.resource('s3', region_name=client.region_name)
         partitions = glue_client.get_partitions(
             # CatalogId='123456789012', # Need to make this configurable if it is different from default AWS Account ID
             DatabaseName=database_name,
@@ -70,7 +73,9 @@ class AthenaAdapter(SQLAdapter):
         self, database_name: str, table_name: str
     ):
         # Look up Glue partitions & clean up
-        glue_client = boto3.client('glue')
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+        glue_client = boto3.client('glue', region_name=client.region_name)
         try:
             table = glue_client.get_table(
                 DatabaseName=database_name,
@@ -88,7 +93,7 @@ class AthenaAdapter(SQLAdapter):
             if m is not None:
                 bucket_name = m.group(1)
                 prefix = m.group(2)
-                s3_resource = boto3.resource('s3')
+                s3_resource = boto3.resource('s3', region_name=client.region_name)
                 s3_bucket = s3_resource.Bucket(bucket_name)
                 s3_bucket.objects.filter(Prefix=prefix).delete()
 
