@@ -21,6 +21,11 @@ from dbt.contracts.connection import Connection, AdapterResponse
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.exceptions import RuntimeException, FailedToConnectException
 from dbt.logger import GLOBAL_LOGGER as logger
+import tenacity
+from tenacity.retry import retry_if_exception
+from tenacity.stop import stop_after_attempt
+from tenacity.wait import wait_exponential
+
 
 @dataclass
 class AthenaCredentials(Credentials):
@@ -69,26 +74,42 @@ class AthenaCursor(Cursor):
         cache_size: int = 0,
         cache_expiration_time: int = 0,
     ):
-        query_id = self._execute(
-            operation,
-            parameters=parameters,
-            work_group=work_group,
-            s3_staging_dir=s3_staging_dir,
-            cache_size=cache_size,
-            cache_expiration_time=cache_expiration_time,
-        )
-        query_execution = self._executor.submit(self._collect_result_set, query_id).result()
-        if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
-            self.result_set = self._result_set_class(
-                self._connection,
-                self._converter,
-                query_execution,
-                self.arraysize,
-                self._retry_config,
+        def inner():
+            query_id = self._execute(
+                operation,
+                parameters=parameters,
+                work_group=work_group,
+                s3_staging_dir=s3_staging_dir,
+                cache_size=cache_size,
+                cache_expiration_time=cache_expiration_time,
             )
-        else:
-            raise OperationalError(query_execution.state_change_reason)
-        return self
+            query_execution = self._executor.submit(
+                self._collect_result_set, query_id
+            ).result()
+            if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
+                self.result_set = self._result_set_class(
+                    self._connection,
+                    self._converter,
+                    query_execution,
+                    self.arraysize,
+                    self._retry_config,
+                )
+
+            else:
+                raise OperationalError(query_execution.state_change_reason)
+            return self
+
+        retry = tenacity.Retrying(
+            retry=retry_if_exception(lambda _: True),
+            stop=stop_after_attempt(self._retry_config.attempt),
+            wait=wait_exponential(
+                multiplier=self._retry_config.attempt,
+                max=self._retry_config.max_delay,
+                exp_base=self._retry_config.exponential_base,
+            ),
+            reraise=True,
+        )
+        return retry(inner)
 
 
 class AthenaConnectionManager(SQLConnectionManager):
