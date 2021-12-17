@@ -41,16 +41,19 @@ stored login info. You can configure the AWS profile name to use via `aws_profil
 
 A dbt profile can be configured to run against AWS Athena using the following configuration:
 
-| Option          | Description                                                                     | Required?  | Example             |
-|---------------- |-------------------------------------------------------------------------------- |----------- |-------------------- |
-| s3_staging_dir  | S3 location to store Athena query results and metadata                          | Required   | `s3://bucket/dbt/`  |
-| region_name     | AWS region of your Athena instance                                              | Required   | `eu-west-1`         |
-| schema          | Specify the schema (Athena database) to build models into (lowercase **only**)  | Required   | `dbt`               |
-| database        | Specify the database (Data catalog) to build models into (lowercase **only**)   | Required   | `awsdatacatalog`    |
-| poll_interval   | Interval in seconds to use for polling the status of query results in Athena    | Optional   | `5`                 |
-| aws_profile_name| Profile to use from your AWS shared credentials file.                           | Optional   | `my-profile`        |
-| work_group| Identifier of Athena workgroup   | Optional   | `my-custom-workgroup`        |
-| num_retries| Number of times to retry a failing query | Optional  | `3`  | `5`
+| Option          | Description                                                                     | Required?  | Example               |
+|---------------- |-------------------------------------------------------------------------------- |----------- |---------------------- |
+| s3_staging_dir  | S3 location to store Athena query results and metadata                          | Required   | `s3://bucket/dbt/`    |
+| region_name     | AWS region of your Athena instance                                              | Required   | `eu-west-1`           |
+| schema          | Specify the schema (Athena database) to build models into (lowercase **only**)  | Required   | `dbt`                 |
+| database        | Specify the database (Data catalog) to build models into (lowercase **only**)   | Required   | `awsdatacatalog`      |
+| poll_interval   | Interval in seconds to use for polling the status of query results in Athena    | Optional   | `5`                   |
+| aws_profile_name| Profile to use from your AWS shared credentials file.                           | Optional   | `my-profile`          |
+| work_group      | Identifier of Athena workgroup                                                  | Optional   | `my-custom-workgroup` |
+| num_retries     | Number of times to retry a failing query                                        | Optional   | `3`                   |
+| s3_data_dir     | Prefix for storing tables, if different from the connection's `s3_staging_dir`  | Optional   | `s3://bucket2/dbt/`   |
+| s3_data_naming  | How to generate table paths in `s3_data_dir`: `uuid/schema_table`               | Optional   | `uuid`                |
+
 
 **Example profiles.yml entry:**
 ```yaml
@@ -78,9 +81,7 @@ _Additional information_
 #### Table Configuration
 
 * `external_location` (`default=none`)
-  * The location where Athena saves your table in Amazon S3
-  * If `none` then it will default to `{s3_staging_dir}/tables`
-  * If you are using a static value, when your table/partition is recreated underlying data will be cleaned up and overwritten by new data
+  * If set, the full S3 path in which the table will be saved.
 * `partitioned_by` (`default=none`)
   * An array list of columns by which the table will be partitioned
   * Limited to creation of 100 partitions (_currently_)
@@ -93,7 +94,15 @@ _Additional information_
   * Supports `ORC`, `PARQUET`, `AVRO`, `JSON`, or `TEXTFILE`
 * `field_delimiter` (`default=none`)
   * Custom field delimiter, for when format is set to `TEXTFILE`
-  
+
+The location in which a table is saved is determined by:
+
+1. If `external_location` is defined, that value is used.
+2. If `s3_data_dir` is defined, the path is determined by that and `s3_data_naming`:
+   + `s3_data_naming=uuid`: `{s3_data_dir}/{uuid4()}/`
+   + `s3_data_naming=schema_table`: `{s3_data_dir}/{schema}/{table}/`
+3. Otherwise, the default location for a CTAS query is used, which will depend on how your workgroup is configured.
+
 More information: [CREATE TABLE AS][create-table-as]
 
 [run_started_at]: https://docs.getdbt.com/reference/dbt-jinja-functions/run_started_at

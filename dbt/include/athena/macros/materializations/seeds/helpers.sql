@@ -21,7 +21,7 @@
         {%- endfor -%}
     )
     stored as parquet
-    location '{{ adapter.s3_uuid_table_location() }}'
+    location '{{ adapter.s3_table_location(model["schema"], model["alias"]) }}'
     tblproperties ('classification'='parquet')
   {% endset %}
 
