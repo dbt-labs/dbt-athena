@@ -1,0 +1,14 @@
+fixed:
+  type: athena
+prompts:
+  s3_staging_dir:
+    hint: S3 location to store Athena query results and metadata
+
+  region_name:
+    hint: AWS region of your Athena instance
+
+  schema:
+    hint: Specify the schema (Athena database) to build models into (lowercase only)
+
+  database:
+    hint: Specify the database (Data catalog) to build models into (lowercase only)

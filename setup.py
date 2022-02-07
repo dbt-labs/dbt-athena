@@ -29,7 +29,7 @@ package_version = _dbt_athena_version()
 description = """The athena adapter plugin for dbt (data build tool)"""
 
 
-dbt_version = "0.21.0"
+dbt_version = "1.0"
 
 if not package_version.startswith(dbt_version):
     raise ValueError(
@@ -50,16 +50,9 @@ setup(
     author_email="tomelvey@googlemail.com",
     url="https://github.com/Tomme/dbt-athena",
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
-    package_data={
-        "dbt": [
-            "include/athena/dbt_project.yml",
-            "include/athena/sample_profiles.yml",
-            "include/athena/macros/*.sql",
-            "include/athena/macros/*/*.sql",
-        ]
-    },
+    include_package_data=True,
     install_requires=[
-        "dbt-core==0.21.0",
+        "dbt-core~=1.0.0",
         "pyathena==2.2.0",
         "boto3==1.18.12",
         "tenacity==6.3.1",

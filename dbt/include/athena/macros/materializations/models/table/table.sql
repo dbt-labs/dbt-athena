@@ -1,4 +1,3 @@
-
 {% materialization table, adapter='athena' -%}
   {%- set identifier = model['alias'] -%}
 

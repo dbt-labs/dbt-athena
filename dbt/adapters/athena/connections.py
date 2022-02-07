@@ -20,11 +20,14 @@ from dbt.adapters.base import Credentials
 from dbt.contracts.connection import Connection, AdapterResponse
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.exceptions import RuntimeException, FailedToConnectException
-from dbt.logger import GLOBAL_LOGGER as logger
+from dbt.events import AdapterLogger
+
 import tenacity
 from tenacity.retry import retry_if_exception
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_exponential
+
+logger = AdapterLogger("Athena")
 
 
 @dataclass

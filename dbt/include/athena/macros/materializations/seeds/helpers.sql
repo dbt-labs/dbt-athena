@@ -1,4 +1,3 @@
-
 {% macro default__reset_csv_table(model, full_refresh, old_relation, agate_table) %}
     {% set sql = "" %}
     -- No truncate in Athena so always drop CSV table and recreate
