@@ -23,9 +23,6 @@
     {{ create_view_as(target_relation, sql) }}
   {%- endcall %}
 
-  -- set table properties
-  {{ set_table_classification(target_relation, 'view') }}
-
   {{ run_hooks(post_hooks, inside_transaction=True) }}
 
   {{ adapter.commit() }}
