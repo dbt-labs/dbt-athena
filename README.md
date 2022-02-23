@@ -124,7 +124,7 @@ The following features of dbt are not implemented on Athena:
         - name: first_table
           identifier: "first table"       # Not like that
         - name: second_table
-          idenfitier: "\"second table\""  # Like this
+          identifier: "\"second table\""  # Like this
   ```
 
 * Tables, schemas and database should only be lowercase
