@@ -97,7 +97,7 @@
         table_name as name,
         table_schema as schema
       from {{ schema_relation.information_schema() }}.views
-      where LOWER(table_schema) = LOWER('{{ schema_relation.schema }}')
+      where table_schema = LOWER('{{ schema_relation.schema }}')
     ), tables AS (
       select
         table_catalog as database,
@@ -105,7 +105,7 @@
         table_schema as schema
 
       from {{ schema_relation.information_schema() }}.tables
-      where LOWER(table_schema) = LOWER('{{ schema_relation.schema }}')
+      where table_schema = LOWER('{{ schema_relation.schema }}')
 
       -- Views appear in both `tables` and `views`, so excluding them from tables
       EXCEPT 
