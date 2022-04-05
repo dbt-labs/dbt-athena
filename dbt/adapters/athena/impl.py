@@ -11,6 +11,7 @@ from dbt.adapters.sql import SQLAdapter
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.relation import AthenaRelation
 from dbt.events import AdapterLogger
+from dbt.exceptions import RuntimeException
 logger = AdapterLogger("Athena")
 
 boto3_client_lock = Lock()
@@ -73,6 +74,14 @@ class AthenaAdapter(SQLAdapter):
                 prefix = m.group(2)
                 s3_bucket = s3_resource.Bucket(bucket_name)
                 s3_bucket.objects.filter(Prefix=prefix).delete()
+                response = s3_bucket.objects.filter(Prefix=prefix).delete()
+                # response is empty if there is no error.
+                if len(response) != 0:
+                    for res in response:
+                        if "Errors" in res:
+                            for err in res["Errors"]:
+                                logger.error("Failed to clean up partitions caused by failure in S3 object Key='{}', Code='{}', Message='{}', s3_bucket_name='{}'", err["Key"], err["Code"], err["Message"], bucket_name)
+                    raise RuntimeException("Failed to clean up table partitions.")
 
     @available
     def clean_up_table(
