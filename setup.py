@@ -52,9 +52,9 @@ setup(
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
     install_requires=[
-        "dbt-core~=1.0.0",
-        "pyathena==2.2.0",
-        "boto3==1.18.12",
-        "tenacity==6.3.1",
+        "dbt-core>=1.0.1",
+        "pyathena>=2.2.0",
+        "boto3>=1.18.12",
+        "tenacity>=6.3.1",
     ]
 )
