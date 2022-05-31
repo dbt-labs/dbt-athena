@@ -218,6 +218,9 @@ class AthenaParameterFormatter(Formatter):
         ):
             escaper = _escape_presto
         else:
+            # Fixes ParseException that comes with newer version of PyAthena
+            operation = operation.replace("\n\n    ", "\n")
+
             escaper = _escape_hive
 
         kwargs: Optional[List[str]] = None
