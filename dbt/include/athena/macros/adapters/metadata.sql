@@ -65,9 +65,21 @@
 
                 )
 
-                {%- for schema in schemas -%}
-                select * from catalog where lower("table_schema") = lower('{{ schema }}')
-                {%- if not loop.last %} union all {% endif -%}
+                {%- for schema, relations in schemas.items() -%}
+                  {%- for relation_batch in relations|batch(100) %}
+                    select * from catalog
+                    where "table_schema" = lower('{{ schema }}') 
+                      and (
+                        {%- for relation in relation_batch -%}
+                          "table_name" = lower('{{ relation }}')
+                        {%- if not loop.last %} or {% endif -%}
+                        {%- endfor -%}
+                      )
+
+                    {%- if not loop.last %} union all {% endif -%}
+                  {%- endfor -%}
+
+                  {%- if not loop.last %} union all {% endif -%}
                 {%- endfor -%}
             )
         )
