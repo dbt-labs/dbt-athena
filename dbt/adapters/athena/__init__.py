@@ -1,3 +1,4 @@
+from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.connections import AthenaConnectionManager
 from dbt.adapters.athena.connections import AthenaCredentials
 from dbt.adapters.athena.impl import AthenaAdapter

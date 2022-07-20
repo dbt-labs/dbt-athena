@@ -11,6 +11,7 @@ from dbt.adapters.base.impl import GET_CATALOG_MACRO_NAME
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.adapters.athena import AthenaConnectionManager
+from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
 from dbt.contracts.graph.compiled import CompileResultNode
 from dbt.contracts.graph.manifest import Manifest
@@ -23,6 +24,7 @@ boto3_client_lock = Lock()
 class AthenaAdapter(SQLAdapter):
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
+    Column = AthenaColumn
 
     @classmethod
     def date_function(cls) -> str:
