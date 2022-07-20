@@ -11,8 +11,11 @@
   {% do return(raw_strategy) %}
 {% endmacro %}
 
-{% macro incremental_insert(tmp_relation, target_relation, statement_name="main") %}
-    {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
+{% macro incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation, statement_name="main") %}
+    {% set dest_columns = process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
+    {% if not dest_columns %}
+      {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
+    {% endif %}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
     insert into {{ target_relation }} ({{ dest_cols_csv }})
@@ -53,4 +56,14 @@
   {%- for i in range(partitions | length) %}
     {%- do adapter.clean_up_partitions(target_relation.schema, target_relation.table, partitions[i]) -%}
   {%- endfor -%}
+{%- endmacro %}
+
+{% macro remove_partitions_from_columns(columns_with_partitions, partition_keys) %}
+  {%- set columns = [] -%}
+  {%- for column in columns_with_partitions -%}
+    {%- if column.name not in partition_keys -%}
+      {%- do columns.append(column) -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {{ return(columns) }}
 {%- endmacro %}
