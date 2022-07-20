@@ -1,5 +1,7 @@
 from dbt.adapters.base import AdapterPlugin
 
+import dbt.adapters.athena.query_headers
+from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.connections import (  # NOQA
     AthenaConnectionManager,
     AthenaCredentials,
