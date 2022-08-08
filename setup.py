@@ -9,7 +9,7 @@ with open(os.path.join(this_directory, 'README.md')) as f:
     long_description = f.read()
 
 
-package_name = "dbt-athena"
+package_name = "dbt-athena-adapter"
 
 
 # get this from a separate file
