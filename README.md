@@ -15,7 +15,8 @@
 
 ### Installation
 
-`pip install git+https://github.com/Tomme/dbt-athena.git`
+* `pip install dbt-athena-adapter`
+* Or `pip install git+https://github.com/Tomme/dbt-athena.git`
 
 ### Prerequisites
 
