@@ -191,25 +191,6 @@ Due to the nature of AWS Athena, not all core dbt functionality is supported.
 The following features of dbt are not implemented on Athena:
 * Snapshots
 
-#### Known issues
-
-* Quoting is not currently supported
-  * If you need to quote your sources, escape the quote characters in your source definitions:
-
-  ```yaml
-  version: 2
-
-  sources:
-    - name: my_source
-      tables:
-        - name: first_table
-          identifier: "first table"       # Not like that
-        - name: second_table
-          identifier: "\"second table\""  # Like this
-  ```
-
-* Tables, schemas and database should only be lowercase
-
 ### Contributing
 
 This connector works with Python from 3.7 to 3.10.
