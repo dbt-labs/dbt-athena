@@ -51,30 +51,40 @@
 {% macro create_iceberg_table_definition(relation, dest_columns) -%}
   {%- set external_location = config.get('external_location', default=none) -%}
   {%- set partitioned_by = config.get('partitioned_by', default=none) -%}
-  {%- set partitioned_by_csv = partitioned_by | join(', ') -%}
+  {%- set table_properties = config.get('table_properties', default={}) -%}
+  {%- set _ = table_properties.update({'table_type': 'ICEBERG'}) -%}
+  {%- set table_properties_formatted = [] -%}
   {%- set dest_columns_with_type = [] -%}
 
+  {%- for k in table_properties -%}
+  	{% set _ = table_properties_formatted.append("'" + k + "'='" + table_properties[k] + "'") -%}
+  {%- endfor -%}
+
+  {%- set table_properties_csv= table_properties_formatted | join(', ') -%}
+
   {%- if external_location is none %}
-        {%- set default_location = target.s3_staging_dir -%}
-        {%- set external_location= default_location + relation.name + '/' -%}
+     {%- set default_location = target.s3_staging_dir -%}
+     {%- set external_location= default_location + relation.name + '/' -%}
   {%- endif %}
 
   {%- for col in dest_columns -%}
 	{% set dtype = iceberg_data_type(col.dtype) -%}
-  	{% set t = dest_columns_with_type.append(col.name + ' ' + dtype) -%}
+  	{% set _ = dest_columns_with_type.append(col.name + ' ' + dtype) -%}
   {%- endfor -%}
 
   {%- set dest_columns_with_type_csv = dest_columns_with_type | join(', ') -%}
-
 
   CREATE TABLE {{ relation }} (
     {{ dest_columns_with_type_csv }}
   )
   {%- if partitioned_by is not none %}
-  PARTITIONED BY ({{partitioned_by_csv}})
+    {%- set partitioned_by_csv = partitioned_by | join(', ') -%}
+  	PARTITIONED BY ({{partitioned_by_csv}})
   {%- endif %}
   LOCATION '{{ external_location }}'
-  TBLPROPERTIES ( 'table_type' = 'ICEBERG' )
+  TBLPROPERTIES (
+  	{{table_properties_csv}}
+  )
 
 {% endmacro %}
 
