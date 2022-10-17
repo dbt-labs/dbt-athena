@@ -53,14 +53,7 @@
   {%- endif %}
 
   {%- for col in dest_columns -%}
-	{%- if 'varchar' in col.dtype -%}
-        {% set dtype = 'string' -%}
-    {%- elif 'integer' == col.dtype -%}
-        {% set dtype = 'int' -%}
-    {%- else -%}
-        {% set dtype = col.dtype -%}
-    {%- endif -%}
-
+	{% set dtype = iceberg_data_type(col.dtype) -%}
   	{% set t = dest_columns_with_type.append(col.name + ' ' + dtype) -%}
   {%- endfor -%}
 
@@ -78,3 +71,15 @@
 
 {% endmacro %}
 
+
+{% macro iceberg_data_type(col_type) -%}
+	{%- if 'varchar' in col_type -%}
+        {% set data_type = 'string' -%}
+    {%- elif 'integer' == col_type -%}
+        {% set data_type = 'int' -%}
+    {%- else -%}
+        {% set data_type = col_type -%}
+    {%- endif -%}
+
+    {{ return(data_type) }}
+{% endmacro %}
