@@ -34,7 +34,6 @@
     {{ relation }}
 
     with (
-        external_location='{{ staging_location }}',
         write_compression='snappy',
         format='parquet'
     )
@@ -47,6 +46,11 @@
   {%- set partitioned_by = config.get('partitioned_by', default=none) -%}
   {%- set partitioned_by_csv = partitioned_by | join(', ') -%}
   {%- set dest_columns_with_type = [] -%}
+
+  {%- if external_location is none %}
+        {%- set default_location = target.s3_staging_dir -%}
+        {%- set external_location= default_location + relation.name + '/' -%}
+  {%- endif %}
 
   {%- for col in dest_columns -%}
 	{%- if 'varchar' in col.dtype -%}
