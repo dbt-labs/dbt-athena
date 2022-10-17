@@ -37,7 +37,7 @@
 
   -- set table properties
   {%- if format != 'iceberg' -%}
-      {{ set_table_classification(target_relation, 'parquet') }}
+      {{ set_table_classification(target_relation, format) }}
   {%- endif -%}
 
   {{ run_hooks(post_hooks) }}
