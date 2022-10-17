@@ -55,6 +55,8 @@
   {%- for col in dest_columns -%}
 	{%- if 'varchar' in col.dtype -%}
         {% set dtype = 'string' -%}
+    {%- elif 'integer' == col.dtype -%}
+        {% set dtype = 'int' -%}
     {%- else -%}
         {% set dtype = col.dtype -%}
     {%- endif -%}
