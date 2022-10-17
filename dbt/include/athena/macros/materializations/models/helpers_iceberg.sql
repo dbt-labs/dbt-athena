@@ -2,7 +2,7 @@
   drop table if exists {{ relation }}
 {% endmacro %}
 
-{% macro create_table_iceberg(relation, tmp_relation, sql) -%}
+{% macro create_table_iceberg(relation, old_relation, tmp_relation, sql) -%}
   {%- set external_location = config.get('external_location', default=none) -%}
   {%- set staging_location = config.get('staging_location') -%}
   {%- set partitioned_by = config.get('partitioned_by', default=none) -%}
@@ -17,13 +17,20 @@
   {% endif %}
 
   -- create tmp table
-
   {% do run_query(create_tmp_table_iceberg(tmp_relation, sql, staging_location)) %}
 
+  -- get columns from tmp table to support metadata creation
   {%- set dest_columns = adapter.get_columns_in_relation(tmp_relation) -%}
 
+  -- drop old relation only if tmp table is ready
+  {%- if old_relation is not none -%}
+  	{% do run_query(drop_iceberg(old_relation)) %}
+  {%- endif -%}
+
+  -- create iceberg table
   {% do run_query(create_iceberg_table_definition(target_relation, dest_columns)) %}
 
+  -- return final insert statement
   {{ return(incremental_insert(tmp_relation, target_relation)) }}
 
 {% endmacro %}

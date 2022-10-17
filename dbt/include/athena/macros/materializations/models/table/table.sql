@@ -10,17 +10,15 @@
   {{ run_hooks(pre_hooks) }}
 
   {%- if old_relation is not none -%}
-      {%- if format == 'iceberg' -%}
-      	{% do run_query(drop_iceberg(old_relation)) %}
-      {% else %}
-      	{{ adapter.drop_relation(old_relation) }}
+      {%- if format != 'iceberg' -%}
+        {{ adapter.drop_relation(old_relation) }}
       {%- endif -%}
   {%- endif -%}
 
   -- build model
   {%- if format == 'iceberg' -%}
       {%- set tmp_relation = make_temp_relation(target_relation) -%}
-	  {%- set build_sql = create_table_iceberg(target_relation, tmp_relation, sql) -%}
+	  {%- set build_sql = create_table_iceberg(target_relation, old_relation, tmp_relation, sql) -%}
   {% else %}
      {% set build_sql = create_table_as(False, target_relation, sql) -%}
   {%- endif -%}
