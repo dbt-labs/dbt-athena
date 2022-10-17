@@ -29,7 +29,6 @@
       {{ build_sql }}
   {% endcall %}
 
-
   -- drop tmp table in case of iceberg
   {%- if format == 'iceberg' -%}
   	{% do adapter.drop_relation(tmp_relation) %}
@@ -37,8 +36,8 @@
 
 
   -- set table properties
-  {%- if format == 'parquet' -%}
-      {{ set_table_classification(target_relation, 'parquet') }}
+  {%- if format != 'iceberg' -%}
+      {{ set_table_classification(target_relation, format) }}
   {%- endif -%}
 
   {{ run_hooks(post_hooks) }}
