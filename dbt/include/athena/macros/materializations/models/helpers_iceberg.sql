@@ -19,10 +19,10 @@
   -- create tmp table
   {% do run_query(create_tmp_table_iceberg(tmp_relation, sql, staging_location)) %}
 
-  -- get columns from tmp table to support metadata creation
+  -- get columns from tmp table to retrieve metadata
   {%- set dest_columns = adapter.get_columns_in_relation(tmp_relation) -%}
 
-  -- drop old relation only if tmp table is ready
+  -- drop old relation after tmp table is ready
   {%- if old_relation is not none -%}
   	{% do run_query(drop_iceberg(old_relation)) %}
   {%- endif -%}
@@ -87,7 +87,6 @@
   )
 
 {% endmacro %}
-
 
 {% macro iceberg_data_type(col_type) -%}
 	{%- if 'varchar' in col_type -%}

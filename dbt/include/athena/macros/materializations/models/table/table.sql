@@ -9,6 +9,7 @@
 
   {{ run_hooks(pre_hooks) }}
 
+  -- drop old relation if it is not iceberg
   {%- if old_relation is not none -%}
       {%- if format != 'iceberg' -%}
         {{ adapter.drop_relation(old_relation) }}
@@ -31,7 +32,6 @@
   {%- if format == 'iceberg' -%}
   	{% do adapter.drop_relation(tmp_relation) %}
   {%- endif -%}
-
 
   -- set table properties
   {%- if format != 'iceberg' -%}
