@@ -3,6 +3,7 @@ import re
 import boto3
 from botocore.exceptions import ClientError
 from itertools import chain
+from os import path
 from threading import Lock
 from typing import Dict, Iterator, List, Optional, Set
 from uuid import uuid4
@@ -51,6 +52,21 @@ class AthenaAdapter(SQLAdapter):
         client = conn.handle
 
         return f"{client.s3_staging_dir}tables/{str(uuid4())}/"
+
+    @available
+    def get_unique_external_location(self, external_location, staging_dir, relation_name):
+        """
+        Generate a unique not overlapping location.
+        """
+        unique_id = str(uuid4())
+        if external_location is not None:
+            if external_location.endswith('/'):
+                external_location = external_location[:-1]
+            external_location = f'{external_location}_{unique_id}/'
+        else:
+            base_path = path.join(staging_dir, f'{relation_name}_{unique_id}')
+            external_location = f'{base_path}/'
+        return external_location
 
     @available
     def clean_up_partitions(

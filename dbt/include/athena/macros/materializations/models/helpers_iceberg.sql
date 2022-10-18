@@ -62,10 +62,7 @@
 
   {%- set table_properties_csv= table_properties_formatted | join(', ') -%}
 
-  {%- if external_location is none %}
-     {%- set default_location = target.s3_staging_dir -%}
-     {%- set external_location= default_location + relation.name + '/' -%}
-  {%- endif %}
+  {%- set external_location = adapter.get_unique_external_location(external_location, target.s3_staging_dir, relation.name) -%}
 
   {%- for col in dest_columns -%}
 	{% set dtype = iceberg_data_type(col.dtype) -%}
