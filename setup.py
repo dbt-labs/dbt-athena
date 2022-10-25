@@ -9,7 +9,7 @@ with open(os.path.join(this_directory, 'README.md')) as f:
     long_description = f.read()
 
 
-package_name = "dbt-athena-adapter"
+package_name = "dbt-athena-community"
 
 
 # get this from a separate file
@@ -46,9 +46,7 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
 
-    author="Thomas Elvey",
-    author_email="tomelvey@googlemail.com",
-    url="https://github.com/Tomme/dbt-athena",
+    url="https://github.com/dbt-athena/dbt-athena",
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
     install_requires=[
