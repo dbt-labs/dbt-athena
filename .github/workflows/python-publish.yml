@@ -3,7 +3,7 @@ name: Upload Python Package
 on:
   push:
     branches:
-      - 'ci'
+      - 'master'
 
 permissions:
   contents: read
