@@ -135,7 +135,25 @@ class AthenaAdapter(SQLAdapter):
         )
 
         results = self._catalog_filter_table(table, manifest)
-        return results
+
+        table_owners = []
+        # Get the owner for each model from the manifest
+        for node in manifest.nodes.values():
+            if node.resource_type == "model":
+                table_owners.append({
+                    "table_name": node.alias,
+                    "table_owner": node.config.meta.get("owner")
+                })
+        owners = agate.Table.from_object(table_owners)
+
+        # Join owners with the results from catalog
+        results_with_owners = results.join(
+            right_table=owners,
+            left_key="table_name",
+            right_key="table_name",
+        )
+
+        return results_with_owners
 
 
     def _get_catalog_schemas(self, manifest: Manifest) -> AthenaSchemaSearchMap:
