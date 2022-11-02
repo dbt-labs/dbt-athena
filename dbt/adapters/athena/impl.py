@@ -118,13 +118,35 @@ class AthenaAdapter(SQLAdapter):
     ) -> str:
         return super().quote_seed_column(column, False)
 
+
+    def _join_catalog_table_owners(self, table: agate.Table, manifest: Manifest) -> agate.Table:
+        owners = []
+        # Get the owner for each model from the manifest
+        for node in manifest.nodes.values():
+            if node.resource_type == "model":
+                owners.append({
+                    "table_database": node.database,
+                    "table_schema": node.schema,
+                    "table_name": node.alias,
+                    "table_owner": node.config.meta.get("owner"),
+                })
+        owners_table = agate.Table.from_object(owners)
+
+        # Join owners with the results from catalog
+        join_keys = ["table_database", "table_schema", "table_name"]
+        return table.join(
+            right_table=owners_table,
+            left_key=join_keys,
+            right_key=join_keys,
+        )
+
+
     def _get_one_catalog(
         self,
         information_schema: InformationSchema,
         schemas: Dict[str, Optional[Set[str]]],
         manifest: Manifest,
     ) -> agate.Table:
-
         kwargs = {"information_schema": information_schema, "schemas": schemas}
         table = self.execute_macro(
             GET_CATALOG_MACRO_NAME,
@@ -134,26 +156,8 @@ class AthenaAdapter(SQLAdapter):
             manifest=manifest,
         )
 
-        results = self._catalog_filter_table(table, manifest)
-
-        table_owners = []
-        # Get the owner for each model from the manifest
-        for node in manifest.nodes.values():
-            if node.resource_type == "model":
-                table_owners.append({
-                    "table_name": node.alias,
-                    "table_owner": node.config.meta.get("owner")
-                })
-        owners = agate.Table.from_object(table_owners)
-
-        # Join owners with the results from catalog
-        results_with_owners = results.join(
-            right_table=owners,
-            left_key="table_name",
-            right_key="table_name",
-        )
-
-        return results_with_owners
+        filtered_table = self._catalog_filter_table(table, manifest)
+        return self._join_catalog_table_owners(filtered_table, manifest)
 
 
     def _get_catalog_schemas(self, manifest: Manifest) -> AthenaSchemaSearchMap:
