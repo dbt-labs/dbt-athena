@@ -1,6 +1,6 @@
 # dbt-athena
 
-* Supports dbt version `1.0.*`
+* Supports dbt version `1.3.*`
 * Supports [Seeds][seeds]
 * Correctly detects views and their columns
 * Support [incremental models][incremental]
@@ -8,10 +8,12 @@
   * Does **not** support the use of `unique_key`
 * **Only** supports Athena engine 2
   * [Changing Athena Engine Versions][engine-change]
+* Does not support [Python models][python-models]
 
 [seeds]: https://docs.getdbt.com/docs/building-a-dbt-project/seeds
 [incremental]: https://docs.getdbt.com/docs/building-a-dbt-project/building-models/configuring-incremental-models
 [engine-change]: https://docs.aws.amazon.com/athena/latest/ug/engine-versions-changing.html
+[python-models]: https://docs.getdbt.com/docs/build/python-models#configuring-python-models
 
 ### Installation
 

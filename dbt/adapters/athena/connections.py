@@ -17,7 +17,7 @@ from pyathena.util import RetryConfig
 from pyathena.formatter import _DEFAULT_FORMATTERS, _escape_hive, _escape_presto
 
 from dbt.adapters.base import Credentials
-from dbt.contracts.connection import Connection, AdapterResponse
+from dbt.contracts.connection import Connection, AdapterResponse, ConnectionState
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.exceptions import RuntimeException, FailedToConnectException
 from dbt.events import AdapterLogger
@@ -159,17 +159,14 @@ class AthenaConnectionManager(SQLConnectionManager):
                 ),
             )
 
-            connection.state = "open"
+            connection.state = ConnectionState.OPEN
             connection.handle = handle
 
-        except Exception as e:
-            logger.debug("Got an error when attempting to open a Athena "
-                         "connection: '{}'"
-                         .format(e))
+        except Exception as exc:
+            logger.exception(f"Got an error when attempting to open a Athena connection due to {exc}")
             connection.handle = None
-            connection.state = "fail"
-
-            raise FailedToConnectException(str(e))
+            connection.state = ConnectionState.FAIL
+            raise FailedToConnectException(str(exc))
 
         return connection
 
