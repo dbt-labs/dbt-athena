@@ -20,6 +20,7 @@ logger = AdapterLogger("Athena")
 
 boto3_client_lock = Lock()
 
+
 class AthenaAdapter(SQLAdapter):
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
@@ -74,7 +75,8 @@ class AthenaAdapter(SQLAdapter):
         partitions = partition_pg.build_full_result().get('Partitions')
         s3_rg = re.compile('s3://([^/]*)/(.*)')
         for partition in partitions:
-            logger.debug("Deleting objects for partition '{}' at '{}'", partition["Values"], partition["StorageDescriptor"]["Location"])
+            logger.debug("Deleting objects for partition '{}' at '{}'", partition["Values"],
+                         partition["StorageDescriptor"]["Location"])
             m = s3_rg.match(partition["StorageDescriptor"]["Location"])
             if m is not None:
                 bucket_name = m.group(1)
@@ -159,7 +161,6 @@ class AthenaAdapter(SQLAdapter):
         filtered_table = self._catalog_filter_table(table, manifest)
         return self._join_catalog_table_owners(filtered_table, manifest)
 
-
     def _get_catalog_schemas(self, manifest: Manifest) -> AthenaSchemaSearchMap:
         info_schema_name_map = AthenaSchemaSearchMap()
         nodes: Iterator[CompileResultNode] = chain(
@@ -178,7 +179,7 @@ class AthenaAdapter(SQLAdapter):
         client = conn.handle
         with boto3_client_lock:
             athena_client = boto3.client('athena', region_name=client.region_name)
-        
+
         response = athena_client.get_data_catalog(Name=catalog_name)
         return response['DataCatalog']
 
@@ -205,7 +206,7 @@ class AthenaAdapter(SQLAdapter):
         }
         # If the catalog is `awsdatacatalog` we don't need to pass CatalogId as boto3 infers it from the account Id.
         if catalog_id:
-            kwargs['CatalogId'] = catalog_id        
+            kwargs['CatalogId'] = catalog_id
         page_iterator = paginator.paginate(**kwargs)
 
         relations = []
