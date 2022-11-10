@@ -1,6 +1,5 @@
 import agate
 import re
-import boto3
 from botocore.exceptions import ClientError
 from itertools import chain
 from threading import Lock
@@ -62,8 +61,8 @@ class AthenaAdapter(SQLAdapter):
         client = conn.handle
 
         with boto3_client_lock:
-            glue_client = boto3.client('glue', region_name=client.region_name)
-        s3_resource = boto3.resource('s3', region_name=client.region_name)
+            glue_client = client.session.client('glue', region_name=client.region_name)
+        s3_resource = client.session.resource('s3', region_name=client.region_name)
         paginator = glue_client.get_paginator("get_partitions")
         partition_params = {
             "DatabaseName": database_name,
@@ -92,7 +91,7 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
-            glue_client = boto3.client('glue', region_name=client.region_name)
+            glue_client = client.session.client('glue', region_name=client.region_name)
         try:
             table = glue_client.get_table(
                 DatabaseName=database_name,
@@ -110,7 +109,7 @@ class AthenaAdapter(SQLAdapter):
             if m is not None:
                 bucket_name = m.group(1)
                 prefix = m.group(2)
-                s3_resource = boto3.resource('s3', region_name=client.region_name)
+                s3_resource = client.session.resource('s3', region_name=client.region_name)
                 s3_bucket = s3_resource.Bucket(bucket_name)
                 s3_bucket.objects.filter(Prefix=prefix).delete()
 
@@ -119,7 +118,6 @@ class AthenaAdapter(SQLAdapter):
         self, column: str, quote_config: Optional[bool]
     ) -> str:
         return super().quote_seed_column(column, False)
-
 
     def _join_catalog_table_owners(self, table: agate.Table, manifest: Manifest) -> agate.Table:
         owners = []
@@ -141,7 +139,6 @@ class AthenaAdapter(SQLAdapter):
             left_key=join_keys,
             right_key=join_keys,
         )
-
 
     def _get_one_catalog(
         self,
@@ -178,7 +175,7 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
-            athena_client = boto3.client('athena', region_name=client.region_name)
+            athena_client = client.session.client('athena', region_name=client.region_name)
 
         response = athena_client.get_data_catalog(Name=catalog_name)
         return response['DataCatalog']
@@ -198,7 +195,7 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
-            glue_client = boto3.client('glue', region_name=client.region_name)
+            glue_client = client.session.client('glue', region_name=client.region_name)
         paginator = glue_client.get_paginator('get_tables')
 
         kwargs = {
