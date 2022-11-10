@@ -27,6 +27,8 @@ from tenacity.retry import retry_if_exception
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_exponential
 
+from dbt.adapters.athena.session import get_boto3_session
+
 logger = AdapterLogger("Athena")
 
 
@@ -141,13 +143,12 @@ class AthenaConnectionManager(SQLConnectionManager):
             handle = AthenaConnection(
                 s3_staging_dir=creds.s3_staging_dir,
                 endpoint_url=creds.endpoint_url,
-                region_name=creds.region_name,
                 schema_name=creds.schema,
                 work_group=creds.work_group,
                 cursor_class=AthenaCursor,
                 formatter=AthenaParameterFormatter(),
                 poll_interval=creds.poll_interval,
-                profile_name=creds.aws_profile_name,
+                session=get_boto3_session(connection),
                 retry_config=RetryConfig(
                     attempt=creds.num_retries,
                     exceptions=(
