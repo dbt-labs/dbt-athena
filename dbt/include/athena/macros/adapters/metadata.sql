@@ -17,7 +17,6 @@
                             else table_type
                         end as table_type,
 
-                        null as table_owner,
                         null as table_comment
 
                     from {{ information_schema }}.tables
@@ -54,8 +53,7 @@
                         columns.column_name,
                         columns.column_index,
                         columns.column_type,
-                        columns.column_comment,
-                        tables.table_owner
+                        columns.column_comment
 
                     from tables
                     join columns
