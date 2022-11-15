@@ -1,3 +1,8 @@
+## v1.3.0
+
+### Features
+* Update `dbt-core` to 1.3.0
+
 ## v1.0.4
 
 ### Bugfixes
