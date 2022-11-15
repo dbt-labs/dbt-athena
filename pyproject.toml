@@ -1,0 +1,17 @@
+[tool.black]
+line-length = 120
+target-version = ['py37', 'py38', 'py39', 'py310']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = 'black'
+src_paths = ['dbt', 'test']
+
+[tool.flake8]
+files = '.*\.py'
+max-line-length = 120
+exclude = ['.git', '.eggs', '__pycache__', 'venv']
+# Error codes to ignore, per file level module imported but unused
+per-file-ignores = """
+    */__init__.py:F401
+"""
