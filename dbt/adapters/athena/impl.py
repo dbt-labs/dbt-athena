@@ -1,6 +1,5 @@
 import agate
 import re
-import boto3
 from botocore.exceptions import ClientError
 from itertools import chain
 from threading import Lock
@@ -20,6 +19,7 @@ from dbt.exceptions import RuntimeException
 logger = AdapterLogger("Athena")
 
 boto3_client_lock = Lock()
+
 
 class AthenaAdapter(SQLAdapter):
     ConnectionManager = AthenaConnectionManager
@@ -62,8 +62,8 @@ class AthenaAdapter(SQLAdapter):
         client = conn.handle
 
         with boto3_client_lock:
-            glue_client = boto3.client('glue', region_name=client.region_name)
-        s3_resource = boto3.resource('s3', region_name=client.region_name)
+            glue_client = client.session.client('glue', region_name=client.region_name)
+        s3_resource = client.session.resource('s3', region_name=client.region_name)
         paginator = glue_client.get_paginator("get_partitions")
         partition_params = {
             "DatabaseName": database_name,
@@ -75,7 +75,8 @@ class AthenaAdapter(SQLAdapter):
         partitions = partition_pg.build_full_result().get('Partitions')
         s3_rg = re.compile('s3://([^/]*)/(.*)')
         for partition in partitions:
-            logger.debug("Deleting objects for partition '{}' at '{}'", partition["Values"], partition["StorageDescriptor"]["Location"])
+            logger.debug("Deleting objects for partition '{}' at '{}'", partition["Values"],
+                         partition["StorageDescriptor"]["Location"])
             m = s3_rg.match(partition["StorageDescriptor"]["Location"])
             if m is not None:
                 bucket_name = m.group(1)
@@ -100,7 +101,7 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
-            glue_client = boto3.client('glue', region_name=client.region_name)
+            glue_client = client.session.client('glue', region_name=client.region_name)
         try:
             table = glue_client.get_table(
                 DatabaseName=database_name,
@@ -118,7 +119,7 @@ class AthenaAdapter(SQLAdapter):
             if m is not None:
                 bucket_name = m.group(1)
                 prefix = m.group(2)
-                s3_resource = boto3.resource('s3', region_name=client.region_name)
+                s3_resource = client.session.resource('s3', region_name=client.region_name)
                 s3_bucket = s3_resource.Bucket(bucket_name)
                 s3_bucket.objects.filter(Prefix=prefix).delete()
 
@@ -128,13 +129,33 @@ class AthenaAdapter(SQLAdapter):
     ) -> str:
         return super().quote_seed_column(column, False)
 
+    def _join_catalog_table_owners(self, table: agate.Table, manifest: Manifest) -> agate.Table:
+        owners = []
+        # Get the owner for each model from the manifest
+        for node in manifest.nodes.values():
+            if node.resource_type == "model":
+                owners.append({
+                    "table_database": node.database,
+                    "table_schema": node.schema,
+                    "table_name": node.alias,
+                    "table_owner": node.config.meta.get("owner"),
+                })
+        owners_table = agate.Table.from_object(owners)
+
+        # Join owners with the results from catalog
+        join_keys = ["table_database", "table_schema", "table_name"]
+        return table.join(
+            right_table=owners_table,
+            left_key=join_keys,
+            right_key=join_keys,
+        )
+
     def _get_one_catalog(
         self,
         information_schema: InformationSchema,
         schemas: Dict[str, Optional[Set[str]]],
         manifest: Manifest,
     ) -> agate.Table:
-
         kwargs = {"information_schema": information_schema, "schemas": schemas}
         table = self.execute_macro(
             GET_CATALOG_MACRO_NAME,
@@ -144,9 +165,8 @@ class AthenaAdapter(SQLAdapter):
             manifest=manifest,
         )
 
-        results = self._catalog_filter_table(table, manifest)
-        return results
-
+        filtered_table = self._catalog_filter_table(table, manifest)
+        return self._join_catalog_table_owners(filtered_table, manifest)
 
     def _get_catalog_schemas(self, manifest: Manifest) -> AthenaSchemaSearchMap:
         info_schema_name_map = AthenaSchemaSearchMap()
@@ -165,8 +185,8 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
-            athena_client = boto3.client('athena', region_name=client.region_name)
-        
+            athena_client = client.session.client('athena', region_name=client.region_name)
+
         response = athena_client.get_data_catalog(Name=catalog_name)
         return response['DataCatalog']
 
@@ -185,7 +205,7 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
-            glue_client = boto3.client('glue', region_name=client.region_name)
+            glue_client = client.session.client('glue', region_name=client.region_name)
         paginator = glue_client.get_paginator('get_tables')
 
         kwargs = {
@@ -193,7 +213,7 @@ class AthenaAdapter(SQLAdapter):
         }
         # If the catalog is `awsdatacatalog` we don't need to pass CatalogId as boto3 infers it from the account Id.
         if catalog_id:
-            kwargs['CatalogId'] = catalog_id        
+            kwargs['CatalogId'] = catalog_id
         page_iterator = paginator.paginate(**kwargs)
 
         relations = []
