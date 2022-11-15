@@ -10,8 +10,8 @@ with open(os.path.join(this_directory, 'README.md')) as f:
 
 package_name = "dbt-athena-community"
 
-dbt_version = "1.0"
-package_version = "1.0.4"
+dbt_version = "1.3"
+package_version = "1.3.0"
 description = """The athena adapter plugin for dbt (data build tool)"""
 
 if not package_version.startswith(dbt_version):
@@ -31,9 +31,10 @@ setup(
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
     install_requires=[
-        "dbt-core>=1.0.1",
-        "pyathena>=2.2.0",
-        "boto3>=1.18.12",
-        "tenacity>=6.3.1",
+        # In order to control dbt-core version and package version
+        "dbt-core~=1.3.0",
+        "pyathena~=2.14",
+        "boto3~=1.26",
+        "tenacity~=8.1",
     ]
 )
