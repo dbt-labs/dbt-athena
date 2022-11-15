@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Optional, Set 
+from typing import Dict, Optional, Set
 
 from dbt.adapters.base.relation import BaseRelation, InformationSchema, Policy
 
@@ -15,6 +15,7 @@ class AthenaIncludePolicy(Policy):
 class AthenaRelation(BaseRelation):
     quote_character: str = ""
     include_policy: Policy = AthenaIncludePolicy()
+
 
 class AthenaSchemaSearchMap(Dict[InformationSchema, Dict[str, Set[Optional[str]]]]):
     """A utility class to keep track of what information_schema tables to
