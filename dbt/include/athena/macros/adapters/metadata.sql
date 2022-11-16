@@ -66,7 +66,7 @@
                 {%- for schema, relations in schemas.items() -%}
                   {%- for relation_batch in relations|batch(100) %}
                     select * from catalog
-                    where "table_schema" = lower('{{ schema }}') 
+                    where "table_schema" = lower('{{ schema }}')
                       and (
                         {%- for relation in relation_batch -%}
                           "table_name" = lower('{{ relation }}')
@@ -118,7 +118,7 @@
       where table_schema = LOWER('{{ schema_relation.schema }}')
 
       -- Views appear in both `tables` and `views`, so excluding them from tables
-      EXCEPT 
+      EXCEPT
 
       select * from views
     )

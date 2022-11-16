@@ -1,3 +1,6 @@
+[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 # dbt-athena
 
 * Supports dbt version `1.3.*`
@@ -98,7 +101,7 @@ _Additional information_
   * The compression type to use for any storage format that allows compression to be specified. To see which options are available, check out [CREATE TABLE AS][create-table-as]
 * `field_delimiter` (`default=none`)
   * Custom field delimiter, for when format is set to `TEXTFILE`
-  
+
 More information: [CREATE TABLE AS][create-table-as]
 
 [run_started_at]: https://docs.getdbt.com/reference/dbt-jinja-functions/run_started_at
@@ -119,7 +122,7 @@ The following features of dbt are not implemented on Athena:
 
 * Quoting is not currently supported
   * If you need to quote your sources, escape the quote characters in your source definitions:
-  
+
   ```yaml
   version: 2
 
@@ -136,15 +139,25 @@ The following features of dbt are not implemented on Athena:
 * **Only** supports Athena engine 2
   * [Changing Athena Engine Versions][engine-change]
 
-### Running tests
+### Contributing
 
-First, install the adapter and its dependencies using `make` (see [Makefile](Makefile)):
+This connector works with Python from 3.7 to 3.10.
+
+#### Getting started
+In order to start developing on this adapter clone the repo and run this make command (see [Makefile](Makefile)) :
 
 ```bash
-make install_deps
+make setup
 ```
 
-Next, configure the environment variables in [dev.env](dev.env) to match your Athena development environment. Finally, run the tests using `make`:
+It will :
+1. Install all dependencies.
+2. Install pre-commit hooks.
+
+Next, configure the environment variables in [dev.env](dev.env) to match your Athena development environment.
+
+#### Running tests
+You can run the tests using `make`:
 
 ```bash
 make run_tests
