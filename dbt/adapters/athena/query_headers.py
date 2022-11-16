@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import dbt.adapters.base.query_headers
 
 

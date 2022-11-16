@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import re
 from itertools import chain
 from threading import Lock

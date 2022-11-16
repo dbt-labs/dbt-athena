@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from concurrent.futures.thread import ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
@@ -70,7 +69,7 @@ class AthenaCredentials(Credentials):
 
 class AthenaCursor(Cursor):
     def __init__(self, **kwargs):
-        super(AthenaCursor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._executor = ThreadPoolExecutor()
 
     def _collect_result_set(self, query_id: str) -> AthenaResultSet:
@@ -202,7 +201,7 @@ class AthenaConnectionManager(SQLConnectionManager):
 
 class AthenaParameterFormatter(Formatter):
     def __init__(self) -> None:
-        super(AthenaParameterFormatter, self).__init__(mappings=deepcopy(_DEFAULT_FORMATTERS), default=None)
+        super().__init__(mappings=deepcopy(_DEFAULT_FORMATTERS), default=None)
 
     def format(self, operation: str, parameters: Optional[List[str]] = None) -> str:
         if not operation or not operation.strip():
