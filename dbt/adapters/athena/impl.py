@@ -87,8 +87,12 @@ class AthenaAdapter(SQLAdapter):
                         for err in res["Errors"]:
                             is_all_successful = False
                             logger.error(
-                                "Failed to clean up partitions caused by failure in S3 object Key='{}', Code='{}', Message='{}', s3_bucket_name='{}'",
-                                err["Key"], err["Code"], err["Message"], bucket_name)
+                                "Failed to clean up partitions: Key='{}', Code='{}', Message='{}', s3_bucket='{}'",
+                                err["Key"],
+                                err["Code"],
+                                err["Message"],
+                                bucket_name,
+                            )
                 if is_all_successful is False:
                     raise RuntimeException("Failed to clean up table partitions.")
 
