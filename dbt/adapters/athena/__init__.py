@@ -1,6 +1,9 @@
 from dbt.adapters.base import AdapterPlugin
 
-from dbt.adapters.athena.connections import AthenaCredentials
+from dbt.adapters.athena.connections import (  # NOQA
+    AthenaConnectionManager,
+    AthenaCredentials,
+)
 from dbt.adapters.athena.impl import AthenaAdapter
 from dbt.include import athena
 
