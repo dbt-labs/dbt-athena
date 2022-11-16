@@ -139,15 +139,25 @@ The following features of dbt are not implemented on Athena:
 * **Only** supports Athena engine 2
   * [Changing Athena Engine Versions][engine-change]
 
-### Running tests
+### Contributing
 
-First, install the adapter and its dependencies using `make` (see [Makefile](Makefile)):
+This connector works with Python from 3.7 to 3.10.
+
+#### Getting started
+In order to start developing on this adapter clone the repo and run this make command (see [Makefile](Makefile)) :
 
 ```bash
-make install_deps
+make setup
 ```
 
-Next, configure the environment variables in [dev.env](dev.env) to match your Athena development environment. Finally, run the tests using `make`:
+It will :
+1. Install all dependencies.
+2. Install pre-commit hooks.
+
+Next, configure the environment variables in [dev.env](dev.env) to match your Athena development environment.
+
+#### Running tests
+You can run the tests using `make`:
 
 ```bash
 make run_tests
