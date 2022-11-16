@@ -25,7 +25,7 @@ pre-commit-all:  ## Check all files in working directory with pre-commit.
 	pre-commit run --all-files
 
 run_tests:  ## Run tests.
-	pytest test/integration/athena.dbtspec
+	pytest tests/functional
 
 help:  ## Show this help.
 	@egrep -h '\s##\s' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m  %-30s\033[0m %s\n", $$1, $$2}'
