@@ -1,0 +1,61 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.3.0
+    hooks:
+      # Identify invalid files
+      - id: check-ast
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+
+      # git checks
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: detect-private-key
+      - id: check-case-conflict
+
+      # Python checks
+      - id: check-docstring-first
+      - id: debug-statements
+      - id: requirements-txt-fixer
+      - id: fix-byte-order-marker
+
+      # General quality checks
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+        args: [ --markdown-linebreak-ext=md ]
+      - id: end-of-file-fixer
+
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v1.7.7
+    hooks:
+      - id: autoflake
+
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.2.2
+    hooks:
+      - id: pyupgrade
+        args:
+          - '--py37-plus'
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.10.1
+    hooks:
+      - id: isort
+        name: isort
+        args:
+          - '.'
+
+  - repo: https://github.com/psf/black
+    rev: 22.10.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 5.0.4
+    hooks:
+      - id: flake8
+        additional_dependencies:
+          - "Flake8-pyproject~=1.1"
+        args:
+          - '.'

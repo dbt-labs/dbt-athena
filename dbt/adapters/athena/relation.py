@@ -22,6 +22,7 @@ class AthenaSchemaSearchMap(Dict[InformationSchema, Dict[str, Set[Optional[str]]
     search for what schemas and relations. The schema and relation values are all
     lowercased to avoid duplication.
     """
+
     def add(self, relation: AthenaRelation):
         key = relation.information_schema_only()
         if key not in self:

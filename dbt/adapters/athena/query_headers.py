@@ -9,20 +9,23 @@ class _QueryComment(dbt.adapters.base.query_headers._QueryComment):
     in the query_comment are replaced with " ". This allows the default
     query_comment to be added to `create external table` statements.
     """
+
     def add(self, sql: str) -> str:
         if not self.query_comment:
             return sql
+
+        cleaned_query_comment = self.query_comment.strip().replace("\n", " ")
 
         if self.append:
             # replace last ';' with '<comment>;'
             sql = sql.rstrip()
             if sql[-1] == ";":
                 sql = sql[:-1]
-                return "{}\n-- /* {} */;".format(sql, self.query_comment.strip().replace("\n", " "))
+                return f"{sql}\n-- /* {cleaned_query_comment} */;"
 
-            return "{}\n-- /* {} */".format(sql, self.query_comment.strip().replace("\n", " "))
+            return f"{sql}\n-- /* {cleaned_query_comment} */"
 
-        return "-- /* {} */\n{}".format(self.query_comment.strip().replace("\n", " "), sql)
+        return f"-- /* {cleaned_query_comment} */\n{sql}"
 
 
 dbt.adapters.base.query_headers._QueryComment = _QueryComment
