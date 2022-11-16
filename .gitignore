@@ -142,6 +142,3 @@ cython_debug/
 
 # Project specific
 test.py
-
-# Env variables
-dev.env
