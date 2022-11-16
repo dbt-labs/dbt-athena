@@ -3,7 +3,6 @@ from typing import Optional
 import boto3.session
 from dbt.contracts.connection import Connection
 
-
 __BOTO3_SESSION__: Optional[boto3.session.Session] = None
 
 
@@ -18,7 +17,7 @@ def get_boto3_session(connection: Connection = None) -> boto3.session.Session:
     if not __BOTO3_SESSION__:
         if connection is None:
             raise RuntimeError(
-                'A Connection object needs to be passed to initialize the boto3 session for the first time'
+                "A Connection object needs to be passed to initialize the boto3 session for the first time"
             )
         init_session()
 

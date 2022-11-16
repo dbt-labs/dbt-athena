@@ -1,0 +1,11 @@
+# Dev requirements
+autoflake~=1.7
+black~=22.10
+flake8~=5.0
+Flake8-pyproject~=1.1
+isort~=5.10
+pre-commit~=2.20
+
+# Test requirements
+pytest-dbt-adapter==0.6.0
+pyupgrade~=3.2
