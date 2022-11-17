@@ -17,4 +17,4 @@ class AthenaColumn(BaseColumn):
 
     @classmethod
     def string_type(cls, size: int) -> str:
-        return "varchar({})".format(size)
+        return f"varchar({size})"
