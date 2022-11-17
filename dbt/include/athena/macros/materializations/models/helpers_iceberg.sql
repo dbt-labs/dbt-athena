@@ -6,8 +6,6 @@
   {%- set external_location = config.get('external_location', default=none) -%}
   {%- set staging_location = config.get('staging_location') -%}
   {%- set partitioned_by = config.get('partitioned_by', default=none) -%}
-  {%- set bucketed_by = config.get('bucketed_by', default=none) -%}
-  {%- set bucket_count = config.get('bucket_count', default=none) -%}
   {%- set write_compression = config.get('write_compression', default=none) -%}
 
   {%- set target_relation = this.incorporate(type='table') -%}
