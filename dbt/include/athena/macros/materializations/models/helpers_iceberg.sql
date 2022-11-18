@@ -100,10 +100,13 @@
 
 
 {% macro iceberg_data_type(col_type) -%}
-  {%- if 'varchar' in col_type -%}
+  {% set col_type = col_type.replace('(', '<').replace(')', '>') -%}
+  {%- if col_type.startswith('varchar') -%}
     {% set data_type = 'string' -%}
-  {%- elif 'integer' == col_type -%}
-     {% set data_type = 'int' -%}
+  {%- elif 'varchar' in col_type -%}
+    {% set data_type = col_type.replace('varchar', 'string') -%}
+  {%- elif 'integer' in col_type -%}
+    {% set data_type = col_type.replace('integer', 'int') -%}
   {%- else -%}
      {% set data_type = col_type -%}
   {%- endif -%}
