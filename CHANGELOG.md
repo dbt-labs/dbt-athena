@@ -1,3 +1,9 @@
+## v1.3.1
+
+### Features
+* Added table materialization for Iceberg
+* Override datediff and dateadd functions to support metrics
+
 ## v1.3.0
 
 ### Features
