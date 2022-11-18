@@ -42,7 +42,9 @@
       format='parquet'
     )
   as
-    {{ sql }}
+    select * from (
+        {{ sql }}
+    )
     limit 0
 {% endmacro %}
 
