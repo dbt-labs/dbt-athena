@@ -125,7 +125,5 @@
     {% set data_type = data_type.replace('integer', 'int') -%}
   {%- endif -%}
 
-  {{print(col_type)}}
-
   {{ return(data_type) }}
 {% endmacro %}
