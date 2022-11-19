@@ -95,7 +95,7 @@ class AthenaAdapter(SQLAdapter):
         elif s3_data_naming == "schema_table":
             return self.s3_schema_table_location(schema_name, table_name)
         elif s3_data_naming == "schema_table_unique":
-            return self.s3_schema_table_location(schema_name, table_name)
+            return self.s3_schema_table_unique_location(schema_name, table_name)
         else:
             raise ValueError(f"Unknown value for s3_data_naming: {s3_data_naming}")
 
