@@ -111,13 +111,11 @@ The location in which a table is saved is determined by:
 2. If `s3_data_dir` is defined, the path is determined by that and `s3_data_naming`:
    + `s3_data_naming=uuid`: `{s3_data_dir}/{uuid4()}/`
    + `s3_data_naming=schema_table`: `{s3_data_dir}/{schema}/{table}/`
-3. Otherwise, the default location for a CTAS query is used, which will depend on how your workgroup is configured.
+   + `s3_data_naming=schema_table_unique`: `{s3_data_dir}/{schema}/{table}/{uuid4()/`
+3. Otherwise, the staging dir location used by the adapter is used by default.
 
-More information: [CREATE TABLE AS][create-table-as]
+It's possible to set the `s3_data_naming` globally in the target profile, or overwrite the value in the table config.
 
-[run_started_at]: https://docs.getdbt.com/reference/dbt-jinja-functions/run_started_at
-[invocation_id]: https://docs.getdbt.com/reference/dbt-jinja-functions/invocation_id
-[create-table-as]: https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html
 
 #### Supported functionality
 
@@ -138,7 +136,6 @@ To get started just add this as your model:
     materialized='table',
     format='iceberg',
     partitioned_by=['bucket(5, user_id)'],
-    strict_location=false,
     table_properties={
     	'optimize_rewrite_delete_file_threshold': '2'
     	}
@@ -201,6 +198,12 @@ You can run the tests using `make`:
 ```bash
 make run_tests
 ```
+
+### Helpful Resources
+
+* [Athena CREATE TABLE AS](https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html)
+* [dbt run_started_at](https://docs.getdbt.com/reference/dbt-jinja-functions/run_started_at)
+* [dbt invocation_id](https://docs.getdbt.com/reference/dbt-jinja-functions/invocation_id)
 
 ### Community
 
