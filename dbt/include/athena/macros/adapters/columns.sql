@@ -9,9 +9,9 @@
           null as numeric_scale
 
       from {{ relation.information_schema('columns') }}
-      where LOWER(table_name) = LOWER('{{ relation.identifier }}')
+      where table_name = LOWER('{{ relation.identifier }}')
         {% if relation.schema %}
-            and LOWER(table_schema) = LOWER('{{ relation.schema }}')
+            and table_schema = LOWER('{{ relation.schema }}')
         {% endif %}
       order by ordinal_position
 

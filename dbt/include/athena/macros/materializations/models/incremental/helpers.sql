@@ -40,6 +40,8 @@
         {%- set value = "'" + col + "'" -%}
       {%- elif column_type == 'date' -%}
         {%- set value = "'" + col|string + "'" -%}
+      {%- elif column_type == 'timestamp' -%}
+        {%- set value = "'" + col|string + "'" -%}
       {%- else -%}
         {%- do exceptions.raise_compiler_error('Need to add support for column type ' + column_type) -%}
       {%- endif -%}

@@ -1,6 +1,9 @@
+[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 # dbt-athena
 
-* Supports dbt version `1.0.*`
+* Supports dbt version `1.3.*`
 * Supports [Seeds][seeds]
 * Correctly detects views and their columns
 * Support [incremental models][incremental]
@@ -8,14 +11,17 @@
   * Does **not** support the use of `unique_key`
 * **Only** supports Athena engine 2
   * [Changing Athena Engine Versions][engine-change]
+* Does not support [Python models][python-models]
 
 [seeds]: https://docs.getdbt.com/docs/building-a-dbt-project/seeds
 [incremental]: https://docs.getdbt.com/docs/building-a-dbt-project/building-models/configuring-incremental-models
 [engine-change]: https://docs.aws.amazon.com/athena/latest/ug/engine-versions-changing.html
+[python-models]: https://docs.getdbt.com/docs/build/python-models#configuring-python-models
 
 ### Installation
 
-`pip install git+https://github.com/Tomme/dbt-athena.git`
+* `pip install dbt-athena-community`
+* Or `pip install git+https://github.com/dbt-athena/dbt-athena.git`
 
 ### Prerequisites
 
@@ -41,19 +47,18 @@ stored login info. You can configure the AWS profile name to use via `aws_profil
 
 A dbt profile can be configured to run against AWS Athena using the following configuration:
 
-| Option          | Description                                                                     | Required?  | Example               |
-|---------------- |-------------------------------------------------------------------------------- |----------- |---------------------- |
-| s3_staging_dir  | S3 location to store Athena query results and metadata                          | Required   | `s3://bucket/dbt/`    |
-| region_name     | AWS region of your Athena instance                                              | Required   | `eu-west-1`           |
-| schema          | Specify the schema (Athena database) to build models into (lowercase **only**)  | Required   | `dbt`                 |
-| database        | Specify the database (Data catalog) to build models into (lowercase **only**)   | Required   | `awsdatacatalog`      |
-| poll_interval   | Interval in seconds to use for polling the status of query results in Athena    | Optional   | `5`                   |
-| aws_profile_name| Profile to use from your AWS shared credentials file.                           | Optional   | `my-profile`          |
-| work_group      | Identifier of Athena workgroup                                                  | Optional   | `my-custom-workgroup` |
-| num_retries     | Number of times to retry a failing query                                        | Optional   | `3`                   |
+| Option          | Description                                                                     | Required?  | Example             |
+|---------------- |-------------------------------------------------------------------------------- |----------- |-------------------- |
+| s3_staging_dir  | S3 location to store Athena query results and metadata                          | Required   | `s3://bucket/dbt/`  |
 | s3_data_dir     | Prefix for storing tables, if different from the connection's `s3_staging_dir`  | Optional   | `s3://bucket2/dbt/`   |
-| s3_data_naming  | How to generate table paths in `s3_data_dir`: `uuid/schema_table`               | Optional   | `uuid`                |
-
+| s3_data_naming  | How to generate table paths in `s3_data_dir`: `uuid/schema_table`               | Optional   | `schema_table`                |
+| region_name     | AWS region of your Athena instance                                              | Required   | `eu-west-1`         |
+| schema          | Specify the schema (Athena database) to build models into (lowercase **only**)  | Required   | `dbt`               |
+| database        | Specify the database (Data catalog) to build models into (lowercase **only**)   | Required   | `awsdatacatalog`    |
+| poll_interval   | Interval in seconds to use for polling the status of query results in Athena    | Optional   | `5`                 |
+| aws_profile_name| Profile to use from your AWS shared credentials file.                           | Optional   | `my-profile`        |
+| work_group| Identifier of Athena workgroup   | Optional   | `my-custom-workgroup`        |
+| num_retries| Number of times to retry a failing query | Optional  | `3`  | `5`
 
 **Example profiles.yml entry:**
 ```yaml
@@ -92,9 +97,14 @@ _Additional information_
 * `format` (`default='parquet'`)
   * The data format for the table
   * Supports `ORC`, `PARQUET`, `AVRO`, `JSON`, or `TEXTFILE`
+* `write_compression` (`default=none`)
+  * The compression type to use for any storage format that allows compression to be specified. To see which options are available, check out [CREATE TABLE AS][create-table-as]
 * `field_delimiter` (`default=none`)
   * Custom field delimiter, for when format is set to `TEXTFILE`
+* `table_properties`: table properties to add to the table, valid for Iceberg only
+* `strict_location` (`default=True`): when working with iceberg it's possible to rename tables, in order to do so, tables need to avoid to have same location. Setting up `strict_location` to *false* allow a table creation on an unique location
 
+#### Table location
 The location in which a table is saved is determined by:
 
 1. If `external_location` is defined, that value is used.
@@ -119,11 +129,39 @@ Due to the nature of AWS Athena, not all core dbt functionality is supported.
 The following features of dbt are not implemented on Athena:
 * Snapshots
 
+#### Iceberg
+The adapter support table materialization for Iceberg.
+
+To get started just add this as your model:
+```
+{{ config(
+    materialized='table',
+    format='iceberg',
+    partitioned_by=['bucket(5, user_id)'],
+    strict_location=false,
+    table_properties={
+    	'optimize_rewrite_delete_file_threshold': '2'
+    	}
+) }}
+
+SELECT
+	'A' AS user_id,
+	'pi' AS name,
+	'active' AS status,
+	17.89 AS cost,
+	1 AS quantity,
+	100000000 AS quantity_big,
+	current_date AS my_date
+```
+
+Iceberg support bucketing as hidden partitions, therefore use the `partitioned_by` config to add specific bucketing conditions.
+
+
 #### Known issues
 
 * Quoting is not currently supported
   * If you need to quote your sources, escape the quote characters in your source definitions:
-  
+
   ```yaml
   version: 2
 
@@ -133,22 +171,32 @@ The following features of dbt are not implemented on Athena:
         - name: first_table
           identifier: "first table"       # Not like that
         - name: second_table
-          idenfitier: "\"second table\""  # Like this
+          identifier: "\"second table\""  # Like this
   ```
 
 * Tables, schemas and database should only be lowercase
 * **Only** supports Athena engine 2
   * [Changing Athena Engine Versions][engine-change]
 
-### Running tests
+### Contributing
 
-First, install the adapter and its dependencies using `make` (see [Makefile](Makefile)):
+This connector works with Python from 3.7 to 3.10.
+
+#### Getting started
+In order to start developing on this adapter clone the repo and run this make command (see [Makefile](Makefile)) :
 
 ```bash
-make install_deps
+make setup
 ```
 
-Next, configure the environment variables in [dev.env](dev.env) to match your Athena development environment. Finally, run the tests using `make`:
+It will :
+1. Install all dependencies.
+2. Install pre-commit hooks.
+
+Next, configure the environment variables in [dev.env](dev.env) to match your Athena development environment.
+
+#### Running tests
+You can run the tests using `make`:
 
 ```bash
 make run_tests

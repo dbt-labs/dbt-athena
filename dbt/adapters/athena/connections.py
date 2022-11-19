@@ -1,31 +1,35 @@
-from typing import ContextManager, Tuple, Optional, List, Dict, Any
-from dataclasses import dataclass
+from concurrent.futures.thread import ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
+from dataclasses import dataclass
 from decimal import Decimal
-from concurrent.futures.thread import ThreadPoolExecutor
-
-from pyathena.connection import Connection as AthenaConnection
-from pyathena.result_set import AthenaResultSet
-from pyathena.model import AthenaQueryExecution
-from pyathena.cursor import Cursor
-from pyathena.error import ProgrammingError, OperationalError
-from pyathena.formatter import Formatter
-from pyathena.util import RetryConfig
-
-# noinspection PyProtectedMember
-from pyathena.formatter import _DEFAULT_FORMATTERS, _escape_hive, _escape_presto
-
-from dbt.adapters.base import Credentials
-from dbt.contracts.connection import Connection, AdapterResponse
-from dbt.adapters.sql import SQLConnectionManager
-from dbt.exceptions import RuntimeException, FailedToConnectException
-from dbt.events import AdapterLogger
+from typing import Any, ContextManager, Dict, List, Optional, Tuple
 
 import tenacity
+from dbt.adapters.base import Credentials
+from dbt.adapters.sql import SQLConnectionManager
+from dbt.contracts.connection import AdapterResponse, Connection, ConnectionState
+from dbt.events import AdapterLogger
+from dbt.exceptions import FailedToConnectException, RuntimeException
+from pyathena.connection import Connection as AthenaConnection
+from pyathena.cursor import Cursor
+from pyathena.error import OperationalError, ProgrammingError
+
+# noinspection PyProtectedMember
+from pyathena.formatter import (
+    _DEFAULT_FORMATTERS,
+    Formatter,
+    _escape_hive,
+    _escape_presto,
+)
+from pyathena.model import AthenaQueryExecution
+from pyathena.result_set import AthenaResultSet
+from pyathena.util import RetryConfig
 from tenacity.retry import retry_if_exception
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_exponential
+
+from dbt.adapters.athena.session import get_boto3_session
 
 logger = AdapterLogger("Athena")
 
@@ -35,13 +39,14 @@ class AthenaCredentials(Credentials):
     s3_staging_dir: str
     region_name: str
     schema: str
+    endpoint_url: Optional[str] = None
     work_group: Optional[str] = None
     aws_profile_name: Optional[str] = None
     poll_interval: float = 1.0
     _ALIASES = {"catalog": "database"}
     num_retries: Optional[int] = 5
     s3_data_dir: Optional[str] = None
-    s3_data_naming: Optional[str] = "uuid"
+    s3_data_naming: Optional[str] = "schema_table"
 
     @property
     def type(self) -> str:
@@ -52,12 +57,21 @@ class AthenaCredentials(Credentials):
         return self.host
 
     def _connection_keys(self) -> Tuple[str, ...]:
-        return "s3_staging_dir", "work_group", "region_name", "database", "schema", "poll_interval", "aws_profile_name"
+        return (
+            "s3_staging_dir",
+            "work_group",
+            "region_name",
+            "database",
+            "schema",
+            "poll_interval",
+            "aws_profile_name",
+            "endpoing_url",
+        )
 
 
 class AthenaCursor(Cursor):
     def __init__(self, **kwargs):
-        super(AthenaCursor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._executor = ThreadPoolExecutor()
 
     def _collect_result_set(self, query_id: str) -> AthenaResultSet:
@@ -76,6 +90,7 @@ class AthenaCursor(Cursor):
         parameters: Optional[Dict[str, Any]] = None,
         work_group: Optional[str] = None,
         s3_staging_dir: Optional[str] = None,
+        endpoint_url: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
     ):
@@ -88,9 +103,7 @@ class AthenaCursor(Cursor):
                 cache_size=cache_size,
                 cache_expiration_time=cache_expiration_time,
             )
-            query_execution = self._executor.submit(
-                self._collect_result_set, query_id
-            ).result()
+            query_execution = self._executor.submit(self._collect_result_set, query_id).result()
             if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
                 self.result_set = self._result_set_class(
                     self._connection,
@@ -125,7 +138,7 @@ class AthenaConnectionManager(SQLConnectionManager):
         try:
             yield
         except Exception as e:
-            logger.debug("Error running SQL: {}", sql)
+            logger.debug(f"Error running SQL: {sql}")
             raise RuntimeException(str(e)) from e
 
     @classmethod
@@ -139,13 +152,13 @@ class AthenaConnectionManager(SQLConnectionManager):
 
             handle = AthenaConnection(
                 s3_staging_dir=creds.s3_staging_dir,
-                region_name=creds.region_name,
+                endpoint_url=creds.endpoint_url,
                 schema_name=creds.schema,
                 work_group=creds.work_group,
                 cursor_class=AthenaCursor,
                 formatter=AthenaParameterFormatter(),
                 poll_interval=creds.poll_interval,
-                profile_name=creds.aws_profile_name,
+                session=get_boto3_session(connection),
                 retry_config=RetryConfig(
                     attempt=creds.num_retries,
                     exceptions=(
@@ -156,32 +169,21 @@ class AthenaConnectionManager(SQLConnectionManager):
                 ),
             )
 
-            connection.state = "open"
+            connection.state = ConnectionState.OPEN
             connection.handle = handle
 
-        except Exception as e:
-            logger.debug("Got an error when attempting to open a Athena "
-                         "connection: '{}'"
-                         .format(e))
+        except Exception as exc:
+            logger.exception(f"Got an error when attempting to open a Athena connection due to {exc}")
             connection.handle = None
-            connection.state = "fail"
-
-            raise FailedToConnectException(str(e))
+            connection.state = ConnectionState.FAIL
+            raise FailedToConnectException(str(exc))
 
         return connection
 
     @classmethod
     def get_response(cls, cursor) -> AdapterResponse:
-        if cursor.state == AthenaQueryExecution.STATE_SUCCEEDED:
-            code = "OK"
-        else:
-            code = "ERROR"
-
-        return AdapterResponse(
-            _message="{} {}".format(code, cursor.rowcount),
-            rows_affected=cursor.rowcount,
-            code=code
-        )
+        code = "OK" if cursor.state == AthenaQueryExecution.STATE_SUCCEEDED else "ERROR"
+        return AdapterResponse(_message=f"{code} {cursor.rowcount}", rows_affected=cursor.rowcount, code=code)
 
     def cancel(self, connection: Connection):
         connection.handle.cancel()
@@ -201,22 +203,19 @@ class AthenaConnectionManager(SQLConnectionManager):
 
 class AthenaParameterFormatter(Formatter):
     def __init__(self) -> None:
-        super(AthenaParameterFormatter, self).__init__(
-            mappings=deepcopy(_DEFAULT_FORMATTERS), default=None
-        )
+        super().__init__(mappings=deepcopy(_DEFAULT_FORMATTERS), default=None)
 
-    def format(
-        self, operation: str, parameters: Optional[List[str]] = None
-    ) -> str:
+    def format(self, operation: str, parameters: Optional[List[str]] = None) -> str:
         if not operation or not operation.strip():
             raise ProgrammingError("Query is none or empty.")
         operation = operation.strip()
 
-        if operation.upper().startswith("SELECT") or operation.upper().startswith(
-            "WITH"
-        ):
+        if operation.upper().startswith(("SELECT", "WITH", "INSERT")):
             escaper = _escape_presto
         else:
+            # Fixes ParseException that comes with newer version of PyAthena
+            operation = operation.replace("\n\n    ", "\n")
+
             escaper = _escape_hive
 
         kwargs: Optional[List[str]] = None
@@ -231,11 +230,8 @@ class AthenaParameterFormatter(Formatter):
 
                     func = self.get(v)
                     if not func:
-                        raise TypeError("{0} is not defined formatter.".format(type(v)))
+                        raise TypeError(f"{type(v)} is not defined formatter.")
                     kwargs.append(func(self, escaper, v))
             else:
-                raise ProgrammingError(
-                    "Unsupported parameter "
-                    + "(Support for list only): {0}".format(parameters)
-                )
+                raise ProgrammingError(f"Unsupported parameter (Support for list only): {parameters}")
         return (operation % tuple(kwargs)).strip() if kwargs is not None else operation.strip()

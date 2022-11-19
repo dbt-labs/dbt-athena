@@ -1,0 +1,29 @@
+[tool.autoflake]
+recursive = true
+in-place = true
+remove-all-unused-imports = true
+remove-unused-variables = true
+
+[tool.black]
+line-length = 120
+target-version = ['py37', 'py38', 'py39', 'py310']
+include = '\.pyi?$'
+
+[tool.flake8]
+files = '.*\.py'
+max-line-length = 120
+exclude = ['.git', '.eggs', '__pycache__', 'venv']
+ignore = [
+    # space before : (needed for how black formats slicing)
+    'E203',
+    # line break before binary operator (needed for how black formats long lines)
+    'W503'
+]
+# Error codes to ignore, per file level module imported but unused
+per-file-ignores = """
+    */__init__.py:F401
+"""
+
+[tool.isort]
+profile = 'black'
+src_paths = ['dbt', 'test']
