@@ -101,6 +101,8 @@ _Additional information_
   * The compression type to use for any storage format that allows compression to be specified. To see which options are available, check out [CREATE TABLE AS][create-table-as]
 * `field_delimiter` (`default=none`)
   * Custom field delimiter, for when format is set to `TEXTFILE`
+* `table_properties`: table properties to add to the table, valid for Iceberg only
+* `strict_location` (`default=True`): when working with iceberg it's possible to rename tables, in order to do so, tables need to avoid to have same location. Setting up `strict_location` to *false* allow a table creation on an unique location
 
 More information: [CREATE TABLE AS][create-table-as]
 
@@ -117,6 +119,34 @@ Support for incremental models:
 Due to the nature of AWS Athena, not all core dbt functionality is supported.
 The following features of dbt are not implemented on Athena:
 * Snapshots
+
+#### Iceberg
+The adapter support table materialization for Iceberg.
+
+To get started just add this as your model:
+```
+{{ config(
+    materialized='table',
+    format='iceberg',
+    partitioned_by=['bucket(5, user_id)'],
+    strict_location=false,
+    table_properties={
+    	'optimize_rewrite_delete_file_threshold': '2'
+    	}
+) }}
+
+SELECT
+	'A' AS user_id,
+	'pi' AS name,
+	'active' AS status,
+	17.89 AS cost,
+	1 AS quantity,
+	100000000 AS quantity_big,
+	current_date AS my_date
+```
+
+Iceberg support bucketing as hidden partitions, therefore use the `partitioned_by` config to add specific bucketing conditions.
+
 
 #### Known issues
 

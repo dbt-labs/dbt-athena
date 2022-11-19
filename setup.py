@@ -11,7 +11,7 @@ with open(os.path.join(this_directory, "README.md")) as f:
 package_name = "dbt-athena-community"
 
 dbt_version = "1.3"
-package_version = "1.3.0"
+package_version = "1.3.1"
 description = "The athena adapter plugin for dbt (data build tool)"
 
 if not package_version.startswith(dbt_version):
