@@ -57,6 +57,9 @@
   {%- set table_properties_formatted = [] -%}
   {%- set dest_columns_with_type = [] -%}
 
+  {{ print("default_s3_data_naming:" ~ default_s3_data_naming) }}
+  {{ print("s3_data_naming:" ~ s3_data_naming) }}
+
   {%- for k in table_properties -%}
   	{% set _ = table_properties_formatted.append("'" + k + "'='" + table_properties[k] + "'") -%}
   {%- endfor -%}

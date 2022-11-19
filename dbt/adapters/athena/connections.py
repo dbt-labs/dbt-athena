@@ -66,6 +66,8 @@ class AthenaCredentials(Credentials):
             "poll_interval",
             "aws_profile_name",
             "endpoing_url",
+            "s3_data_dir",
+            "s3_data_naming",
         )
 
 
