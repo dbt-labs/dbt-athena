@@ -110,6 +110,11 @@
 
   {% set data_type = ns.iceberg_type -%}
 
+  -- treat all varchar columns without length as string
+  {%- if data_type == 'varchar' -%}
+    {% set data_type = 'string' -%}
+  {%- endif -%}
+
   -- transform array and map
   {%- if 'array' in data_type or 'map' in data_type -%}
     {% set data_type = data_type.replace('(', '<').replace(')', '>') -%}
@@ -119,6 +124,8 @@
   {%- if 'integer' in data_type -%}
     {% set data_type = data_type.replace('integer', 'int') -%}
   {%- endif -%}
+
+  {{print(col_type)}}
 
   {{ return(data_type) }}
 {% endmacro %}
