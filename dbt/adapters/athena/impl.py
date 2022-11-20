@@ -14,6 +14,7 @@ from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.compiled import CompileResultNode
 from dbt.contracts.graph.manifest import Manifest
 from dbt.events import AdapterLogger
+from dbt.exceptions import RuntimeException
 
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
@@ -107,7 +108,21 @@ class AthenaAdapter(SQLAdapter):
                 bucket_name = m.group(1)
                 prefix = m.group(2)
                 s3_bucket = s3_resource.Bucket(bucket_name)
-                s3_bucket.objects.filter(Prefix=prefix).delete()
+                response = s3_bucket.objects.filter(Prefix=prefix).delete()
+                is_all_successful = True
+                for res in response:
+                    if "Errors" in res:
+                        for err in res["Errors"]:
+                            is_all_successful = False
+                            logger.error(
+                                "Failed to clean up partitions: Key='{}', Code='{}', Message='{}', s3_bucket='{}'",
+                                err["Key"],
+                                err["Code"],
+                                err["Message"],
+                                bucket_name,
+                            )
+                if is_all_successful is False:
+                    raise RuntimeException("Failed to clean up table partitions.")
 
     @available
     def clean_up_table(self, database_name: str, table_name: str):
