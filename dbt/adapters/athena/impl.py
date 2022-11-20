@@ -1,5 +1,6 @@
 import re
 from itertools import chain
+from os import path
 from threading import Lock
 from typing import Dict, Iterator, List, Optional, Set
 from uuid import uuid4
@@ -13,6 +14,7 @@ from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.compiled import CompileResultNode
 from dbt.contracts.graph.manifest import Manifest
 from dbt.events import AdapterLogger
+from dbt.exceptions import RuntimeException
 
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
@@ -47,8 +49,23 @@ class AthenaAdapter(SQLAdapter):
     def s3_uuid_table_location(self):
         conn = self.connections.get_thread_connection()
         client = conn.handle
-
         return f"{client.s3_staging_dir}tables/{str(uuid4())}/"
+
+    @available
+    def s3_unique_location(self, external_location, strict_location, staging_dir, relation_name):
+        """
+        Generate a unique not overlapping location.
+        """
+        unique_id = str(uuid4())
+        if external_location is not None:
+            if not strict_location:
+                if external_location.endswith("/"):
+                    external_location = external_location[:-1]
+                external_location = f"{external_location}_{unique_id}/"
+        else:
+            base_path = path.join(staging_dir, f"{relation_name}_{unique_id}")
+            external_location = f"{base_path}/"
+        return external_location
 
     @available
     def clean_up_partitions(self, database_name: str, table_name: str, where_condition: str):
@@ -79,7 +96,21 @@ class AthenaAdapter(SQLAdapter):
                 bucket_name = m.group(1)
                 prefix = m.group(2)
                 s3_bucket = s3_resource.Bucket(bucket_name)
-                s3_bucket.objects.filter(Prefix=prefix).delete()
+                response = s3_bucket.objects.filter(Prefix=prefix).delete()
+                is_all_successful = True
+                for res in response:
+                    if "Errors" in res:
+                        for err in res["Errors"]:
+                            is_all_successful = False
+                            logger.error(
+                                "Failed to clean up partitions: Key='{}', Code='{}', Message='{}', s3_bucket='{}'",
+                                err["Key"],
+                                err["Code"],
+                                err["Message"],
+                                bucket_name,
+                            )
+                if is_all_successful is False:
+                    raise RuntimeException("Failed to clean up table partitions.")
 
     @available
     def clean_up_table(self, database_name: str, table_name: str):
