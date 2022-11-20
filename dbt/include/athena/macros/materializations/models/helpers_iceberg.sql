@@ -53,9 +53,10 @@
   {%- set partitioned_by = config.get('partitioned_by', default=none) -%}
   {%- set table_properties = config.get('table_properties', default={}) -%}
   {%- set _ = table_properties.update({'table_type': 'ICEBERG'}) -%}
-  {%- set s3_data_naming = config.get('s3_data_naming', default=target.s3_data_naming) -%}
   {%- set table_properties_formatted = [] -%}
   {%- set dest_columns_with_type = [] -%}
+  {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
+  {%- set s3_data_naming = config.get('s3_data_naming', default=target.s3_data_naming) -%}
 
   {%- for k in table_properties -%}
   	{% set _ = table_properties_formatted.append("'" + k + "'='" + table_properties[k] + "'") -%}
@@ -64,7 +65,7 @@
   {%- set table_properties_csv= table_properties_formatted | join(', ') -%}
 
   {%- if external_location is none %}
-    {%- set  external_location = adapter.s3_table_location(s3_data_naming, relation.schema, relation.identifier) -%}
+    {%- set  external_location = adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier) -%}
   {%- endif %}
 
   {%- for col in dest_columns -%}

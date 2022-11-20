@@ -10,6 +10,7 @@
 {% macro athena__create_csv_table(model, agate_table) %}
   {%- set column_override = model['config'].get('column_types', {}) -%}
   {%- set quote_seed_column = model['config'].get('quote_columns', None) -%}
+  {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
   {%- set s3_data_naming = model['config'].get('s3_data_naming', target.s3_data_naming) -%}
 
   {% set sql %}
@@ -22,7 +23,7 @@
         {%- endfor -%}
     )
     stored as parquet
-    location '{{ adapter.s3_table_location(s3_data_naming, model["schema"], model["alias"]) }}'
+    location '{{ adapter.s3_table_location(s3_data_dir, s3_data_naming, model["schema"], model["alias"]) }}'
     tblproperties ('classification'='parquet')
   {% endset %}
 

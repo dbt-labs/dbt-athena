@@ -47,18 +47,19 @@ stored login info. You can configure the AWS profile name to use via `aws_profil
 
 A dbt profile can be configured to run against AWS Athena using the following configuration:
 
-| Option          | Description                                                                    | Required?  | Example             |
-|---------------- |--------------------------------------------------------------------------------|----------- |-------------------- |
-| s3_staging_dir  | S3 location to store Athena query results and metadata                         | Required   | `s3://bucket/dbt/`  |
+| Option          | Description                                                                    | Required?  | Example               |
+|---------------- |--------------------------------------------------------------------------------|----------- |-----------------------|
+| s3_staging_dir  | S3 location to store Athena query results and metadata                         | Required   | `s3://bucket/dbt/`    |
 | s3_data_dir     | Prefix for storing tables, if different from the connection's `s3_staging_dir` | Optional   | `s3://bucket2/dbt/`   |
-| s3_data_naming  | How to generate table paths in `s3_data_dir`: `uuid/schema_table/schema_table_unique`             | Optional   | `schema_table`                |
-| region_name     | AWS region of your Athena instance                                             | Required   | `eu-west-1`         |
-| schema          | Specify the schema (Athena database) to build models into (lowercase **only**) | Required   | `dbt`               |
-| database        | Specify the database (Data catalog) to build models into (lowercase **only**)  | Required   | `awsdatacatalog`    |
-| poll_interval   | Interval in seconds to use for polling the status of query results in Athena   | Optional   | `5`                 |
-| aws_profile_name| Profile to use from your AWS shared credentials file.                          | Optional   | `my-profile`        |
-| work_group| Identifier of Athena workgroup                                                 | Optional   | `my-custom-workgroup`        |
-| num_retries| Number of times to retry a failing query                                       | Optional  | `3`  | `5`
+| s3_data_naming  | How to generate table paths in `s3_data_dir`                                   | Optional   | `schema_table_unique` |
+| region_name     | AWS region of your Athena instance                                             | Required   | `eu-west-1`           |
+| schema          | Specify the schema (Athena database) to build models into (lowercase **only**) | Required   | `dbt`                 |
+| database        | Specify the database (Data catalog) to build models into (lowercase **only**)  | Required   | `awsdatacatalog`      |
+| poll_interval   | Interval in seconds to use for polling the status of query results in Athena   | Optional   | `5`                   |
+| aws_profile_name| Profile to use from your AWS shared credentials file.                          | Optional   | `my-profile`          |
+| work_group| Identifier of Athena workgroup                                                 | Optional   | `my-custom-workgroup` |
+| num_retries| Number of times to retry a failing query                                       | Optional  | `3`                   | `5`
+
 
 **Example profiles.yml entry:**
 ```yaml
@@ -110,13 +111,18 @@ _Additional information_
 The location in which a table is saved is determined by:
 
 1. If `external_location` is defined, that value is used.
-2. If `s3_data_dir` is defined, the path is determined by that and `s3_data_naming`:
-   + `s3_data_naming=uuid`: `{s3_data_dir}/{uuid4()}/`
-   + `s3_data_naming=schema_table`: `{s3_data_dir}/{schema}/{table}/`
-   + `s3_data_naming=schema_table_unique`: `{s3_data_dir}/{schema}/{table}/{uuid4()/`
-3. Otherwise, the staging dir location used by the adapter is used by default.
+2. If `s3_data_dir` is defined, the path is determined by that and `s3_data_naming`
+3. If `s3_data_dir` is not defined data is stored under `s3_staging_dir/tables/`
 
-It's possible to set the `s3_data_naming` globally in the target profile, or overwrite the value in the table config.
+Here all the options available for `s3_data_naming`:
+* `uuid`: `{s3_data_dir}/{uuid4()}/`
+* `table_table`: `{s3_data_dir}/{table}/`
+* `table_unique`: `{s3_data_dir}/{table}/{uuid4()}/`
+* `schema_table`: `{s3_data_dir}/{schema}/{table}/`
+* `s3_data_naming=schema_table_unique`: `{s3_data_dir}/{schema}/{table}/{uuid4()}/`
+
+It's possible to set the `s3_data_naming` globally in the target profile, or overwrite the value in the table config,
+or setting up the value for groups of model in dbt_project.yml
 
 
 #### Supported functionality
