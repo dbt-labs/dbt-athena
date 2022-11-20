@@ -9,6 +9,6 @@
     DECIMAL(38,6)
 {%- endmacro -%}
 
-{%- macro athena_type_int() -%}
+{%- macro athena__type_int() -%}
     INTEGER
 {%- endmacro -%}
