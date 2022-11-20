@@ -60,44 +60,23 @@ class AthenaAdapter(SQLAdapter):
             return path.join(creds.s3_staging_dir, "tables")
 
     @available
-    def s3_uuid_table_location(self):
-        """
-        Returns a random location for storing a table, using a UUID as
-        the final directory part
-        """
-        return path.join(self.s3_table_prefix(), str(uuid4())) + "/"
-
-    @available
-    def s3_schema_table_location(self, schema_name: str, table_name: str) -> str:
-        """
-        Returns a fixed location for storing a table determined by the
-        (athena) schema and table name
-        """
-        return path.join(self.s3_table_prefix(), schema_name, table_name) + "/"
-
-    @available
-    def s3_schema_table_unique_location(self, schema_name: str, table_name: str) -> str:
-        """
-        Returns a fixed location for storing a table determined by the
-        (athena) schema and table name with a final unique UUID.
-        Helpful when working with Iceberg and table renaming
-        """
-        return path.join(self.s3_table_prefix(), schema_name, table_name, str(uuid4())) + "/"
-
-    @available
     def s3_table_location(self, s3_data_naming: str, schema_name: str, table_name: str) -> str:
         """
         Returns either a UUID or database/table prefix for storing a table,
         depending on the value of s3_table
         """
-        if s3_data_naming == "uuid":
-            return self.s3_uuid_table_location()
-        elif s3_data_naming == "schema_table":
-            return self.s3_schema_table_location(schema_name, table_name)
-        elif s3_data_naming == "schema_table_unique":
-            return self.s3_schema_table_unique_location(schema_name, table_name)
-        else:
+        mapping = {
+            "uuid": path.join(self.s3_table_prefix(), str(uuid4())) + "/",
+            "schema_table": path.join(self.s3_table_prefix(), schema_name, table_name) + "/",
+            "schema_table_unique": path.join(self.s3_table_prefix(), schema_name, table_name, str(uuid4())) + "/",
+        }
+
+        table_location = mapping.get(s3_data_naming)
+
+        if table_location is None:
             raise ValueError(f"Unknown value for s3_data_naming: {s3_data_naming}")
+
+        return table_location
 
     @available
     def clean_up_partitions(self, database_name: str, table_name: str, where_condition: str):
