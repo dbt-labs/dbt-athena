@@ -111,8 +111,8 @@
   {% set data_type = ns.iceberg_type -%}
 
   -- treat all varchar columns without length as string
-  {%- if data_type == 'varchar' -%}
-    {% set data_type = 'string' -%}
+  {%- if 'varchar' in data_type -%}
+    {% set data_type = col_type.replace('varchar', 'string') -%}
   {%- endif -%}
 
   -- transform array and map
