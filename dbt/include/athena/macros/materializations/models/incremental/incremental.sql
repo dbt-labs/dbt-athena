@@ -8,7 +8,7 @@
     {% do exceptions.raise_compiler_error(overwrite_msg) %}
   {% endif %}
 
-  {% set raw_strategy = config.get('incremental_strategy', default='insert_overwrite') %}
+  {% set raw_strategy = config.get('incremental_strategy') or 'insert_overwrite' %}
   {% set strategy = validate_get_incremental_strategy(raw_strategy) %}
 
   {% set partitioned_by = config.get('partitioned_by', default=none) %}
