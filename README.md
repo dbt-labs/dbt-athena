@@ -47,16 +47,19 @@ stored login info. You can configure the AWS profile name to use via `aws_profil
 
 A dbt profile can be configured to run against AWS Athena using the following configuration:
 
-| Option          | Description                                                                     | Required?  | Example             |
-|---------------- |-------------------------------------------------------------------------------- |----------- |-------------------- |
-| s3_staging_dir  | S3 location to store Athena query results and metadata                          | Required   | `s3://bucket/dbt/`  |
-| region_name     | AWS region of your Athena instance                                              | Required   | `eu-west-1`         |
-| schema          | Specify the schema (Athena database) to build models into (lowercase **only**)  | Required   | `dbt`               |
-| database        | Specify the database (Data catalog) to build models into (lowercase **only**)   | Required   | `awsdatacatalog`    |
-| poll_interval   | Interval in seconds to use for polling the status of query results in Athena    | Optional   | `5`                 |
-| aws_profile_name| Profile to use from your AWS shared credentials file.                           | Optional   | `my-profile`        |
-| work_group| Identifier of Athena workgroup   | Optional   | `my-custom-workgroup`        |
-| num_retries| Number of times to retry a failing query | Optional  | `3`  | `5`
+| Option          | Description                                                                    | Required?  | Example               |
+|---------------- |--------------------------------------------------------------------------------|----------- |-----------------------|
+| s3_staging_dir  | S3 location to store Athena query results and metadata                         | Required   | `s3://bucket/dbt/`    |
+| s3_data_dir     | Prefix for storing tables, if different from the connection's `s3_staging_dir` | Optional   | `s3://bucket2/dbt/`   |
+| s3_data_naming  | How to generate table paths in `s3_data_dir`                                   | Optional   | `schema_table_unique` |
+| region_name     | AWS region of your Athena instance                                             | Required   | `eu-west-1`           |
+| schema          | Specify the schema (Athena database) to build models into (lowercase **only**) | Required   | `dbt`                 |
+| database        | Specify the database (Data catalog) to build models into (lowercase **only**)  | Required   | `awsdatacatalog`      |
+| poll_interval   | Interval in seconds to use for polling the status of query results in Athena   | Optional   | `5`                   |
+| aws_profile_name| Profile to use from your AWS shared credentials file.                          | Optional   | `my-profile`          |
+| work_group| Identifier of Athena workgroup                                                 | Optional   | `my-custom-workgroup` |
+| num_retries| Number of times to retry a failing query                                       | Optional  | `3`                   | `5`
+
 
 **Example profiles.yml entry:**
 ```yaml
@@ -66,6 +69,8 @@ athena:
     dev:
       type: athena
       s3_staging_dir: s3://athena-query-results/dbt/
+      s3_data_dir: s3://your_s3_bucket/dbt/
+      s3_data_naming: schema_table
       region_name: eu-west-1
       schema: dbt
       database: awsdatacatalog
@@ -84,9 +89,7 @@ _Additional information_
 #### Table Configuration
 
 * `external_location` (`default=none`)
-  * The location where Athena saves your table in Amazon S3
-  * If `none` then it will default to `{s3_staging_dir}/tables`
-  * If you are using a static value, when your table/partition is recreated underlying data will be cleaned up and overwritten by new data
+  * If set, the full S3 path in which the table will be saved.
 * `partitioned_by` (`default=none`)
   * An array list of columns by which the table will be partitioned
   * Limited to creation of 100 partitions (_currently_)
@@ -104,11 +107,23 @@ _Additional information_
 * `table_properties`: table properties to add to the table, valid for Iceberg only
 * `strict_location` (`default=True`): when working with iceberg it's possible to rename tables, in order to do so, tables need to avoid to have same location. Setting up `strict_location` to *false* allow a table creation on an unique location
 
-More information: [CREATE TABLE AS][create-table-as]
+#### Table location
+The location in which a table is saved is determined by:
 
-[run_started_at]: https://docs.getdbt.com/reference/dbt-jinja-functions/run_started_at
-[invocation_id]: https://docs.getdbt.com/reference/dbt-jinja-functions/invocation_id
-[create-table-as]: https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html
+1. If `external_location` is defined, that value is used.
+2. If `s3_data_dir` is defined, the path is determined by that and `s3_data_naming`
+3. If `s3_data_dir` is not defined data is stored under `s3_staging_dir/tables/`
+
+Here all the options available for `s3_data_naming`:
+* `uuid`: `{s3_data_dir}/{uuid4()}/`
+* `table_table`: `{s3_data_dir}/{table}/`
+* `table_unique`: `{s3_data_dir}/{table}/{uuid4()}/`
+* `schema_table`: `{s3_data_dir}/{schema}/{table}/`
+* `s3_data_naming=schema_table_unique`: `{s3_data_dir}/{schema}/{table}/{uuid4()}/`
+
+It's possible to set the `s3_data_naming` globally in the target profile, or overwrite the value in the table config,
+or setting up the value for groups of model in dbt_project.yml
+
 
 #### Incremental models
 
@@ -139,7 +154,6 @@ To get started just add this as your model:
     materialized='table',
     format='iceberg',
     partitioned_by=['bucket(5, user_id)'],
-    strict_location=false,
     table_properties={
     	'optimize_rewrite_delete_file_threshold': '2'
     	}
@@ -199,15 +213,22 @@ make setup
 It will :
 1. Install all dependencies.
 2. Install pre-commit hooks.
+3. Generate your `.env` file
 
-Next, configure the environment variables in [dev.env](dev.env) to match your Athena development environment.
+Next, adjust `.env` file by configuring the environment variables to match your Athena development environment.
 
 #### Running tests
-You can run the tests using `make`:
+You must have an AWS account with Athena setup in order to launch the tests. You can run the tests using `make`:
 
 ```bash
 make run_tests
 ```
+
+### Helpful Resources
+
+* [Athena CREATE TABLE AS](https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html)
+* [dbt run_started_at](https://docs.getdbt.com/reference/dbt-jinja-functions/run_started_at)
+* [dbt invocation_id](https://docs.getdbt.com/reference/dbt-jinja-functions/invocation_id)
 
 ### Community
 

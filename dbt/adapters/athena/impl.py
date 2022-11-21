@@ -14,6 +14,7 @@ from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.compiled import CompileResultNode
 from dbt.contracts.graph.manifest import Manifest
 from dbt.events import AdapterLogger
+from dbt.exceptions import RuntimeException
 
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
@@ -45,26 +46,41 @@ class AthenaAdapter(SQLAdapter):
         return "timestamp"
 
     @available
-    def s3_uuid_table_location(self):
+    def s3_table_prefix(self, s3_data_dir: str) -> str:
+        """
+        Returns the root location for storing tables in S3.
+        This is `s3_data_dir`, if set, and `s3_staging_dir/tables/` if not.
+        We generate a value here even if `s3_data_dir` is not set,
+        since creating a seed table requires a non-default location.
+        """
         conn = self.connections.get_thread_connection()
-        client = conn.handle
-        return f"{client.s3_staging_dir}tables/{str(uuid4())}/"
+        creds = conn.credentials
+        if s3_data_dir is not None:
+            return s3_data_dir
+        else:
+            return path.join(creds.s3_staging_dir, "tables")
 
     @available
-    def s3_unique_location(self, external_location, strict_location, staging_dir, relation_name):
+    def s3_table_location(self, s3_data_dir: str, s3_data_naming: str, schema_name: str, table_name: str) -> str:
         """
-        Generate a unique not overlapping location.
+        Returns either a UUID or database/table prefix for storing a table,
+        depending on the value of s3_table
         """
-        unique_id = str(uuid4())
-        if external_location is not None:
-            if not strict_location:
-                if external_location.endswith("/"):
-                    external_location = external_location[:-1]
-                external_location = f"{external_location}_{unique_id}/"
-        else:
-            base_path = path.join(staging_dir, f"{relation_name}_{unique_id}")
-            external_location = f"{base_path}/"
-        return external_location
+        mapping = {
+            "uuid": path.join(self.s3_table_prefix(s3_data_dir), str(uuid4())) + "/",
+            "table": path.join(self.s3_table_prefix(s3_data_dir), table_name) + "/",
+            "table_unique": path.join(self.s3_table_prefix(s3_data_dir), table_name, str(uuid4())) + "/",
+            "schema_table": path.join(self.s3_table_prefix(s3_data_dir), schema_name, table_name) + "/",
+            "schema_table_unique": path.join(self.s3_table_prefix(s3_data_dir), schema_name, table_name, str(uuid4()))
+            + "/",
+        }
+
+        table_location = mapping.get(s3_data_naming)
+
+        if table_location is None:
+            raise ValueError(f"Unknown value for s3_data_naming: {s3_data_naming}")
+
+        return table_location
 
     @available
     def clean_up_partitions(self, database_name: str, table_name: str, where_condition: str):
@@ -95,7 +111,21 @@ class AthenaAdapter(SQLAdapter):
                 bucket_name = m.group(1)
                 prefix = m.group(2)
                 s3_bucket = s3_resource.Bucket(bucket_name)
-                s3_bucket.objects.filter(Prefix=prefix).delete()
+                response = s3_bucket.objects.filter(Prefix=prefix).delete()
+                is_all_successful = True
+                for res in response:
+                    if "Errors" in res:
+                        for err in res["Errors"]:
+                            is_all_successful = False
+                            logger.error(
+                                "Failed to clean up partitions: Key='{}', Code='{}', Message='{}', s3_bucket='{}'",
+                                err["Key"],
+                                err["Code"],
+                                err["Message"],
+                                bucket_name,
+                            )
+                if is_all_successful is False:
+                    raise RuntimeException("Failed to clean up table partitions.")
 
     @available
     def clean_up_table(self, database_name: str, table_name: str):

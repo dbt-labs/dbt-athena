@@ -45,6 +45,8 @@ class AthenaCredentials(Credentials):
     poll_interval: float = 1.0
     _ALIASES = {"catalog": "database"}
     num_retries: Optional[int] = 5
+    s3_data_dir: Optional[str] = None
+    s3_data_naming: Optional[str] = "schema_table_unique"
 
     @property
     def type(self) -> str:
@@ -64,6 +66,8 @@ class AthenaCredentials(Credentials):
             "poll_interval",
             "aws_profile_name",
             "endpoing_url",
+            "s3_data_dir",
+            "s3_data_naming",
         )
 
 
