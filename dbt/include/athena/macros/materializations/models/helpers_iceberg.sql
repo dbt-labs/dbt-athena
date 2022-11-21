@@ -100,12 +100,18 @@
 
 
 {% macro iceberg_data_type(col_type) -%}
-  {%- if 'varchar' in col_type -%}
-    {% set data_type = 'string' -%}
-  {%- elif 'integer' == col_type -%}
-     {% set data_type = 'int' -%}
-  {%- else -%}
-     {% set data_type = col_type -%}
+    -- replace varchar with string
+  {% set re = modules.re %}
+  {% set data_type = re.sub('varchar(?:\(\d+\))?', 'string',  col_type) %}
+
+  -- transform array and map
+  {%- if 'array' in data_type or 'map' in data_type -%}
+    {% set data_type = data_type.replace('(', '<').replace(')', '>') -%}
+  {%- endif -%}
+
+  -- transform int
+  {%- if 'integer' in data_type -%}
+    {% set data_type = data_type.replace('integer', 'int') -%}
   {%- endif -%}
 
   {{ return(data_type) }}
