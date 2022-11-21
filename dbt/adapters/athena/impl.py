@@ -267,6 +267,3 @@ class AthenaAdapter(SQLAdapter):
                 )
 
         return relations
-
-    def valid_incremental_strategies(self):
-        return ["append", "insert_overwrite"]
