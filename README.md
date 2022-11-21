@@ -110,15 +110,25 @@ More information: [CREATE TABLE AS][create-table-as]
 [invocation_id]: https://docs.getdbt.com/reference/dbt-jinja-functions/invocation_id
 [create-table-as]: https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html
 
-#### Supported functionality
+#### Incremental models
 
-Support for incremental models:
-* Support two incremental update strategies with partitioned tables: `insert_overwrite` and `append`
-* Does **not** support the use of `unique_key`
+Support for [incremental models](https://docs.getdbt.com/docs/build/incremental-models).
 
-Due to the nature of AWS Athena, not all core dbt functionality is supported.
-The following features of dbt are not implemented on Athena:
-* Snapshots
+These strategies are supported:
+* `insert_overwrite`
+* `append`
+
+> **Note**: `unique_key` is **not** supported.
+
+`on_schema_change` is an option to reflect changes of schema in incremental models.
+The following options are supported:
+* `ignore` (default)
+* `fail`
+* `append_new_columns`
+* `sync_all_columns`
+
+In detail, please refer to [dbt docs](https://docs.getdbt.com/docs/build/incremental-models#what-if-the-columns-of-my-incremental-model-change).
+
 
 #### Iceberg
 The adapter support table materialization for Iceberg.
@@ -147,6 +157,12 @@ SELECT
 
 Iceberg support bucketing as hidden partitions, therefore use the `partitioned_by` config to add specific bucketing conditions.
 
+
+#### Unsupported functionality
+
+Due to the nature of AWS Athena, not all core dbt functionality is supported.
+The following features of dbt are not implemented on Athena:
+* Snapshots
 
 #### Known issues
 
