@@ -103,15 +103,9 @@
 
 
 {% macro iceberg_data_type(col_type) -%}
-    -- transform varchar
+    -- replace varchar with string
   {% set re = modules.re %}
-  {% set ns = namespace(iceberg_type=col_type) %}
-  {% set matching_strings = re.findall('varchar\(\d+\)', ns.iceberg_type) %}
-  {% for varchar_part in matching_strings %}
-    {% set ns.iceberg_type = ns.iceberg_type.replace(varchar_part, 'string') %}
-  {% endfor %}
-
-  {% set data_type = ns.iceberg_type -%}
+  {% set data_type = re.sub('varchar(?:\(\d+\))?', 'string',  col_type) %}
 
   -- transform array and map
   {%- if 'array' in data_type or 'map' in data_type -%}
