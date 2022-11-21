@@ -197,11 +197,12 @@ make setup
 It will :
 1. Install all dependencies.
 2. Install pre-commit hooks.
+3. Generate your `.env` file
 
-Next, configure the environment variables in [dev.env](dev.env) to match your Athena development environment.
+Next, adjust `.env` file by configuring the environment variables to match your Athena development environment.
 
 #### Running tests
-You can run the tests using `make`:
+You must have an AWS account with Athena setup in order to launch the tests. You can run the tests using `make`:
 
 ```bash
 make run_tests

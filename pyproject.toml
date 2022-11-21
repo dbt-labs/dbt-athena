@@ -27,3 +27,9 @@ per-file-ignores = """
 [tool.isort]
 profile = 'black'
 src_paths = ['dbt', 'test']
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests/unit",
+    "tests/functional",
+]
