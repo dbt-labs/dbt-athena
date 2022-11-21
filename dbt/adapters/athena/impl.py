@@ -16,7 +16,6 @@ from dbt.contracts.graph.manifest import Manifest
 from dbt.events import AdapterLogger
 
 from dbt.adapters.athena import AthenaConnectionManager
-from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
 
 logger = AdapterLogger("Athena")
@@ -27,7 +26,6 @@ boto3_client_lock = Lock()
 class AthenaAdapter(SQLAdapter):
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
-    Column = AthenaColumn
 
     @classmethod
     def date_function(cls) -> str:

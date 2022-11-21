@@ -66,7 +66,7 @@
   {%- set external_location = adapter.s3_unique_location(external_location, strict_location, target.s3_staging_dir, relation.name) -%}
 
   {%- for col in dest_columns -%}
-	{% set dtype = iceberg_data_type(col.dtype) -%}
+	{% set dtype = ddl_data_type(col.dtype) -%}
   	{% set _ = dest_columns_with_type.append(col.name + ' ' + dtype) -%}
   {%- endfor -%}
 
@@ -97,16 +97,3 @@
       )
     );
 {%- endmacro %}
-
-
-{% macro iceberg_data_type(col_type) -%}
-  {%- if 'varchar' in col_type -%}
-    {% set data_type = 'string' -%}
-  {%- elif 'integer' == col_type -%}
-     {% set data_type = 'int' -%}
-  {%- else -%}
-     {% set data_type = col_type -%}
-  {%- endif -%}
-
-  {{ return(data_type) }}
-{% endmacro %}
