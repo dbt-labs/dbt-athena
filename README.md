@@ -7,15 +7,16 @@
 * Supports [Seeds][seeds]
 * Correctly detects views and their columns
 * Support [incremental models][incremental]
-  * Support two incremental update strategies: `insert_overwrite` and `append`
-  * Does **not** support the use of `unique_key`
-* **Only** supports Athena engine 2
-  * [Changing Athena Engine Versions][engine-change]
+  * On iceberg tables :
+    * Support the use of `unique_key` only with query engine `v3` using the `merge` strategy
+    * Support the `append` strategy
+  * On Hive tables :
+    * Support two incremental update strategies: `insert_overwrite` and `append`
+    * Does **not** support the use of `unique_key`
 * Does not support [Python models][python-models]
 
 [seeds]: https://docs.getdbt.com/docs/building-a-dbt-project/seeds
 [incremental]: https://docs.getdbt.com/docs/building-a-dbt-project/building-models/configuring-incremental-models
-[engine-change]: https://docs.aws.amazon.com/athena/latest/ug/engine-versions-changing.html
 [python-models]: https://docs.getdbt.com/docs/build/python-models#configuring-python-models
 
 ### Installation
@@ -47,18 +48,18 @@ stored login info. You can configure the AWS profile name to use via `aws_profil
 
 A dbt profile can be configured to run against AWS Athena using the following configuration:
 
-| Option          | Description                                                                    | Required?  | Example               |
-|---------------- |--------------------------------------------------------------------------------|----------- |-----------------------|
-| s3_staging_dir  | S3 location to store Athena query results and metadata                         | Required   | `s3://bucket/dbt/`    |
-| s3_data_dir     | Prefix for storing tables, if different from the connection's `s3_staging_dir` | Optional   | `s3://bucket2/dbt/`   |
-| s3_data_naming  | How to generate table paths in `s3_data_dir`                                   | Optional   | `schema_table_unique` |
-| region_name     | AWS region of your Athena instance                                             | Required   | `eu-west-1`           |
-| schema          | Specify the schema (Athena database) to build models into (lowercase **only**) | Required   | `dbt`                 |
-| database        | Specify the database (Data catalog) to build models into (lowercase **only**)  | Required   | `awsdatacatalog`      |
-| poll_interval   | Interval in seconds to use for polling the status of query results in Athena   | Optional   | `5`                   |
-| aws_profile_name| Profile to use from your AWS shared credentials file.                          | Optional   | `my-profile`          |
-| work_group| Identifier of Athena workgroup                                                 | Optional   | `my-custom-workgroup` |
-| num_retries| Number of times to retry a failing query                                       | Optional  | `3`                   | `5`
+| Option           | Description                                                                    | Required?   | Example               |
+|------------------|--------------------------------------------------------------------------------|-------------|-----------------------|
+| s3_staging_dir   | S3 location to store Athena query results and metadata                         | Required    | `s3://bucket/dbt/`    |
+| s3_data_dir      | Prefix for storing tables, if different from the connection's `s3_staging_dir` | Optional    | `s3://bucket2/dbt/`   |
+| s3_data_naming   | How to generate table paths in `s3_data_dir`                                   | Optional    | `schema_table_unique` |
+| region_name      | AWS region of your Athena instance                                             | Required    | `eu-west-1`           |
+| schema           | Specify the schema (Athena database) to build models into (lowercase **only**) | Required    | `dbt`                 |
+| database         | Specify the database (Data catalog) to build models into (lowercase **only**)  | Required    | `awsdatacatalog`      |
+| poll_interval    | Interval in seconds to use for polling the status of query results in Athena   | Optional    | `5`                   |
+| aws_profile_name | Profile to use from your AWS shared credentials file.                          | Optional    | `my-profile`          |
+| work_group       | Identifier of Athena workgroup                                                 | Optional    | `my-custom-workgroup` |
+| num_retries      | Number of times to retry a failing query                                       | Optional    | `3`                   |
 
 
 **Example profiles.yml entry:**
@@ -196,8 +197,6 @@ The following features of dbt are not implemented on Athena:
   ```
 
 * Tables, schemas and database should only be lowercase
-* **Only** supports Athena engine 2
-  * [Changing Athena Engine Versions][engine-change]
 
 ### Contributing
 

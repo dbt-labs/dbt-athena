@@ -10,6 +10,7 @@
 
   {%- set target_relation = this.incorporate(type='table') -%}
 
+  -- clean residual tmp table
   {% if tmp_relation is not none %}
      {% do adapter.drop_relation(tmp_relation) %}
   {% endif %}
@@ -33,8 +34,7 @@
 
 {% endmacro %}
 
-
-{% macro create_tmp_table_iceberg(relation, sql, staging_location) -%}
+{% macro create_tmp_table_iceberg(relation, sql, staging_location, with_limit=true) -%}
   create table
     {{ relation }}
     with (
@@ -45,7 +45,9 @@
     select * from (
         {{ sql }}
     )
-    limit 0
+    {%- if with_limit -%}
+      limit 0
+    {%- endif -%}
 {% endmacro %}
 
 {% macro create_iceberg_table_definition(relation, dest_columns) -%}
