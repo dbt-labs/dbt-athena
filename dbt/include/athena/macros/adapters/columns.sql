@@ -30,7 +30,7 @@
       alter {{ relation.type }} {{ relation }}
           add columns (
             {%- for column in add_columns -%}
-                {{ column.name }} {{ column.data_type }}{{ ', ' if not loop.last }}
+                {{ column.name }} {{ ddl_data_type(column.data_type) }}{{ ', ' if not loop.last }}
             {%- endfor -%}
           )
   {%- endset -%}
@@ -49,7 +49,7 @@
       alter {{ relation.type }} {{ relation }}
           replace columns (
             {%- for column in replace_columns -%}
-                {{ column.name }} {{ column.data_type }}{{ ', ' if not loop.last }}
+                {{ column.name }} {{ ddl_data_type(column.data_type) }}{{ ', ' if not loop.last }}
             {%- endfor -%}
           )
   {%- endset -%}
