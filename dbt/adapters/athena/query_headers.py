@@ -26,6 +26,3 @@ class _QueryComment(dbt.adapters.base.query_headers._QueryComment):
             return f"{sql}\n-- /* {cleaned_query_comment} */"
 
         return f"-- /* {cleaned_query_comment} */\n{sql}"
-
-
-dbt.adapters.base.query_headers._QueryComment = _QueryComment
