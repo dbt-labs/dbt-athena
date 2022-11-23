@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, ContextManager, Dict, List, Optional, Tuple
 
+import pkg_resources
 import tenacity
+from botocore import config
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import AdapterResponse, Connection, ConnectionState
@@ -168,6 +170,10 @@ class AthenaConnectionManager(SQLConnectionManager):
                         "TooManyRequestsException",
                         "InternalServerException",
                     ),
+                ),
+                config=config.Config(
+                    user_agent_extra="dbt-athena-community/"
+                    + pkg_resources.get_distribution("dbt-athena-community").version
                 ),
             )
 
