@@ -17,6 +17,7 @@ from dbt.events import AdapterLogger
 from dbt.exceptions import RuntimeException
 
 from dbt.adapters.athena import AthenaConnectionManager
+from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
 
 logger = AdapterLogger("Athena")
@@ -89,8 +90,8 @@ class AthenaAdapter(SQLAdapter):
         client = conn.handle
 
         with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name)
-        s3_resource = client.session.resource("s3", region_name=client.region_name)
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+        s3_resource = client.session.resource("s3", region_name=client.region_name, config=get_boto3_config())
         paginator = glue_client.get_paginator("get_partitions")
         partition_params = {
             "DatabaseName": database_name,
@@ -133,7 +134,7 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name)
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
         try:
             table = glue_client.get_table(DatabaseName=database_name, Name=table_name)
         except ClientError as e:
@@ -148,7 +149,7 @@ class AthenaAdapter(SQLAdapter):
             if m is not None:
                 bucket_name = m.group(1)
                 prefix = m.group(2)
-                s3_resource = client.session.resource("s3", region_name=client.region_name)
+                s3_resource = client.session.resource("s3", region_name=client.region_name, config=get_boto3_config())
                 s3_bucket = s3_resource.Bucket(bucket_name)
                 s3_bucket.objects.filter(Prefix=prefix).delete()
 
@@ -212,7 +213,7 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
-            athena_client = client.session.client("athena", region_name=client.region_name)
+            athena_client = client.session.client("athena", region_name=client.region_name, config=get_boto3_config())
 
         response = athena_client.get_data_catalog(Name=catalog_name)
         return response["DataCatalog"]
@@ -233,7 +234,7 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name)
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
         paginator = glue_client.get_paginator("get_tables")
 
         kwargs = {

@@ -29,6 +29,7 @@ from tenacity.retry import retry_if_exception
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_exponential
 
+from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.session import get_boto3_session
 
 logger = AdapterLogger("Athena")
@@ -169,6 +170,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                         "InternalServerException",
                     ),
                 ),
+                config=get_boto3_config(),
             )
 
             connection.state = ConnectionState.OPEN
