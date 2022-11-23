@@ -5,9 +5,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, ContextManager, Dict, List, Optional, Tuple
 
-import pkg_resources
 import tenacity
-from botocore import config
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import AdapterResponse, Connection, ConnectionState
@@ -31,6 +29,7 @@ from tenacity.retry import retry_if_exception
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_exponential
 
+from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.session import get_boto3_session
 
 logger = AdapterLogger("Athena")
@@ -171,10 +170,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                         "InternalServerException",
                     ),
                 ),
-                config=config.Config(
-                    user_agent_extra="dbt-athena-community/"
-                    + pkg_resources.get_distribution("dbt-athena-community").version
-                ),
+                config=get_boto3_config(),
             )
 
             connection.state = ConnectionState.OPEN
