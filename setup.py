@@ -12,7 +12,7 @@ with open(os.path.join(this_directory, "README.md")) as f:
 package_name = "dbt-athena-community"
 
 
-# get this from a separate file
+# get version from a separate file
 def _get_plugin_version_dict():
     _version_path = os.path.join(this_directory, "dbt", "adapters", "athena", "__version__.py")
     _semver = r"""(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"""
