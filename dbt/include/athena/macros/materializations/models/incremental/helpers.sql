@@ -1,11 +1,21 @@
-{% macro validate_get_incremental_strategy(raw_strategy) %}
-  {% set invalid_strategy_msg -%}
-    Invalid incremental strategy provided: {{ raw_strategy }}
-    Expected one of: 'append', 'insert_overwrite'
-  {%- endset %}
+{% macro validate_get_incremental_strategy(raw_strategy, format) %}
+  {%- if format == 'iceberg' -%}
+    {% set invalid_strategy_msg -%}
+      Invalid incremental strategy provided: {{ raw_strategy }}
+      Incremental models on Iceberg tables only work with 'append' or 'merge' (v3 only) strategy.
+    {%- endset %}
+    {% if raw_strategy not in ['append', 'merge'] %}
+      {% do exceptions.raise_compiler_error(invalid_strategy_msg) %}
+    {% endif %}
+  {%- else -%}
+    {% set invalid_strategy_msg -%}
+      Invalid incremental strategy provided: {{ raw_strategy }}
+      Expected one of: 'append', 'insert_overwrite'
+    {%- endset %}
 
-  {% if raw_strategy not in ['append', 'insert_overwrite'] %}
-    {% do exceptions.raise_compiler_error(invalid_strategy_msg) %}
+    {% if raw_strategy not in ['append', 'insert_overwrite'] %}
+      {% do exceptions.raise_compiler_error(invalid_strategy_msg) %}
+    {% endif %}
   {% endif %}
 
   {% do return(raw_strategy) %}

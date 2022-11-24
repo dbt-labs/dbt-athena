@@ -39,7 +39,6 @@ logger = AdapterLogger("Athena")
 class AthenaCredentials(Credentials):
     s3_staging_dir: str
     region_name: str
-    schema: str
     endpoint_url: Optional[str] = None
     work_group: Optional[str] = None
     aws_profile_name: Optional[str] = None
@@ -66,7 +65,7 @@ class AthenaCredentials(Credentials):
             "schema",
             "poll_interval",
             "aws_profile_name",
-            "endpoing_url",
+            "endpoint_url",
             "s3_data_dir",
             "s3_data_naming",
         )
