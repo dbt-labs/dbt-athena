@@ -132,8 +132,12 @@ or setting up the value for groups of model in dbt_project.yml
 Support for [incremental models](https://docs.getdbt.com/docs/build/incremental-models).
 
 These strategies are supported:
-* `insert_overwrite`
-* `append`
+
+* `insert_overwrite` (default): The insert overwrite strategy deletes the overlapping partitions from the destination
+table, and then inserts the new records from the source. This strategy depends on the `partitioned_by` keyword! If no
+partitions are defined, dbt will fall back to the `append` strategy.
+* `append`: Insert new records without updating, deleting or overwriting any existing data. There might be duplicate
+data (e.g. great for log or historical data).
 * `merge` in combination with `unique_key`, only available when using iceberg and an engine version v3
 
 #### On schema change
@@ -149,7 +153,7 @@ In detail, please refer to [dbt docs](https://docs.getdbt.com/docs/build/increme
 
 
 #### Iceberg
-The adapter support table materialization for Iceberg.
+The adapter supports table materialization for Iceberg.
 
 To get started just add this as your model:
 ```
@@ -172,7 +176,7 @@ SELECT
 	current_date AS my_date
 ```
 
-Iceberg support bucketing as hidden partitions, therefore use the `partitioned_by` config to add specific bucketing conditions.
+Iceberg supports bucketing as hidden partitions, therefore use the `partitioned_by` config to add specific bucketing conditions.
 
 It is possible to use iceberg in an incremental fashion, specifically 2 strategies are supported:
 * `append`: new records are appended to the table, this can lead to duplicates
@@ -233,5 +237,5 @@ make run_tests
 ### Helpful Resources
 
 * [Athena CREATE TABLE AS](https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html)
-* [fishtown-analytics/dbt](https://github.com/fishtown-analytics/dbt)
+* [dbt-labs/dbt-core](https://github.com/dbt-labs/dbt-core)
 * [laughingman7743/PyAthena](https://github.com/laughingman7743/PyAthena)
