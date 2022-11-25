@@ -138,7 +138,8 @@ table, and then inserts the new records from the source. This strategy depends o
 partitions are defined, dbt will fall back to the `append` strategy.
 * `append`: Insert new records without updating, deleting or overwriting any existing data. There might be duplicate
 data (e.g. great for log or historical data).
-* `merge` in combination with `unique_key`, only available when using iceberg and an engine version v3
+* `merge`: Conditionally updates, deletes, or inserts rows into an Iceberg table. Used in combination with `unique_key`.
+Only available when using Iceberg and Athena engine version 3.
 
 #### On schema change
 
