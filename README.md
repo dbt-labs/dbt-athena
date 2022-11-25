@@ -102,7 +102,7 @@ _Additional information_
   * The number of buckets for bucketing your data, ignored if using Iceberg
 * `format` (`default='parquet'`)
   * The data format for the table
-  * Supports `ORC`, `PARQUET`, `AVRO`, `JSON`, or `TEXTFILE`, `iceberg`
+  * Supports `ORC`, `PARQUET`, `AVRO`, `JSON`, `TEXTFILE` or `iceberg`
 * `write_compression` (`default=none`)
   * The compression type to use for any storage format that allows compression to be specified. To see which options are available, check out [CREATE TABLE AS][create-table-as]
 * `field_delimiter` (`default=none`)
