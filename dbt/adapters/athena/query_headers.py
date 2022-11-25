@@ -25,4 +25,9 @@ class _QueryComment(dbt.adapters.base.query_headers._QueryComment):
 
             return f"{sql}\n-- /* {cleaned_query_comment} */"
 
+        # alter statements or vacuum statements seems not to support properly query comments
+        # let's just exclude them
+        if "alter" or "vacuum" in sql.lower():
+            return sql
+
         return f"-- /* {cleaned_query_comment} */\n{sql}"
