@@ -11,6 +11,11 @@
   {% set existing_relation = load_relation(this) %}
   {% set tmp_relation = make_temp_relation(this) %}
 
+  -- If no partitions are used with insert_overwrite, we fall back to append mode.
+  {% if partitioned_by is none and strategy == 'insert_overwrite' %}
+    {% set strategy = 'append' %}
+  {% endif %}
+
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
 
   -- `BEGIN` happens here:
@@ -80,14 +85,6 @@
     {% endif %}
     {% do run_query(create_tmp_table_iceberg(tmp_relation, sql, staging_location, false)) %}
     {% set build_sql = iceberg_merge(tmp_relation, target_relation, unique_key) %}
-    {% do to_drop.append(tmp_relation) %}
-  {% else %}
-    {% set tmp_relation = make_temp_relation(target_relation) %}
-    {% if tmp_relation is not none %}
-      {% do adapter.drop_relation(tmp_relation) %}
-    {% endif %}
-    {% do run_query(create_table_as(True, tmp_relation, sql)) %}
-    {% set build_sql = incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation) %}
     {% do to_drop.append(tmp_relation) %}
   {% endif %}
 
