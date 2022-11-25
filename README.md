@@ -1,5 +1,7 @@
+[![pypi](https://badge.fury.io/py/dbt-athena-community.svg)](https://pypi.org/project/dbt-athena-community/)
 [![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Stats: pepy](https://pepy.tech/badge/dbt-athena-community/month)](https://pepy.tech/project/dbt-athena-community)
 
 # dbt-athena
 
@@ -226,17 +228,5 @@ make run_tests
 ### Helpful Resources
 
 * [Athena CREATE TABLE AS](https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html)
-* [dbt run_started_at](https://docs.getdbt.com/reference/dbt-jinja-functions/run_started_at)
-* [dbt invocation_id](https://docs.getdbt.com/reference/dbt-jinja-functions/invocation_id)
-
-### Community
-
-* [fishtown-analytics/dbt][fishtown-analytics/dbt]
-* [fishtown-analytics/dbt-presto][fishtown-analytics/dbt-presto]
-* [Dandandan/dbt-athena][Dandandan/dbt-athena]
-* [laughingman7743/PyAthena][laughingman7743/PyAthena]
-
-[fishtown-analytics/dbt]: https://github.com/fishtown-analytics/dbt
-[fishtown-analytics/dbt-presto]: https://github.com/fishtown-analytics/dbt-presto
-[Dandandan/dbt-athena]: https://github.com/Dandandan/dbt-athena
-[laughingman7743/PyAthena]: https://github.com/laughingman7743/PyAthena
+* [fishtown-analytics/dbt](https://github.com/fishtown-analytics/dbt)
+* [laughingman7743/PyAthena](https://github.com/laughingman7743/PyAthena)
