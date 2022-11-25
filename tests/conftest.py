@@ -20,5 +20,5 @@ def dbt_profile_target():
         "threads": 1,
         "num_retries": 0,
         "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUND"),
-        "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME"),
+        "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME") or None,
     }

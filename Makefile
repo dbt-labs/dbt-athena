@@ -19,7 +19,14 @@ setup:  ## Install all dependencies and setup pre-commit
 .env:  ## Generate .env file
 	@cp .env.example $@
 
-test: .env  ## Run tests.
+test:  ## Run tests.
+	make functional_test
+	make unit_test
+
+unit_test:  ## Run unit tests.
+	pytest --cov=dbt tests/unit
+
+functional_test: .env  ## Run functional tests.
 	pytest tests/functional
 
 pre-commit:  ## check modified and added files (compared to last commit!) with pre-commit.
