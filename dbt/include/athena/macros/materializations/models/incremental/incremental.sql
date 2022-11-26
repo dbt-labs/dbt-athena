@@ -11,6 +11,11 @@
   {% set existing_relation = load_relation(this) %}
   {% set tmp_relation = make_temp_relation(this) %}
 
+  -- If no partitions are used with insert_overwrite, we fall back to append mode.
+  {% if partitioned_by is none and strategy == 'insert_overwrite' %}
+    {% set strategy = 'append' %}
+  {% endif %}
+
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
 
   -- `BEGIN` happens here:
