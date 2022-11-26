@@ -1,6 +1,5 @@
-
 name: dbt_athena
 version: 1.0
 config-version: 2
 
-macro-paths: ["macros"]
+macro-paths: ['macros']

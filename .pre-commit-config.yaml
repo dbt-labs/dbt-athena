@@ -23,7 +23,7 @@ repos:
       # General quality checks
       - id: mixed-line-ending
       - id: trailing-whitespace
-        args: [ --markdown-linebreak-ext=md ]
+        args: [--markdown-linebreak-ext=md]
       - id: end-of-file-fixer
 
   - repo: https://github.com/PyCQA/autoflake
@@ -56,6 +56,6 @@ repos:
     hooks:
       - id: flake8
         additional_dependencies:
-          - "Flake8-pyproject~=1.1"
+          - 'Flake8-pyproject~=1.1'
         args:
           - '.'
