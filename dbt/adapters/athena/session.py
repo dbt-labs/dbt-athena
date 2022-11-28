@@ -1,5 +1,4 @@
 import boto3.session
-
 from dbt.contracts.connection import Connection
 
 

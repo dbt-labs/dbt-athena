@@ -7,10 +7,6 @@ from uuid import uuid4
 
 import agate
 from botocore.exceptions import ClientError
-
-from dbt.adapters.athena import AthenaConnectionManager
-from dbt.adapters.athena.config import get_boto3_config
-from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
 from dbt.adapters.base import available
 from dbt.adapters.base.impl import GET_CATALOG_MACRO_NAME
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
@@ -19,6 +15,10 @@ from dbt.contracts.graph.compiled import CompileResultNode
 from dbt.contracts.graph.manifest import Manifest
 from dbt.events import AdapterLogger
 from dbt.exceptions import RuntimeException
+
+from dbt.adapters.athena import AthenaConnectionManager
+from dbt.adapters.athena.config import get_boto3_config
+from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
 
 logger = AdapterLogger("Athena")
 

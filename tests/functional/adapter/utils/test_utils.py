@@ -1,9 +1,4 @@
 import pytest
-from tests.functional.adapter.fixture_datediff import (
-    models__test_datediff_sql,
-    seeds__data_datediff_csv,
-)
-
 from dbt.tests.adapter.utils.fixture_datediff import models__test_datediff_yml
 from dbt.tests.adapter.utils.test_any_value import BaseAnyValue
 from dbt.tests.adapter.utils.test_array_append import BaseArrayAppend
@@ -26,6 +21,10 @@ from dbt.tests.adapter.utils.test_replace import BaseReplace
 from dbt.tests.adapter.utils.test_right import BaseRight
 from dbt.tests.adapter.utils.test_split_part import BaseSplitPart
 from dbt.tests.adapter.utils.test_string_literal import BaseStringLiteral
+from tests.functional.adapter.fixture_datediff import (
+    models__test_datediff_sql,
+    seeds__data_datediff_csv,
+)
 
 models__array_concat_expected_sql = """
 select 1 as id, {{ array_construct([1,2,3,4,5,6]) }} as array_col
