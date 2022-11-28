@@ -1,6 +1,5 @@
 default:
   outputs:
-
     dev:
       type: athena
       s3_staging_dir: [s3_staging_dir]
@@ -10,9 +9,9 @@ default:
 
     prod:
       type: athena
-      s3_staging_dir: [ s3_staging_dir ]
-      region_name: [ region_name ]
-      database: [ database name ]
-      schema: [ prod_schema ]
+      s3_staging_dir: [s3_staging_dir]
+      region_name: [region_name]
+      database: [database name]
+      schema: [prod_schema]
 
   target: dev
