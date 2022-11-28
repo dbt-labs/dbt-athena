@@ -232,7 +232,7 @@ Next, adjust `.env` file by configuring the environment variables to match your 
 You must have an AWS account with Athena setup in order to launch the tests. You can run the tests using `make`:
 
 ```bash
-make run_tests
+make test
 ```
 
 ### Helpful Resources
