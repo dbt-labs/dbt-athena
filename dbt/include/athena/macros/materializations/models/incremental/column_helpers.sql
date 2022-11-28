@@ -17,6 +17,19 @@
   {% endif %}
 {% endmacro %}
 
+{% macro alter_relation_drop_columns(relation, remove_columns = none) -%}
+  {% if remove_columns is none %}
+    {% set remove_columns = [] %}
+  {% endif %}
+
+  {%- for column in remove_columns -%}
+    {% set sql -%}
+      alter {{ relation.type }} {{ relation }} drop column {{ column.name }}
+    {% endset %}
+    {% do run_query(sql) %}
+  {%- endfor -%}
+{% endmacro %}
+
 {% macro alter_relation_replace_columns(relation, replace_columns = none) -%}
   {% if replace_columns is none %}
     {% set replace_columns = [] %}

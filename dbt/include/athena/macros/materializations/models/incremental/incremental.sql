@@ -84,7 +84,7 @@
       {% do adapter.drop_relation(tmp_relation) %}
     {% endif %}
     {% do run_query(create_tmp_table_iceberg(tmp_relation, sql, staging_location, false)) %}
-    {% set build_sql = iceberg_merge(tmp_relation, target_relation, unique_key) %}
+    {% set build_sql = iceberg_merge(on_schema_change, tmp_relation, target_relation, unique_key, existing_relation) %}
     {% do to_drop.append(tmp_relation) %}
   {% endif %}
 
