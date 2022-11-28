@@ -1,9 +1,9 @@
 import botocore.session
 import pytest
-from dbt.contracts.connection import Connection
 
 from dbt.adapters.athena import AthenaCredentials
 from dbt.adapters.athena.session import get_boto3_session
+from dbt.contracts.connection import Connection
 
 
 class TestSession:

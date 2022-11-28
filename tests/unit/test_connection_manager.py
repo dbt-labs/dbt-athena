@@ -1,10 +1,10 @@
 from unittest import mock
 
 import pytest
-from dbt.contracts.connection import AdapterResponse
 from pyathena.model import AthenaQueryExecution
 
 from dbt.adapters.athena import AthenaConnectionManager
+from dbt.contracts.connection import AdapterResponse
 
 
 class TestAthenaConnectionManager:

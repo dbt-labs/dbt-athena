@@ -7,6 +7,12 @@ from unittest.mock import patch
 import agate
 import boto3
 import pytest
+from moto import mock_athena, mock_glue, mock_s3
+
+from dbt.adapters.athena import AthenaAdapter
+from dbt.adapters.athena import Plugin as AthenaPlugin
+from dbt.adapters.athena.connections import AthenaCursor, AthenaParameterFormatter
+from dbt.adapters.athena.relation import AthenaRelation
 from dbt.clients import agate_helper
 from dbt.contracts.connection import ConnectionState
 from dbt.contracts.files import FileHash
@@ -14,12 +20,6 @@ from dbt.contracts.graph.compiled import CompiledModelNode
 from dbt.contracts.graph.parsed import DependsOn, NodeConfig
 from dbt.exceptions import FailedToConnectException, ValidationException
 from dbt.node_types import NodeType
-from moto import mock_athena, mock_glue, mock_s3
-
-from dbt.adapters.athena import AthenaAdapter
-from dbt.adapters.athena import Plugin as AthenaPlugin
-from dbt.adapters.athena.connections import AthenaCursor, AthenaParameterFormatter
-from dbt.adapters.athena.relation import AthenaRelation
 
 from .constants import AWS_REGION, BUCKET, DATA_CATALOG_NAME, DATABASE_NAME
 from .utils import (

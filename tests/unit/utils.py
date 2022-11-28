@@ -3,6 +3,7 @@ import string
 
 import agate
 import boto3
+
 from dbt.config.project import PartialProject
 
 from .constants import AWS_REGION, BUCKET, CATALOG_ID, DATA_CATALOG_NAME, DATABASE_NAME
