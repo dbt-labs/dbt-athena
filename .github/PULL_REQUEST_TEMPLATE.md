@@ -9,4 +9,5 @@
 
 ## Checklist
 - [ ] You followed [contributing section](https://github.com/dbt-athena/dbt-athena#contributing)
-- [ ] You tested your changes
+- [ ] You added unit tests if not possible and necessary
+- [ ] You added functional testing
