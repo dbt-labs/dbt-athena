@@ -213,7 +213,12 @@ class AthenaParameterFormatter(Formatter):
             raise ProgrammingError("Query is none or empty.")
         operation = operation.strip()
 
-        if operation.upper().startswith(("SELECT", "WITH", "INSERT")):
+        operation_upper = operation.upper()
+        if (
+            operation_upper.startswith("SELECT")
+            or operation_upper.startswith("WITH")
+            or operation_upper.startswith("INSERT")
+        ):
             escaper = _escape_presto
         else:
             # Fixes ParseException that comes with newer version of PyAthena

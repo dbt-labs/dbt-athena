@@ -117,3 +117,15 @@ class TestAthenaParameterFormatter:
             """
         ).strip()
         assert res == expected
+
+    def test_query_presto_style_escapes_for_inserts(self):
+        sql = self.formatter.format(
+            """
+            INSERT INTO table (str_field) VALUES (%s), (%s)
+        """,
+            [
+                "text",
+                "text with single quote'",
+            ],
+        )
+        assert sql == "INSERT INTO table (str_field) VALUES ('text'), ('text with single quote''')"
