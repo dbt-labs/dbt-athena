@@ -230,9 +230,9 @@ Next, adjust `.env` file by configuring the environment variables to match your 
 
 #### Running tests
 We have 2 different types of testing:
-* *unit testing*: you need to have a .env file (run `make .env`), variables can be left empty.
+* **unit testing**: you need to have an .env file, you can run `make .env` to create one, variables can be left empty.
   You can run this type of tests running `make unit_test`
-* *function testing*: you must have an AWS account with Athena setup in order to launch the tests.
+* **functional testing**: you must have an AWS account with Athena setup in order to launch the tests.
   You can run this type of tests running `make functional_test`
 
 
