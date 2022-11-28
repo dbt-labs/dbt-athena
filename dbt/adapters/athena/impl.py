@@ -47,7 +47,7 @@ class AthenaAdapter(SQLAdapter):
         return "timestamp"
 
     @available
-    def s3_table_prefix(self, s3_data_dir: str) -> str:
+    def s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
         """
         Returns the root location for storing tables in S3.
         This is `s3_data_dir`, if set, and `s3_staging_dir/tables/` if not.
@@ -62,7 +62,9 @@ class AthenaAdapter(SQLAdapter):
             return path.join(creds.s3_staging_dir, "tables")
 
     @available
-    def s3_table_location(self, s3_data_dir: str, s3_data_naming: str, schema_name: str, table_name: str) -> str:
+    def s3_table_location(
+        self, s3_data_dir: Optional[str], s3_data_naming: str, schema_name: str, table_name: str
+    ) -> str:
         """
         Returns either a UUID or database/table prefix for storing a table,
         depending on the value of s3_table

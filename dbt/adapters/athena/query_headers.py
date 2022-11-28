@@ -14,6 +14,11 @@ class _QueryComment(dbt.adapters.base.query_headers._QueryComment):
         if not self.query_comment:
             return sql
 
+        # alter statements or vacuum statements seems not to support properly query comments
+        # let's just exclude them
+        if any(map(sql.lower().__contains__, ["alter", "vacuum"])):
+            return sql
+
         cleaned_query_comment = self.query_comment.strip().replace("\n", " ")
 
         if self.append:
@@ -24,10 +29,5 @@ class _QueryComment(dbt.adapters.base.query_headers._QueryComment):
                 return f"{sql}\n-- /* {cleaned_query_comment} */;"
 
             return f"{sql}\n-- /* {cleaned_query_comment} */"
-
-        # alter statements or vacuum statements seems not to support properly query comments
-        # let's just exclude them
-        if "alter" or "vacuum" in sql.lower():
-            return sql
 
         return f"-- /* {cleaned_query_comment} */\n{sql}"
