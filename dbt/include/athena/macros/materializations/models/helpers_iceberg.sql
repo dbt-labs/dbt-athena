@@ -1,5 +1,5 @@
 {% macro drop_iceberg(relation) -%}
-  drop table if exists {{ relation }}
+  drop table if exists {{ relation.render_hive() }}
 {% endmacro %}
 
 {% macro create_table_iceberg(relation, old_relation, tmp_relation, sql) -%}
@@ -77,7 +77,7 @@
 
   {%- set dest_columns_with_type_csv = dest_columns_with_type | join(', ') -%}
 
-  CREATE TABLE {{ relation }} (
+  CREATE TABLE {{ relation.render_hive() }} (
     {{ dest_columns_with_type_csv }}
   )
   {%- if partitioned_by is not none %}
