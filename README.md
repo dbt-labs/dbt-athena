@@ -229,8 +229,13 @@ It will :
 Next, adjust `.env` file by configuring the environment variables to match your Athena development environment.
 
 #### Running tests
-You must have an AWS account with Athena setup in order to launch the tests. You can run the tests using `make`:
+We have 2 different types of testing:
+* **unit testing**: you can run this type of tests running `make unit_test`
+* **functional testing**: you must have an AWS account with Athena setup in order to launch this type of tests and have a `.env` file in place with the right values.
+  You can run this type of tests running `make functional_test`
 
+
+All type of tests can be run using `make`:
 ```bash
 make test
 ```

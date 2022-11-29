@@ -20,8 +20,8 @@ setup:  ## Install all dependencies and setup pre-commit
 	@cp .env.example $@
 
 test:  ## Run tests.
-	make functional_test
 	make unit_test
+	make functional_test
 
 unit_test:  ## Run unit tests.
 	pytest --cov=dbt tests/unit
