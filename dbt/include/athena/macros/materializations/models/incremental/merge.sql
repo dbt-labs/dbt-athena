@@ -1,5 +1,8 @@
-{% macro iceberg_merge(tmp_relation, target_relation, unique_key, statement_name="main") %}
-    {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
+{% macro iceberg_merge(on_schema_change, tmp_relation, target_relation, unique_key, existing_relation, statement_name="main") %}
+    {% set dest_columns = process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
+    {% if not dest_columns %}
+      {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
+    {% endif %}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
     {% if unique_key is sequence and unique_key is not string %}
       {%- set unique_key_cols = unique_key -%}

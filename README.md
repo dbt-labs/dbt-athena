@@ -193,6 +193,9 @@ The following features of dbt are not implemented on Athena:
 
 #### Known issues
 
+* Incremental Iceberg models - Sync all columns on schema change can't remove columns used as partitioning.
+The only way, from a dbt perspective, is to do a full-refresh of the incremental model.
+
 * Quoting is not currently supported
   * If you need to quote your sources, escape the quote characters in your source definitions:
 
