@@ -2,6 +2,15 @@
   {%- set identifier = model['alias'] -%}
 
   {%- set format = config.get('format', default='parquet') -%}
+  {%- set raw_strategy = config.get('table_strategy') -%}
+  {%- if not raw_strategy -%}
+    {%- if format == 'iceberg' -%}
+      {%- set raw_strategy = 'tmp_parquet' -%}
+    {%- else -%}
+      {%- set raw_strategy = 'ctas' -%}
+    {%- endif -%}
+  {%- endif -%}
+  {%- set strategy = validate_table_strategy(raw_strategy, format) -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set target_relation = api.Relation.create(identifier=identifier,
                                                 schema=schema,
@@ -17,8 +26,7 @@
   {%- endif -%}
 
   {%- if format == 'iceberg' -%}
-    {%- set tmp_relation = make_temp_relation(target_relation) -%}
-	  {%- set build_sql = create_table_iceberg(target_relation, old_relation, tmp_relation, sql) -%}
+	  {%- set build_sql = create_table_iceberg(target_relation, old_relation, strategy, sql) -%}
   {% else %}
     {% set build_sql = create_table_as(False, target_relation, sql) -%}
   {%- endif -%}
@@ -29,7 +37,13 @@
 
   -- drop tmp table in case of iceberg
   {%- if format == 'iceberg' -%}
-  	{% do adapter.drop_relation(tmp_relation) %}
+    {% if strategy == 'tmp_parquet' %}
+  	  {% do adapter.drop_relation(tmp_relation) %}
+    {% else %}
+  	    {% do rename_iceberg(target_relation, bkp_relation) %}
+        {% do rename_iceberg(tmp_relation, target_relation) %}
+        {% do drop_iceberg(bkp_relation) %}
+    {% endif %}
   {%- endif -%}
 
   -- set table properties

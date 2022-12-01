@@ -63,21 +63,28 @@ class AthenaAdapter(SQLAdapter):
 
     @available
     def s3_table_location(
-        self, s3_data_dir: Optional[str], s3_data_naming: str, schema_name: str, table_name: str
+        self,
+        s3_data_dir: Optional[str],
+        s3_data_naming: str,
+        schema_name: str,
+        table_name: str,
+        external_location: Optional[str] = None,
+        is_temporary_table: bool = False,
     ) -> str:
         """
         Returns either a UUID or database/table prefix for storing a table,
         depending on the value of s3_table
         """
-        mapping = {
-            "uuid": path.join(self.s3_table_prefix(s3_data_dir), str(uuid4())) + "/",
-            "table": path.join(self.s3_table_prefix(s3_data_dir), table_name) + "/",
-            "table_unique": path.join(self.s3_table_prefix(s3_data_dir), table_name, str(uuid4())) + "/",
-            "schema_table": path.join(self.s3_table_prefix(s3_data_dir), schema_name, table_name) + "/",
-            "schema_table_unique": path.join(self.s3_table_prefix(s3_data_dir), schema_name, table_name, str(uuid4()))
-            + "/",
-        }
+        if external_location and not is_temporary_table:
+            return external_location if not external_location.endswith("/") else external_location[:-1]
 
+        mapping = {
+            "uuid": path.join(self.s3_table_prefix(s3_data_dir), str(uuid4())),
+            "table": path.join(self.s3_table_prefix(s3_data_dir), table_name),
+            "table_unique": path.join(self.s3_table_prefix(s3_data_dir), table_name, str(uuid4())),
+            "schema_table": path.join(self.s3_table_prefix(s3_data_dir), schema_name, table_name),
+            "schema_table_unique": path.join(self.s3_table_prefix(s3_data_dir), schema_name, table_name, str(uuid4())),
+        }
         table_location = mapping.get(s3_data_naming)
 
         if table_location is None:

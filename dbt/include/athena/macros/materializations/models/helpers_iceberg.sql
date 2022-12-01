@@ -2,7 +2,12 @@
   drop table if exists {{ relation }}
 {% endmacro %}
 
-{% macro create_table_iceberg(relation, old_relation, tmp_relation, sql) -%}
+{% macro rename_iceberg(from_relation, to_relation) -%}
+  ALTER TABLE {{ from_relation }} RENAME TO {{ to_relation }}
+{% endmacro %}
+
+
+{% macro create_table_iceberg(relation, old_relation, strategy, sql) -%}
   {%- set external_location = config.get('external_location', default=none) -%}
   {%- set staging_location = config.get('staging_location') -%}
   {%- set partitioned_by = config.get('partitioned_by', default=none) -%}
@@ -10,28 +15,37 @@
 
   {%- set target_relation = this.incorporate(type='table') -%}
 
-  -- clean residual tmp table
-  {% if tmp_relation is not none %}
-     {% do adapter.drop_relation(tmp_relation) %}
-  {% endif %}
+  {%- if strategy == 'tmp_parquet' -%}
 
-  -- create tmp table
-  {% do run_query(create_tmp_table_iceberg(tmp_relation, sql, staging_location)) %}
+    {%- set tmp_relation = make_temp_relation(target_relation) -%}
 
-  -- get columns from tmp table to retrieve metadata
-  {%- set dest_columns = adapter.get_columns_in_relation(tmp_relation) -%}
+    -- clean residual tmp table
+    {% if tmp_relation is not none %}
+       {% do adapter.drop_relation(tmp_relation) %}
+    {% endif %}
 
-  -- drop old relation after tmp table is ready
-  {%- if old_relation is not none -%}
-  	{% do run_query(drop_iceberg(old_relation)) %}
+    -- create tmp table
+    {% do run_query(create_tmp_table_iceberg(tmp_relation, sql, staging_location)) %}
+
+    -- get columns from tmp table to retrieve metadata
+    {%- set dest_columns = adapter.get_columns_in_relation(tmp_relation) -%}
+
+    -- drop old relation after tmp table is ready
+    {%- if old_relation is not none -%}
+      {% do run_query(drop_iceberg(old_relation)) %}
+    {%- endif -%}
+
+    -- create iceberg table
+    {% do run_query(create_iceberg_table_definition(target_relation, dest_columns)) %}
+
+    -- return final insert statement
+    {{ return(insert_from_sql(target_relation, sql)) }}
+
+  {%- else -%}
+    {%- set tmp_relation = make_temp_relation(target_relation, '__ctas_tmp') -%}
+    {%- set bkp_relation = make_temp_relation(target_relation, '__ctas_bkp') -%}
+    {{ return(create_table_as(False, tmp_relation, sql)) }}
   {%- endif -%}
-
-  -- create iceberg table
-  {% do run_query(create_iceberg_table_definition(target_relation, dest_columns)) %}
-
-  -- return final insert statement
-  {{ return(insert_from_sql(target_relation, sql)) }}
-
 {% endmacro %}
 
 {% macro create_tmp_table_iceberg(relation, sql, staging_location, with_limit=true) -%}
@@ -66,9 +80,7 @@
 
   {%- set table_properties_csv= table_properties_formatted | join(', ') -%}
 
-  {%- if external_location is none %}
-    {%- set  external_location = adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier) -%}
-  {%- endif %}
+  {%- set location = adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier, external_location) -%}
 
   {%- for col in dest_columns -%}
 	{% set dtype = ddl_data_type(col.dtype) -%}
@@ -84,7 +96,7 @@
     {%- set partitioned_by_csv = partitioned_by | join(', ') -%}
   	PARTITIONED BY ({{partitioned_by_csv}})
   {%- endif %}
-  LOCATION '{{ external_location }}'
+  LOCATION '{{ location }}'
   TBLPROPERTIES (
   	{{table_properties_csv}}
   )
