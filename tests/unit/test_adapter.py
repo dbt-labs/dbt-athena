@@ -279,7 +279,7 @@ class TestAthenaAdapter:
         self.mock_aws_service.add_data_in_table("table")
         self.adapter.acquire_connection("dummy")
         self.adapter.clean_up_table(DATABASE_NAME, "table")
-        assert "Deleting table data from 's3://test-dbt-athena-test-delete-partitions/tables/table'" in caplog.text
+        assert "Deleting table data from 's3://test-dbt-athena-test-delete-partitions/tables/table/'" in caplog.text
         s3 = boto3.client("s3", region_name=AWS_REGION)
         objs = s3.list_objects_v2(Bucket=BUCKET)
         assert objs["KeyCount"] == 0
