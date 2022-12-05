@@ -9,17 +9,39 @@
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
   {%- set s3_data_naming = config.get('s3_data_naming', default=target.s3_data_naming) -%}
 
+  {%- set location_property = 'external_location' -%}
+  {%- set partition_property = 'partitioned_by' -%}
+
+  {%- if format == 'iceberg' -%}
+    {%- set location_property = 'location' -%}
+    {%- set partition_property = 'partitioning' -%}
+    {%- if bucketed_by is not none or bucket_count is not none -%}
+      {%- set ignored_bucket_iceberg -%}
+      bucketed_by or bucket_count cannot be used with Iceberg tables. You have to use the bucket function
+      when partitioning. Will be ignored
+      {%- endset -%}
+      {%- set bucketed_by = none -%}
+      {%- set bucket_count = none -%}
+      {% do log(ignored_bucket_iceberg) %}
+    {%- endif -%}
+    {%- if s3_data_naming in ['table', 'table_schema'] or external_location is not none -%}
+      {%- set error_unique_location_iceberg -%}
+        You need to have an unique table location when creating Iceberg table. Right now we are building tables in
+        a destructive way but in the near future we will be using the RENAME feature to provide near-zero downtime.
+      {%- endset -%}
+      {% do exceptions.raise_compiler_error(error_unique_location_iceberg) %}
+    {%- endif -%}
+  {%- endif %}
+
   create table
     {{ relation }}
 
     with (
-      {%- if external_location is not none and not temporary %}
-        external_location='{{ external_location }}',
-      {%- else -%}
-        external_location='{{ adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier) }}',
-      {%- endif %}
+        table_type={%- if format == 'iceberg' -%}'iceberg'{%- else -%}'hive'{%- endif %},
+        is_external={%- if format == 'iceberg' -%}false{%- else -%}true{%- endif %},
+        {{ location_property }}='{{ adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier, external_location, temporary) }}',
       {%- if partitioned_by is not none %}
-        partitioned_by=ARRAY{{ partitioned_by | tojson | replace('\"', '\'') }},
+        {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', '\'') }},
       {%- endif %}
       {%- if bucketed_by is not none %}
         bucketed_by=ARRAY{{ bucketed_by | tojson | replace('\"', '\'') }},
@@ -33,7 +55,7 @@
       {%- if write_compression is not none %}
         write_compression='{{ write_compression }}',
       {%- endif %}
-        format='{{ format }}'
+        format={%- if format == 'iceberg' -%}'parquet'{%- else -%}'{{ format }}'{%- endif %}
     )
   as
     {{ sql }}

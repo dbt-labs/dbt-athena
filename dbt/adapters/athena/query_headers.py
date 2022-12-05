@@ -14,7 +14,7 @@ class _QueryComment(dbt.adapters.base.query_headers._QueryComment):
         if not self.query_comment:
             return sql
 
-        # alter statements or vacuum statements seems not to support properly query comments
+        # alter or vacuum statements don't seem to support properly query comments
         # let's just exclude them
         if any(map(sql.lower().__contains__, ["alter", "vacuum"])):
             return sql

@@ -32,8 +32,6 @@
         Columns added: {{ add_to_target_arr }}
         Columns removed: {{ remove_from_target_arr }}
         Data types changed: {{ new_target_types }}
-        {%- if format == 'iceberg' -%}(Data types can be irrelevant since parquet and iceberg tables might be compared
-        and they can differ in types.){%- endif -%}
   {% endset %}
   {% do log(schema_change_message) %}
 {% endmacro %}

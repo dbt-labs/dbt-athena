@@ -8,9 +8,13 @@
 * Supports dbt version `1.3.*`
 * Supports [Seeds][seeds]
 * Correctly detects views and their columns
-* Support [incremental models][incremental]
+* Supports [table materialization][table]
+  * [Iceberg tables][athena-iceberg] is supported **only with Athena Engine v3** and **a unique table location**
+  (see table location section below)
+  * Hive tables is supported by both Athena engines.
+* Supports [incremental models][incremental]
   * On iceberg tables :
-    * Support the use of `unique_key` only with query engine `v3` using the `merge` strategy
+    * Support the use of `unique_key` only with the `merge` strategy
     * Support the `append` strategy
   * On Hive tables :
     * Support two incremental update strategies: `insert_overwrite` and `append`
@@ -18,8 +22,10 @@
 * Does not support [Python models][python-models]
 
 [seeds]: https://docs.getdbt.com/docs/building-a-dbt-project/seeds
-[incremental]: https://docs.getdbt.com/docs/building-a-dbt-project/building-models/configuring-incremental-models
+[incremental]: https://docs.getdbt.com/docs/build/incremental-models
+[table]: https://docs.getdbt.com/docs/build/materializations#table
 [python-models]: https://docs.getdbt.com/docs/build/python-models#configuring-python-models
+[athena-iceberg]: https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg.html
 
 ### Installation
 
@@ -92,7 +98,7 @@ _Additional information_
 #### Table Configuration
 
 * `external_location` (`default=none`)
-  * If set, the full S3 path in which the table will be saved.
+  * If set, the full S3 path in which the table will be saved. (Does not work with Iceberg table).
 * `partitioned_by` (`default=none`)
   * An array list of columns by which the table will be partitioned
   * Limited to creation of 100 partitions (_currently_)
@@ -139,7 +145,7 @@ partitions are defined, dbt will fall back to the `append` strategy.
 * `append`: Insert new records without updating, deleting or overwriting any existing data. There might be duplicate
 data (e.g. great for log or historical data).
 * `merge`: Conditionally updates, deletes, or inserts rows into an Iceberg table. Used in combination with `unique_key`.
-Only available when using Iceberg and Athena engine version 3.
+Only available when using Iceberg.
 
 #### On schema change
 

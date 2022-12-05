@@ -10,32 +10,19 @@
 
   {{ run_hooks(pre_hooks) }}
 
+  -- cleanup
   {%- if old_relation is not none -%}
-    {%- if format != 'iceberg' -%}
-      {{ adapter.drop_relation(old_relation) }}
-    {%- endif -%}
+    {{ drop_relation(old_relation) }}
   {%- endif -%}
 
-  {%- if format == 'iceberg' -%}
-    {%- set tmp_relation = make_temp_relation(target_relation) -%}
-	  {%- set build_sql = create_table_iceberg(target_relation, old_relation, tmp_relation, sql) -%}
-  {% else %}
-    {% set build_sql = create_table_as(False, target_relation, sql) -%}
-  {%- endif -%}
+  -- build model
+  {% call statement('main') -%}
+    {{ create_table_as(False, target_relation, sql) }}
+  {%- endcall %}
 
-  {% call statement("main") %}
-    {{ build_sql }}
-  {% endcall %}
-
-  -- drop tmp table in case of iceberg
-  {%- if format == 'iceberg' -%}
-  	{% do adapter.drop_relation(tmp_relation) %}
-  {%- endif -%}
-
-  -- set table properties
-  {%- if format != 'iceberg' -%}
-    {{ set_table_classification(target_relation, 'parquet') }}
-  {%- endif -%}
+  {% if format != 'iceberg' %}
+    {{ set_table_classification(target_relation) }}
+  {% endif %}
 
   {{ run_hooks(post_hooks) }}
 
