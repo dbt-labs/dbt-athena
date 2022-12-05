@@ -253,6 +253,9 @@ class AthenaAdapter(SQLAdapter):
         for page in page_iterator:
             tables = page["TableList"]
             for table in tables:
+                if "TableType" not in table:
+                    logger.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
+                    continue
                 _type = table["TableType"]
                 if _type == "VIRTUAL_VIEW":
                     _type = self.Relation.View
