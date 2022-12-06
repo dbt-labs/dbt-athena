@@ -145,12 +145,12 @@ class AthenaAdapter(SQLAdapter):
                 return
 
         if table is not None:
-            logger.debug(f"Deleting table data from '{table['Table']['StorageDescriptor']['Location']}'")
             p = re.compile("s3://([^/]*)/(.*)")
             m = p.match(table["Table"]["StorageDescriptor"]["Location"])
             if m is not None:
                 bucket_name = m.group(1)
-                prefix = m.group(2)
+                prefix = m.group(2).rstrip("/") + "/"
+                logger.debug(f"Deleting table data from 's3://{bucket_name}/{prefix}'")
                 s3_resource = client.session.resource("s3", region_name=client.region_name, config=get_boto3_config())
                 s3_bucket = s3_resource.Bucket(bucket_name)
                 s3_bucket.objects.filter(Prefix=prefix).delete()
