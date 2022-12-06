@@ -1,3 +1,6 @@
+import inspect
+import re
+
 from concurrent.futures.thread import ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
@@ -33,6 +36,63 @@ from dbt.events import AdapterLogger
 from dbt.exceptions import FailedToConnectException, RuntimeException
 
 logger = AdapterLogger("Athena")
+
+
+def paginate_insert_into(func):
+    def wrapper(*args, **kwargs):
+        # get the args
+        sig = inspect.signature(func)
+        argmap = sig.bind_partial(*args, **kwargs).arguments
+        operation = argmap.get("operation")
+        # if it's insert into, paginate, else return
+        if operation.strip().upper().startswith("INSERT INTO"):
+            # get parameters, no need to get it unless it's an insert command
+            parameter = argmap.get("parameters")
+            operations, parameters = _paginate(operation, parameter)
+            for op, param in zip(operations, parameters):
+                argmap["operation"] = op
+                argmap["parameters"] = param
+                ret_val = func(**argmap)
+            return ret_val
+        else:
+            return func(*args, **kwargs)
+    return wrapper
+
+
+def _paginate(operation: str, parameter: list) -> tuple[list, list]:
+    """
+    We need to paginate the insert into commands as if they get too big, athena doesn't
+    play ball. This has nothing to do with the amount of data being added in, rather the
+    byte size of the query being sent. e.g. large descriptive columns cause an issue.
+    going on dbt developers advice, seed tables are usually ~1000 rows so we will split
+    by up to 750 insert commands per request to be conservative
+    """
+    insert_commands = []
+    insert_parameters = []
+    placeholder_regex = re.compile("\([^\(^\)]+\)")
+    max_inserts_per_query = 750
+
+    # split out the inserts and placeholders
+    insert_command, placeholders = [
+        o.strip() for o in operation.split("\n") if o.strip()
+    ]
+    placeholders_all = placeholder_regex.findall(placeholders)
+
+    # how many params per placeholder e.g. (%s, %s) (%s, %s, %s) etc 
+    # QA: could check they're all the same? and that it matches the count of params?
+    # QA: could also check that len(parameter) = num * len(placeholders_all)
+    num_of_params_per_placeholder = placeholders_all[0].count("%") 
+
+    # build the return lists of parameters and operations
+    for i in range(0, len(placeholders_all), max_inserts_per_query):
+        tmp_placeholder = ",".join(placeholders_all[i:i+max_inserts_per_query])
+        insert_commands.append(f"{insert_command} {tmp_placeholder}")
+        tmp_parameters = parameter[
+            i*num_of_params_per_placeholder:
+            (i+max_inserts_per_query)*num_of_params_per_placeholder
+        ]
+        insert_parameters.append(tmp_parameters)
+    return insert_commands, insert_parameters
 
 
 @dataclass
@@ -86,6 +146,7 @@ class AthenaCursor(Cursor):
             retry_config=self._retry_config,
         )
 
+    @paginate_insert_into
     def execute(
         self,
         operation: str,
