@@ -59,7 +59,7 @@ def paginate_insert_into(func):
     return wrapper
 
 
-def _paginate(operation: str, parameter: list) -> tuple[list, list]:
+def _paginate(operation: str, parameter: list) -> Tuple[list, list]:
     """
     We need to paginate the insert into commands as if they get too big, athena doesn't
     play ball. This has nothing to do with the amount of data being added in, rather the
