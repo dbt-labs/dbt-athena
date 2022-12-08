@@ -12,6 +12,7 @@
 
   {%- set location_property = 'external_location' -%}
   {%- set partition_property = 'partitioned_by' -%}
+  {%- set location = adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier, external_location, temporary) -%}
 
   {%- if format == 'iceberg' -%}
     {%- set location_property = 'location' -%}
@@ -32,6 +33,8 @@
       {%- endset -%}
       {% do exceptions.raise_compiler_error(error_unique_location_iceberg) %}
     {%- endif -%}
+  {%- elif external_location or s3_data_naming in ['table', 'schema_table'] -%}
+    {% do adapter.prune_s3_table_location(location) %}
   {%- endif %}
 
   create table
@@ -39,7 +42,7 @@
   with (
     table_type={%- if format == 'iceberg' -%}'iceberg'{%- else -%}'hive'{%- endif %},
     is_external={%- if format == 'iceberg' -%}false{%- else -%}true{%- endif %},
-    {{ location_property }}='{{ adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier, external_location, temporary) }}',
+    {{ location_property }}='{{ location }}',
   {%- if partitioned_by is not none %}
     {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', '\'') }},
   {%- endif %}

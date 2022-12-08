@@ -163,6 +163,26 @@ class AthenaAdapter(SQLAdapter):
                 s3_bucket.objects.filter(Prefix=prefix).delete()
 
     @available
+    def prune_s3_table_location(self, s3_table_location: str):
+        """
+        Prunes an s3 table location.
+        This is ncessary resolve the HIVE_PARTITION_ALREADY_EXISTS error
+        that occurs during retrying after receiving a 503 Slow Down error
+        during a CTA command, if partial files have already been written to s3.
+        """
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+        s3_resource = client.session.resource("s3", region_name=client.region_name)
+        p = re.compile("s3://([^/]*)/(.*)")
+        m = p.match(s3_table_location)
+        if m is not None:
+            bucket_name = m.group(1)
+            prefix = m.group(2)
+            s3_bucket = s3_resource.Bucket(bucket_name)
+            logger.debug(f"Pruning s3 table location: '{s3_table_location}'")
+            s3_bucket.objects.filter(Prefix=prefix).delete()
+
+    @available
     def quote_seed_column(self, column: str, quote_config: Optional[bool]) -> str:
         return super().quote_seed_column(column, False)
 
