@@ -8,6 +8,7 @@
   {%- set write_compression = config.get('write_compression', default=none) -%}
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
   {%- set s3_data_naming = config.get('s3_data_naming', default=target.s3_data_naming) -%}
+  {%- set extra_table_properties = config.get('table_properties', default=none) -%}
 
   {%- set location_property = 'external_location' -%}
   {%- set partition_property = 'partitioned_by' -%}
@@ -35,28 +36,33 @@
 
   create table
     {{ relation }}
-
-    with (
-        table_type={%- if format == 'iceberg' -%}'iceberg'{%- else -%}'hive'{%- endif %},
-        is_external={%- if format == 'iceberg' -%}false{%- else -%}true{%- endif %},
-        {{ location_property }}='{{ adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier, external_location, temporary) }}',
-      {%- if partitioned_by is not none %}
-        {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', '\'') }},
-      {%- endif %}
-      {%- if bucketed_by is not none %}
-        bucketed_by=ARRAY{{ bucketed_by | tojson | replace('\"', '\'') }},
-      {%- endif %}
-      {%- if bucket_count is not none %}
-        bucket_count={{ bucket_count }},
-      {%- endif %}
-      {%- if field_delimiter is not none %}
-        field_delimiter='{{ field_delimiter }}',
-      {%- endif %}
-      {%- if write_compression is not none %}
-        write_compression='{{ write_compression }}',
-      {%- endif %}
-        format={%- if format == 'iceberg' -%}'parquet'{%- else -%}'{{ format }}'{%- endif %}
-    )
+  with (
+    table_type={%- if format == 'iceberg' -%}'iceberg'{%- else -%}'hive'{%- endif %},
+    is_external={%- if format == 'iceberg' -%}false{%- else -%}true{%- endif %},
+    {{ location_property }}='{{ adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier, external_location, temporary) }}',
+  {%- if partitioned_by is not none %}
+    {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', '\'') }},
+  {%- endif %}
+  {%- if bucketed_by is not none %}
+    bucketed_by=ARRAY{{ bucketed_by | tojson | replace('\"', '\'') }},
+  {%- endif %}
+  {%- if bucket_count is not none %}
+    bucket_count={{ bucket_count }},
+  {%- endif %}
+  {%- if field_delimiter is not none %}
+    field_delimiter='{{ field_delimiter }}',
+  {%- endif %}
+  {%- if write_compression is not none %}
+    write_compression='{{ write_compression }}',
+  {%- endif %}
+    format={%- if format == 'iceberg' -%}'parquet'{%- else -%}'{{ format }}'{%- endif %}
+  {%- if extra_table_properties is not none -%}
+    {%- for prop_name, prop_value in extra_table_properties.items() -%}
+    ,
+    {{ prop_name }}={{ prop_value }}
+    {%- endfor -%}
+  {% endif %}
+  )
   as
     {{ sql }}
 {% endmacro %}
