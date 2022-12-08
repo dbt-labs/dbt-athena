@@ -1,8 +1,8 @@
-import re
 from itertools import chain
 from os import path
 from threading import Lock
-from typing import Dict, Iterator, List, Optional, Set
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from urllib.parse import urlparse
 from uuid import uuid4
 
 import agate
@@ -100,7 +100,6 @@ class AthenaAdapter(SQLAdapter):
 
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
-        s3_resource = client.session.resource("s3", region_name=client.region_name, config=get_boto3_config())
         paginator = glue_client.get_paginator("get_partitions")
         partition_params = {
             "DatabaseName": database_name,
@@ -110,32 +109,12 @@ class AthenaAdapter(SQLAdapter):
         }
         partition_pg = paginator.paginate(**partition_params)
         partitions = partition_pg.build_full_result().get("Partitions")
-        s3_rg = re.compile("s3://([^/]*)/(.*)")
         for partition in partitions:
             logger.debug(
                 f"Deleting objects for partition '{partition['Values']}' "
                 f"at '{partition['StorageDescriptor']['Location']}'"
             )
-            m = s3_rg.match(partition["StorageDescriptor"]["Location"])
-            if m is not None:
-                bucket_name = m.group(1)
-                prefix = m.group(2)
-                s3_bucket = s3_resource.Bucket(bucket_name)
-                response = s3_bucket.objects.filter(Prefix=prefix).delete()
-                is_all_successful = True
-                for res in response:
-                    if "Errors" in res:
-                        for err in res["Errors"]:
-                            is_all_successful = False
-                            logger.error(
-                                "Failed to clean up partitions: Key='{}', Code='{}', Message='{}', s3_bucket='{}'",
-                                err["Key"],
-                                err["Code"],
-                                err["Message"],
-                                bucket_name,
-                            )
-                if is_all_successful is False:
-                    raise RuntimeException("Failed to clean up table partitions.")
+            self._delete_from_s3(client, partition["StorageDescriptor"]["Location"])
 
     @available
     def clean_up_table(self, database_name: str, table_name: str):
@@ -152,15 +131,9 @@ class AthenaAdapter(SQLAdapter):
                 return
 
         if table is not None:
-            p = re.compile("s3://([^/]*)/(.*)")
-            m = p.match(table["Table"]["StorageDescriptor"]["Location"])
-            if m is not None:
-                bucket_name = m.group(1)
-                prefix = m.group(2).rstrip("/") + "/"
-                logger.debug(f"Deleting table data from 's3://{bucket_name}/{prefix}'")
-                s3_resource = client.session.resource("s3", region_name=client.region_name, config=get_boto3_config())
-                s3_bucket = s3_resource.Bucket(bucket_name)
-                s3_bucket.objects.filter(Prefix=prefix).delete()
+            s3_location = table["Table"]["StorageDescriptor"]["Location"]
+            logger.debug(f"Deleting table data from '{s3_location}'")
+            self._delete_from_s3(client, s3_location)
 
     @available
     def prune_s3_table_location(self, s3_table_location: str):
@@ -172,19 +145,59 @@ class AthenaAdapter(SQLAdapter):
         """
         conn = self.connections.get_thread_connection()
         client = conn.handle
-        s3_resource = client.session.resource("s3", region_name=client.region_name)
-        p = re.compile("s3://([^/]*)/(.*)")
-        m = p.match(s3_table_location)
-        if m is not None:
-            bucket_name = m.group(1)
-            prefix = m.group(2)
-            s3_bucket = s3_resource.Bucket(bucket_name)
-            logger.debug(f"Pruning s3 table location: '{s3_table_location}'")
-            s3_bucket.objects.filter(Prefix=prefix).delete()
+        self._delete_from_s3(client, s3_table_location)
 
     @available
     def quote_seed_column(self, column: str, quote_config: Optional[bool]) -> str:
         return super().quote_seed_column(column, False)
+
+    def _delete_from_s3(self, client: Any, s3_path: str):
+        """
+        Deletes files from s3.
+        Additionally parses the response from the s3 delete request and raises
+        a RunTimeException in case it included errors.
+        """
+        bucket_name, prefix = self._parse_s3_path(s3_path)
+        if self._s3_path_exists(client, bucket_name, prefix):
+            s3_resource = client.session.resource("s3", region_name=client.region_name, config=get_boto3_config())
+            s3_bucket = s3_resource.Bucket(bucket_name)
+            response = s3_bucket.objects.filter(Prefix=prefix).delete()
+            is_all_successful = True
+            for res in response:
+                if "Errors" in res:
+                    for err in res["Errors"]:
+                        is_all_successful = False
+                        logger.error(
+                            "Failed to delete files: Key='{}', Code='{}', Message='{}', s3_bucket='{}'",
+                            err["Key"],
+                            err["Code"],
+                            err["Message"],
+                            bucket_name,
+                        )
+            if is_all_successful is False:
+                raise RuntimeException("Failed to delete files from S3.")
+        else:
+            logger.debug("S3 path does not exist")
+
+    @staticmethod
+    def _parse_s3_path(s3_path: str) -> Tuple[str, str]:
+        """
+        Parses and splits an s3 path into bucket name and prefix.
+        This assumes that s3_path is a prefix instead of a URI. It adds a
+        trailing slash to the prefix, if there is none.
+        """
+        o = urlparse(s3_path, allow_fragments=False)
+        bucket_name = o.netloc
+        prefix = o.path.lstrip("/").rstrip("/") + "/"
+        return bucket_name, prefix
+
+    @staticmethod
+    def _s3_path_exists(client: Any, s3_bucket: str, s3_prefix: str) -> bool:
+        """Checks whether a given s3 path exists."""
+        response = client.session.client(
+            "s3", region_name=client.region_name, config=get_boto3_config()
+        ).list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
+        return True if "Contents" in response else False
 
     def _join_catalog_table_owners(self, table: agate.Table, manifest: Manifest) -> agate.Table:
         owners = []
