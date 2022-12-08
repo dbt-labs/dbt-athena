@@ -5,7 +5,7 @@ prompts:
     hint: S3 location to store Athena query results and metadata, e.g. s3://athena_query_result/prefix/
 
   s3_data_dir:
-    hint: S3 location to store data, e.g. s3://bucket_name/prefix/
+    hint: S3 location where to store data/tables, e.g. s3://bucket_name/prefix/
 
   region_name:
     hint: AWS region of your Athena instance
