@@ -167,7 +167,7 @@ To get started just add this as your model:
 {{ config(
     materialized='table',
     format='iceberg',
-    partitioned_by=['bucket(5, user_id)'],
+    partitioned_by=['bucket(user_id, 5)'],
     table_properties={
     	'optimize_rewrite_delete_file_threshold': '2'
     	}
