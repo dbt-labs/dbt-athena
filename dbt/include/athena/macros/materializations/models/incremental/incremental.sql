@@ -1,8 +1,8 @@
 {% materialization incremental, adapter='athena' -%}
 
   {% set raw_strategy = config.get('incremental_strategy') or 'insert_overwrite' %}
-  {% set format = config.get('format', default='parquet') %}
-  {% set strategy = validate_get_incremental_strategy(raw_strategy, format) %}
+  {% set table_type = config.get('table_type', default='hive') | lower %}
+  {% set strategy = validate_get_incremental_strategy(raw_strategy, table_type) %}
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
 
   {% set partitioned_by = config.get('partitioned_by', default=none) %}
@@ -43,7 +43,7 @@
     {% do run_query(create_table_as(True, tmp_relation, sql)) %}
     {% set build_sql = incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation) %}
     {% do to_drop.append(tmp_relation) %}
-  {% elif strategy == 'merge' and format == 'iceberg' %}
+  {% elif strategy == 'merge' and table_type == 'iceberg' %}
     {% set unique_key = config.get('unique_key') %}
     {% set empty_unique_key -%}
       Merge strategy must implement unique_key as a single column or a list of columns.
@@ -66,7 +66,7 @@
   {% endcall %}
 
   -- set table properties
-  {% if not to_drop and format != 'iceberg' %}
+  {% if not to_drop and table_type != 'iceberg' %}
     {{ set_table_classification(target_relation) }}
   {% endif %}
 
