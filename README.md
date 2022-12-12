@@ -255,6 +255,14 @@ All type of tests can be run using `make`:
 make test
 ```
 
+#### Pull Request
+* Create a commit with your changes and push them to a
+  [fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo).
+* Create a [pull request on
+  Github](https://docs.github.com/en/github/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
+* Pull request title and message (and PR title and description) must adhere to
+  [conventionalcommits](https://www.conventionalcommits.org).
+* Pull request body should describe _motivation_.
 ### Helpful Resources
 
 * [Athena CREATE TABLE AS](https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html)
