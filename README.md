@@ -106,9 +106,12 @@ _Additional information_
   * An array list of columns to bucket data, ignored if using Iceberg
 * `bucket_count` (`default=none`)
   * The number of buckets for bucketing your data, ignored if using Iceberg
+* `table_type` (`default='hive'`)
+  * The type of table
+  * Supports `hive` or `iceberg`
 * `format` (`default='parquet'`)
   * The data format for the table
-  * Supports `ORC`, `PARQUET`, `AVRO`, `JSON`, `TEXTFILE` or `iceberg`
+  * Supports `ORC`, `PARQUET`, `AVRO`, `JSON`, `TEXTFILE`
 * `write_compression` (`default=none`)
   * The compression type to use for any storage format that allows compression to be specified. To see which options are available, check out [CREATE TABLE AS][create-table-as]
 * `field_delimiter` (`default=none`)
@@ -166,7 +169,8 @@ To get started just add this as your model:
 ```
 {{ config(
     materialized='table',
-    format='iceberg',
+    table_type='iceberg',
+    format='parquet',
     partitioned_by=['bucket(user_id, 5)'],
     table_properties={
     	'optimize_rewrite_delete_file_threshold': '2'
@@ -184,6 +188,8 @@ SELECT
 ```
 
 Iceberg supports bucketing as hidden partitions, therefore use the `partitioned_by` config to add specific bucketing conditions.
+
+Iceberg supports several table formats for data : `PARQUET`, `AVRO` and `ORC`.
 
 It is possible to use iceberg in an incremental fashion, specifically 2 strategies are supported:
 * `append`: new records are appended to the table, this can lead to duplicates
