@@ -3,7 +3,7 @@
 
       select
           column_name,
-          data_type,
+          replace(regexp_replace(regexp_replace(replace(replace(data_type, 'row(', 'struct<'), ')', '>'), '(\d)(>)', '$1)'), '(\w+)(\s)(\w+)', '$1:$3'), 'varbinary', 'binary') as data_type,,
           null as character_maximum_length,
           null as numeric_precision,
           null as numeric_scale
