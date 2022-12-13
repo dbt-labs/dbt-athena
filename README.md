@@ -91,8 +91,6 @@ _Additional information_
 * `threads` is supported
 * `database` and `catalog` can be used interchangeably
 
-### Usage notes
-
 ### Models
 
 #### Table Configuration
@@ -119,6 +117,7 @@ _Additional information_
 * `table_properties`: table properties to add to the table, valid for Iceberg only
 
 #### Table location
+
 The location in which a table is saved is determined by:
 
 1. If `external_location` is defined, that value is used.
@@ -163,6 +162,7 @@ In detail, please refer to [dbt docs](https://docs.getdbt.com/docs/build/increme
 
 
 #### Iceberg
+
 The adapter supports table materialization for Iceberg.
 
 To get started just add this as your model:
@@ -230,6 +230,7 @@ The only way, from a dbt perspective, is to do a full-refresh of the incremental
 This connector works with Python from 3.7 to 3.10.
 
 #### Getting started
+
 In order to start developing on this adapter clone the repo and run this make command (see [Makefile](Makefile)) :
 
 ```bash
@@ -244,6 +245,7 @@ It will :
 Next, adjust `.env` file by configuring the environment variables to match your Athena development environment.
 
 #### Running tests
+
 We have 2 different types of testing:
 * **unit testing**: you can run this type of tests running `make unit_test`
 * **functional testing**: you must have an AWS account with Athena setup in order to launch this type of tests and have a `.env` file in place with the right values.
@@ -254,6 +256,16 @@ All type of tests can be run using `make`:
 ```bash
 make test
 ```
+
+#### Pull Request
+
+* Create a commit with your changes and push them to a
+  [fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo).
+* Create a [pull request on
+  Github](https://docs.github.com/en/github/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
+* Pull request title and message (and PR title and description) must adhere to
+  [conventionalcommits](https://www.conventionalcommits.org).
+* Pull request body should describe _motivation_.
 
 ### Helpful Resources
 
