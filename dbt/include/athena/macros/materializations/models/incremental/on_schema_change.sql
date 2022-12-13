@@ -1,6 +1,6 @@
 {% macro sync_column_schemas(on_schema_change, target_relation, schema_changes_dict) %}
   {%- set partitioned_by = config.get('partitioned_by', default=none) -%}
-  {% set format = config.get('format', default='parquet') %}
+  {% set table_type = config.get('table_type', default='hive') | lower %}
   {%- if partitioned_by is none -%}
       {%- set partitioned_by = [] -%}
   {%- endif %}
@@ -12,7 +12,7 @@
   {% elif on_schema_change == 'sync_all_columns' %}
      {%- set remove_from_target_arr = schema_changes_dict['target_not_in_source'] -%}
      {%- set new_target_types = schema_changes_dict['new_target_types'] -%}
-     {% if format == 'iceberg' %}
+     {% if table_type == 'iceberg' %}
        {% if add_to_target_arr | length > 0 %}
          {%- do alter_relation_add_columns(target_relation, add_to_target_arr) -%}
        {% endif %}
@@ -32,8 +32,6 @@
         Columns added: {{ add_to_target_arr }}
         Columns removed: {{ remove_from_target_arr }}
         Data types changed: {{ new_target_types }}
-        {%- if format == 'iceberg' -%}(Data types can be irrelevant since parquet and iceberg tables might be compared
-        and they can differ in types.){%- endif -%}
   {% endset %}
   {% do log(schema_change_message) %}
 {% endmacro %}

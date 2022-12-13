@@ -1,5 +1,5 @@
-{% macro validate_get_incremental_strategy(raw_strategy, format) %}
-  {%- if format == 'iceberg' -%}
+{% macro validate_get_incremental_strategy(raw_strategy, table_type) %}
+  {%- if table_type == 'iceberg' -%}
     {% set invalid_strategy_msg -%}
       Invalid incremental strategy provided: {{ raw_strategy }}
       Incremental models on Iceberg tables only work with 'append' or 'merge' (v3 only) strategy.

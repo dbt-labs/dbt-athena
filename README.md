@@ -8,9 +8,13 @@
 * Supports dbt version `1.3.*`
 * Supports [Seeds][seeds]
 * Correctly detects views and their columns
-* Support [incremental models][incremental]
+* Supports [table materialization][table]
+  * [Iceberg tables][athena-iceberg] is supported **only with Athena Engine v3** and **a unique table location**
+  (see table location section below)
+  * Hive tables is supported by both Athena engines.
+* Supports [incremental models][incremental]
   * On iceberg tables :
-    * Support the use of `unique_key` only with query engine `v3` using the `merge` strategy
+    * Support the use of `unique_key` only with the `merge` strategy
     * Support the `append` strategy
   * On Hive tables :
     * Support two incremental update strategies: `insert_overwrite` and `append`
@@ -18,8 +22,10 @@
 * Does not support [Python models][python-models]
 
 [seeds]: https://docs.getdbt.com/docs/building-a-dbt-project/seeds
-[incremental]: https://docs.getdbt.com/docs/building-a-dbt-project/building-models/configuring-incremental-models
+[incremental]: https://docs.getdbt.com/docs/build/incremental-models
+[table]: https://docs.getdbt.com/docs/build/materializations#table
 [python-models]: https://docs.getdbt.com/docs/build/python-models#configuring-python-models
+[athena-iceberg]: https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg.html
 
 ### Installation
 
@@ -85,14 +91,12 @@ _Additional information_
 * `threads` is supported
 * `database` and `catalog` can be used interchangeably
 
-### Usage notes
-
 ### Models
 
 #### Table Configuration
 
 * `external_location` (`default=none`)
-  * If set, the full S3 path in which the table will be saved.
+  * If set, the full S3 path in which the table will be saved. (Does not work with Iceberg table).
 * `partitioned_by` (`default=none`)
   * An array list of columns by which the table will be partitioned
   * Limited to creation of 100 partitions (_currently_)
@@ -100,9 +104,12 @@ _Additional information_
   * An array list of columns to bucket data, ignored if using Iceberg
 * `bucket_count` (`default=none`)
   * The number of buckets for bucketing your data, ignored if using Iceberg
+* `table_type` (`default='hive'`)
+  * The type of table
+  * Supports `hive` or `iceberg`
 * `format` (`default='parquet'`)
   * The data format for the table
-  * Supports `ORC`, `PARQUET`, `AVRO`, `JSON`, `TEXTFILE` or `iceberg`
+  * Supports `ORC`, `PARQUET`, `AVRO`, `JSON`, `TEXTFILE`
 * `write_compression` (`default=none`)
   * The compression type to use for any storage format that allows compression to be specified. To see which options are available, check out [CREATE TABLE AS][create-table-as]
 * `field_delimiter` (`default=none`)
@@ -110,6 +117,7 @@ _Additional information_
 * `table_properties`: table properties to add to the table, valid for Iceberg only
 
 #### Table location
+
 The location in which a table is saved is determined by:
 
 1. If `external_location` is defined, that value is used.
@@ -139,7 +147,7 @@ partitions are defined, dbt will fall back to the `append` strategy.
 * `append`: Insert new records without updating, deleting or overwriting any existing data. There might be duplicate
 data (e.g. great for log or historical data).
 * `merge`: Conditionally updates, deletes, or inserts rows into an Iceberg table. Used in combination with `unique_key`.
-Only available when using Iceberg and Athena engine version 3.
+Only available when using Iceberg.
 
 #### On schema change
 
@@ -154,14 +162,16 @@ In detail, please refer to [dbt docs](https://docs.getdbt.com/docs/build/increme
 
 
 #### Iceberg
+
 The adapter supports table materialization for Iceberg.
 
 To get started just add this as your model:
 ```
 {{ config(
     materialized='table',
-    format='iceberg',
-    partitioned_by=['bucket(5, user_id)'],
+    table_type='iceberg',
+    format='parquet',
+    partitioned_by=['bucket(user_id, 5)'],
     table_properties={
     	'optimize_rewrite_delete_file_threshold': '2'
     	}
@@ -178,6 +188,8 @@ SELECT
 ```
 
 Iceberg supports bucketing as hidden partitions, therefore use the `partitioned_by` config to add specific bucketing conditions.
+
+Iceberg supports several table formats for data : `PARQUET`, `AVRO` and `ORC`.
 
 It is possible to use iceberg in an incremental fashion, specifically 2 strategies are supported:
 * `append`: new records are appended to the table, this can lead to duplicates
@@ -218,6 +230,7 @@ The only way, from a dbt perspective, is to do a full-refresh of the incremental
 This connector works with Python from 3.7 to 3.10.
 
 #### Getting started
+
 In order to start developing on this adapter clone the repo and run this make command (see [Makefile](Makefile)) :
 
 ```bash
@@ -232,6 +245,7 @@ It will :
 Next, adjust `.env` file by configuring the environment variables to match your Athena development environment.
 
 #### Running tests
+
 We have 2 different types of testing:
 * **unit testing**: you can run this type of tests running `make unit_test`
 * **functional testing**: you must have an AWS account with Athena setup in order to launch this type of tests and have a `.env` file in place with the right values.
@@ -242,6 +256,16 @@ All type of tests can be run using `make`:
 ```bash
 make test
 ```
+
+#### Pull Request
+
+* Create a commit with your changes and push them to a
+  [fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo).
+* Create a [pull request on
+  Github](https://docs.github.com/en/github/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
+* Pull request title and message (and PR title and description) must adhere to
+  [conventionalcommits](https://www.conventionalcommits.org).
+* Pull request body should describe _motivation_.
 
 ### Helpful Resources
 
