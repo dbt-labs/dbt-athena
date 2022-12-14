@@ -4,6 +4,7 @@
   {%- set bucketed_by = config.get('bucketed_by', default=none) -%}
   {%- set bucket_count = config.get('bucket_count', default=none) -%}
   {%- set field_delimiter = config.get('field_delimiter', default=none) -%}
+  {%- set table_type = config.get('table_type', default='hive') | lower -%}
   {%- set format = config.get('format', default='parquet') -%}
   {%- set write_compression = config.get('write_compression', default=none) -%}
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
@@ -14,7 +15,7 @@
   {%- set partition_property = 'partitioned_by' -%}
   {%- set location = adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier, external_location, temporary) -%}
 
-  {%- if format == 'iceberg' -%}
+  {%- if table_type == 'iceberg' -%}
     {%- set location_property = 'location' -%}
     {%- set partition_property = 'partitioning' -%}
     {%- if bucketed_by is not none or bucket_count is not none -%}
@@ -40,9 +41,9 @@
   create table
     {{ relation }}
   with (
-    table_type={%- if format == 'iceberg' -%}'iceberg'{%- else -%}'hive'{%- endif %},
-    is_external={%- if format == 'iceberg' -%}false{%- else -%}true{%- endif %},
-    {{ location_property }}='{{ location }}',
+    table_type='{{ table_type }}',
+    is_external={%- if table_type == 'iceberg' -%}false{%- else -%}true{%- endif %},
+        {{ location_property }}='{{ location }}',
   {%- if partitioned_by is not none %}
     {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', '\'') }},
   {%- endif %}
@@ -58,7 +59,7 @@
   {%- if write_compression is not none %}
     write_compression='{{ write_compression }}',
   {%- endif %}
-    format={%- if format == 'iceberg' -%}'parquet'{%- else -%}'{{ format }}'{%- endif %}
+    format='{{ format }}'
   {%- if extra_table_properties is not none -%}
     {%- for prop_name, prop_value in extra_table_properties.items() -%}
     ,

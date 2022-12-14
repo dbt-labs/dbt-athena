@@ -1,7 +1,7 @@
 {% materialization table, adapter='athena' -%}
   {%- set identifier = model['alias'] -%}
 
-  {%- set format = config.get('format', default='parquet') -%}
+  {%- set table_type = config.get('table_type', default='hive') | lower -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set target_relation = api.Relation.create(identifier=identifier,
                                                 schema=schema,
@@ -20,7 +20,7 @@
     {{ create_table_as(False, target_relation, sql) }}
   {%- endcall %}
 
-  {% if format != 'iceberg' %}
+  {% if table_type != 'iceberg' %}
     {{ set_table_classification(target_relation) }}
   {% endif %}
 
