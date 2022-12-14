@@ -34,16 +34,18 @@
       {%- endset -%}
       {% do exceptions.raise_compiler_error(error_unique_location_iceberg) %}
     {%- endif -%}
-  {%- elif external_location or s3_data_naming in ['table', 'schema_table'] -%}
-    {% do adapter.prune_s3_table_location(location) %}
   {%- endif %}
+
+{%- if table_type != 'iceberg' -%}
+    {% do adapter.prune_s3_table_location(location) %}
+{%- endif -%}
 
   create table
     {{ relation }}
   with (
     table_type='{{ table_type }}',
     is_external={%- if table_type == 'iceberg' -%}false{%- else -%}true{%- endif %},
-        {{ location_property }}='{{ location }}',
+    {{ location_property }}='{{ location }}',
   {%- if partitioned_by is not none %}
     {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', '\'') }},
   {%- endif %}
