@@ -541,3 +541,12 @@ class TestAthenaAdapterConversions(TestAdapterConversions):
         expected = ["date", "date", "date"]
         for col_idx, expect in enumerate(expected):
             assert AthenaAdapter.convert_date_type(agate_table, col_idx) == expect
+
+    def test_parse_s3_path(self):
+        s3_paths = [
+            "s3://my-bucket/test-dbt/tables/schema/table",
+            "s3://my-bucket/test-dbt/tables/schema/table/",
+        ]
+        expected = [("my-bucket", "test-dbt/tables/schema/table/"), ("my-bucket", "test-dbt/tables/schema/table/")]
+        for path, expect in zip(s3_paths, expected):
+            assert AthenaAdapter._parse_s3_path(path) == expect
