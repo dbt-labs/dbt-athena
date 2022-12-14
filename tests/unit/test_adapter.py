@@ -463,6 +463,19 @@ class TestAthenaAdapter:
         self.adapter.list_relations_without_caching(schema_relation)
         parent_list_relations_without_caching.assert_called_once_with(schema_relation)
 
+    @pytest.fixture(scope="function")
+    def s3_paths(self):
+        return [
+            "s3://my-bucket/test-dbt/tables/schema/table",
+            "s3://my-bucket/test-dbt/tables/schema/table/",
+        ]
+
+    def test_parse_s3_path(self, s3_paths):
+        expected = [("my-bucket", "test-dbt/tables/schema/table/"), ("my-bucket", "test-dbt/tables/schema/table/")]
+
+        for path, expect in zip(s3_paths, expected):
+            assert AthenaAdapter._parse_s3_path(path) == expect
+
 
 class TestAthenaFilterCatalog:
     def test__catalog_filter_table(self):
@@ -541,12 +554,3 @@ class TestAthenaAdapterConversions(TestAdapterConversions):
         expected = ["date", "date", "date"]
         for col_idx, expect in enumerate(expected):
             assert AthenaAdapter.convert_date_type(agate_table, col_idx) == expect
-
-    def test_parse_s3_path(self):
-        s3_paths = [
-            "s3://my-bucket/test-dbt/tables/schema/table",
-            "s3://my-bucket/test-dbt/tables/schema/table/",
-        ]
-        expected = [("my-bucket", "test-dbt/tables/schema/table/"), ("my-bucket", "test-dbt/tables/schema/table/")]
-        for path, expect in zip(s3_paths, expected):
-            assert AthenaAdapter._parse_s3_path(path) == expect
