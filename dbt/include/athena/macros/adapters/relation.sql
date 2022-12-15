@@ -1,4 +1,4 @@
-{% macro drop_relation(relation) -%}
+{% macro athena__drop_relation(relation) -%}
   {% if config.get('table_type') != 'iceberg' and config.get('incremental_strategy') != 'append' %}
     {%- do adapter.clean_up_table(relation.schema, relation.table) -%}
   {% endif %}
