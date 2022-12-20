@@ -128,7 +128,6 @@ class AthenaAdapter(SQLAdapter):
 
         if table is not None:
             s3_location = table["Table"]["StorageDescriptor"]["Location"]
-            logger.debug(f"Deleting table data from '{s3_location}'")
             self._delete_from_s3(client, s3_location)
 
     @available
