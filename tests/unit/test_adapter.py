@@ -279,8 +279,10 @@ class TestAthenaAdapter:
         self.adapter.acquire_connection("dummy")
         self.adapter.clean_up_partitions(DATABASE_NAME, table_name, "dt < '2022-01-03'")
         assert (
-            "Deleting objects for partition '['2022-01-01']' at "
-            "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-01'" in caplog.text
+            "Deleting table data: path="
+            "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-01', "
+            "bucket='test-dbt-athena-test-delete-partitions', "
+            "prefix='tables/table/dt=2022-01-01/'" in caplog.text
         )
         assert (
             "Calling s3:delete_objects with {'Bucket': 'test-dbt-athena-test-delete-partitions', "
@@ -288,8 +290,10 @@ class TestAthenaAdapter:
             "{'Key': 'tables/table/dt=2022-01-01/data2.parquet'}]}}" in caplog.text
         )
         assert (
-            "Deleting objects for partition '['2022-01-02']' at "
-            "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-02'" in caplog.text
+            "Deleting table data: path="
+            "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-02', "
+            "bucket='test-dbt-athena-test-delete-partitions', "
+            "prefix='tables/table/dt=2022-01-02/'" in caplog.text
         )
         assert (
             "Calling s3:delete_objects with {'Bucket': 'test-dbt-athena-test-delete-partitions', "

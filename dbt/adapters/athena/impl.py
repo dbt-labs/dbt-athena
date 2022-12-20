@@ -110,10 +110,6 @@ class AthenaAdapter(SQLAdapter):
         partition_pg = paginator.paginate(**partition_params)
         partitions = partition_pg.build_full_result().get("Partitions")
         for partition in partitions:
-            logger.debug(
-                f"Deleting objects for partition '{partition['Values']}' "
-                f"at '{partition['StorageDescriptor']['Location']}'"
-            )
             self._delete_from_s3(client, partition["StorageDescriptor"]["Location"])
 
     @available
@@ -161,6 +157,7 @@ class AthenaAdapter(SQLAdapter):
         if self._s3_path_exists(client, bucket_name, prefix):
             s3_resource = client.session.resource("s3", region_name=client.region_name, config=get_boto3_config())
             s3_bucket = s3_resource.Bucket(bucket_name)
+            logger.debug(f"Deleting table data: path='{s3_path}', bucket='{bucket_name}', prefix='{prefix}'")
             response = s3_bucket.objects.filter(Prefix=prefix).delete()
             is_all_successful = True
             for res in response:
