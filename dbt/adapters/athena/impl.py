@@ -18,7 +18,7 @@ from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.compiled import CompileResultNode
 from dbt.contracts.graph.manifest import Manifest
 from dbt.events import AdapterLogger
-from dbt.exceptions import RuntimeException
+from dbt.exceptions import RuntimeException, raise_compiler_error
 
 logger = AdapterLogger("Athena")
 
@@ -45,6 +45,13 @@ class AthenaAdapter(SQLAdapter):
     @classmethod
     def convert_datetime_type(cls, agate_table: agate.Table, col_idx: int) -> str:
         return "timestamp"
+
+    def drop_relation(self, relation):
+        if relation.type is None:
+            raise_compiler_error(f"Tried to drop relation {relation}, but its type is null.")
+
+        self.cache_dropped(relation)
+        self.execute_macro("drop_relation", project="dbt_athena", kwargs={"relation": relation})
 
     @available
     def s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
