@@ -26,9 +26,26 @@
 
 {% endmacro %}
 
+{% macro get_update_statement(col, rule, is_last) %}
+    {% if rule == "coalesce" %}
+        {{ col.quoted }} = {{ 'coalesce(src.' + col.quoted + ', target.' + col.quoted + ')' }} {{ "," if not is_last }}
+    {%- elif rule == "sum" -%}
+        {{ col.quoted }} = {{ 'src.' + col.quoted + ' + target.' + col.quoted }} {{ "," if not is_last }}
+    {%- elif rule == "append" -%}
+        {{ col.quoted }} = {{ 'src.' + col.quoted + ' || target.' + col.quoted }} {{ "," if not is_last }}
+    {%- elif rule == "append_distinct" -%}
+        {{ col.quoted }} = {{ 'array_distinct(src.' + col.quoted + ' || target.' + col.quoted + ')' }} {{ "," if not is_last }}
+    {% else %}
+        {{ col.quoted }} = {{ 'src.' + col.quoted }} {{ "," if not is_last }}
+    {% endif %}
+{% endmacro %}
+
 {% macro iceberg_merge(on_schema_change, tmp_relation, target_relation, unique_key, existing_relation, delete_condition, statement_name="main") %}
     {%- set merge_update_columns = config.get('merge_update_columns') -%}
     {%- set merge_exclude_columns = config.get('merge_exclude_columns') -%}
+    {%- set merge_update_columns_default_rule = config.get('merge_update_columns_default_rule') -%}
+    {%- set merge_update_columns_rules = config.get('merge_update_columns_rules') -%}
+
     {% set dest_columns = process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
     {% if not dest_columns %}
       {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
@@ -57,13 +74,17 @@
       {% endfor %}
     )
     {% if delete_condition is not none %}
-    when matched and ({{ delete_condition}})
+    when matched and ({{ delete_condition }})
       then delete
     {% endif %}
     when matched
       then update set
         {% for col in update_columns %}
-          {{ col.quoted }} = {{ 'src.' + col.quoted }} {{ "," if not loop.last }}
+          {% if merge_update_columns_rules and col.name in merge_update_columns_rules %}
+            {{ get_update_statement(col, merge_update_columns_rules[col.name], loop.last) }}
+          {% else %}
+            {{ get_update_statement(col, merge_update_columns_default_rule, loop.last) }}
+          {% endif %}
         {% endfor %}
     when not matched
       then insert ({{ dest_cols_csv }})
