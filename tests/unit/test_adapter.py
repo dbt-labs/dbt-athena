@@ -434,6 +434,7 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_table("table")
         self.mock_aws_service.create_table("other")
         self.mock_aws_service.create_view("view")
+        self.mock_aws_service.create_table_without_table_type("without_table_type")
         schema_relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -450,6 +451,7 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_table("table")
         self.mock_aws_service.create_table("other")
         self.mock_aws_service.create_view("view")
+        self.mock_aws_service.create_table_without_table_type("without_table_type")
         schema_relation = self.adapter.Relation.create(
             database=data_catalog_name,
             schema=DATABASE_NAME,

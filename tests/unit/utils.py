@@ -200,6 +200,24 @@ class MockAWSService:
             },
         )
 
+    def create_table_without_table_type(self, table_name: str):
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        glue.create_table(
+            DatabaseName=DATABASE_NAME,
+            TableInput={
+                "Name": table_name,
+                "StorageDescriptor": {
+                    "Columns": [
+                        {
+                            "Name": "id",
+                            "Type": "string",
+                        },
+                    ],
+                    "Location": f"s3://{BUCKET}/tables/{table_name}",
+                },
+            },
+        )
+
     def add_data_in_table(self, table_name: str):
         s3 = boto3.client("s3", region_name=AWS_REGION)
         s3.create_bucket(Bucket=BUCKET, CreateBucketConfiguration={"LocationConstraint": AWS_REGION})
