@@ -1,5 +1,5 @@
 {% macro drop_relation(relation) -%}
-  {% if config.get('table_type') != 'iceberg' and config.get('incremental_strategy') != 'append' %}
+  {% if config.get('table_type') != 'iceberg' %}
     {%- do adapter.clean_up_table(relation.schema, relation.table) -%}
   {% endif %}
   {% call statement('drop_relation', auto_begin=False) -%}
