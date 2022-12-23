@@ -3,7 +3,7 @@
 
       select
           column_name,
-          regexp_replace(replace(replace(data_type, 'varbinary', 'binary'), 'row', 'struct'), '(timestamp)(.*)', '$1') as data_type,
+          regexp_replace(replace(replace(data_type, 'varbinary', 'binary'), 'row', 'struct'), '(timestamp)(\(\d+\))(.*)', '$1$2') as data_type,,
           null as character_maximum_length,
           null as numeric_precision,
           null as numeric_scale
