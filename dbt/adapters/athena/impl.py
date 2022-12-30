@@ -1,5 +1,5 @@
+import posixpath as path
 from itertools import chain
-from os import path
 from threading import Lock
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 from urllib.parse import urlparse
