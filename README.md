@@ -225,6 +225,9 @@ The only way, from a dbt perspective, is to do a full-refresh of the incremental
 
 * Tables, schemas and database should only be lowercase
 
+* In order to avoid potential conflicts, make sure [`dbt-athena-adapter`](https://github.com/Tomme/dbt-athena) is not installed in the target environment.
+  See https://github.com/dbt-athena/dbt-athena/issues/103 for more details.
+
 ### Contributing
 
 This connector works with Python from 3.7 to 3.10.
