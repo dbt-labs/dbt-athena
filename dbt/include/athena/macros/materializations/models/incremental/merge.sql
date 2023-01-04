@@ -30,7 +30,11 @@
     {% if rule == "coalesce" %}
         {{ col.quoted }} = {{ 'coalesce(src.' + col.quoted + ', target.' + col.quoted + ')' }} {{ "," if not is_last }}
     {%- elif rule == "sum" -%}
+      {% if col.data_type.startswith("map") %}
+          {{ col.quoted }} = {{ 'map_zip_with(coalesce(src.' + col.quoted + ', map()), coalesce(target.' + col.quoted + ', map()), (k, v1, v2) -> coalesce(v1, 0) + coalesce(v2, 0))' }} {{ "," if not is_last }}
+      {% else %}
         {{ col.quoted }} = {{ 'src.' + col.quoted + ' + target.' + col.quoted }} {{ "," if not is_last }}
+      {% endif %}
     {%- elif rule == "append" -%}
         {{ col.quoted }} = {{ 'src.' + col.quoted + ' || target.' + col.quoted }} {{ "," if not is_last }}
     {%- elif rule == "append_distinct" -%}
