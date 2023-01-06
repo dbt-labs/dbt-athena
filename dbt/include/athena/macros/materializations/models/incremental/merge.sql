@@ -42,7 +42,7 @@
     {% elif rule == "replace" %}
         {{ col.quoted }} = {{ 'src.' + col.quoted }} {{ "," if not is_last }}
     {% else %}
-        {{ col.quoted }} = {{ rule | replace("_old_", 'src.' + col.quoted) | replace("_new_", 'target.' + col.quoted) }} {{ "," if not is_last }}
+        {{ col.quoted }} = {{ rule | replace("_new_", 'src.' + col.quoted) | replace("_old_", 'target.' + col.quoted) }} {{ "," if not is_last }}
     {% endif %}
 {% endmacro %}
 
