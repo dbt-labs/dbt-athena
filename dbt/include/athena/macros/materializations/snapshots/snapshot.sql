@@ -1,17 +1,3 @@
-{% macro athena__snapshot_hash_arguments(args) -%}
-    to_hex(md5(to_utf8({%- for arg in args -%}
-        coalesce(cast({{ arg }} as varchar ), '')
-        {% if not loop.last %} || '|' || {% endif %}
-    {%- endfor -%})))
-{%- endmacro %}
-
-{% macro athena__snapshot_string_as_time(timestamp) -%}
-    {%- set result = "case when position('.' in '" ~ timestamp ~ "')>0 then date_parse('" ~ timestamp ~ "', '%Y-%m-%d %H:%i:%S.%f') else date_parse('" ~ timestamp ~ "', '%Y-%m-%d %H:%i:%S')
- end" -%}
-
-    {{ return(result) }}
-{%- endmacro %}
-
 {%
   Recreate the snapshot table from the new_snapshot_table
 %}
