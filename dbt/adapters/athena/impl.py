@@ -300,7 +300,7 @@ class AthenaAdapter(SQLAdapter):
 
                 relations.append(
                     self.Relation.create(
-                        schema=table["DatabaseName"],
+                        schema=schema_relation.schema,
                         database=schema_relation.database,
                         identifier=table["Name"],
                         quote_policy=quote_policy,
