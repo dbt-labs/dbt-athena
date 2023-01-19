@@ -29,6 +29,16 @@ class AthenaAdapter(SQLAdapter):
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
 
+    relation_type_map = {
+        "EXTERNAL_TABLE": "table",
+        "MANAGED_TABLE": "table",
+        "VIRTUAL_VIEW": "view",
+        "table": "table",
+        "view": "view",
+        "cte": "cte",
+        "materializedview": "materializedview",
+    }
+
     @classmethod
     def date_function(cls) -> str:
         return "now()"
@@ -309,3 +319,25 @@ class AthenaAdapter(SQLAdapter):
                 )
 
         return relations
+
+    @available
+    def get_table_type(self, relation):
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        try:
+            response = glue_client.get_table(DatabaseName=relation.schema, Name=relation.name)
+            _type = self.relation_type_map.get(response.get("Table", {}).get("TableType", "Table"))
+            _specific_type = response.get("Table", {}).get("Parameters", {}).get("table_type", "")
+
+            if _specific_type.lower() == "iceberg":
+                _type = "iceberg_table"
+            logger.debug("table_name : " + relation.name)
+            logger.debug("table type : " + _type)
+            return _type
+
+        except glue_client.exceptions.EntityNotFoundException as e:
+            logger.debug(e)
