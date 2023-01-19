@@ -1,5 +1,5 @@
 autoflake~=1.7
-black~=22.10
+black~=22.12
 dbt-tests-adapter~=1.3.0
 flake8~=5.0
 Flake8-pyproject~=1.1
