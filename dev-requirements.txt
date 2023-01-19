@@ -8,4 +8,4 @@ moto~=4.0
 pre-commit~=2.20
 pytest~=7.2
 pytest-cov~=4.0
-pyupgrade~=3.2
+pyupgrade~=3.3
