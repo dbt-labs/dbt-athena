@@ -1,5 +1,5 @@
 {% macro athena__drop_relation(relation) -%}
-  {% set rel_type = adapter.get_table_type(relation) %}
+  {% set rel_type = adapter.get_table_type(relation.schema, relation.table) %}
   {%- if rel_type is not none and rel_type == 'table' %}
     {%- do adapter.clean_up_table(relation.schema, relation.table) -%}
   {%- endif %}
