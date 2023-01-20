@@ -196,7 +196,62 @@ class MockAWSService:
                         "Type": "date",
                     },
                 ],
-                "TableType": "Table",
+                "TableType": "table",
+            },
+        )
+
+    def create_iceberg_table(self, table_name: str):
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        glue.create_table(
+            DatabaseName=DATABASE_NAME,
+            TableInput={
+                "Name": table_name,
+                "StorageDescriptor": {
+                    "Columns": [
+                        {
+                            "Name": "id",
+                            "Type": "string",
+                        },
+                        {
+                            "Name": "country",
+                            "Type": "string",
+                        },
+                        {
+                            "Name": "dt",
+                            "Type": "date",
+                        },
+                    ],
+                    "Location": f"s3://{BUCKET}/tables/data/{table_name}",
+                },
+                "PartitionKeys": [
+                    {
+                        "Name": "dt",
+                        "Type": "date",
+                    },
+                ],
+                "TableType": "EXTERNAL_TABLE",
+                "Parameters": {
+                    "metadata_location": f"s3://{BUCKET}/tables/metadata/{table_name}/123.json",
+                    "table_type": "iceberg",
+                },
+            },
+        )
+
+    def create_table_without_table_type(self, table_name: str):
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        glue.create_table(
+            DatabaseName=DATABASE_NAME,
+            TableInput={
+                "Name": table_name,
+                "StorageDescriptor": {
+                    "Columns": [
+                        {
+                            "Name": "id",
+                            "Type": "string",
+                        },
+                    ],
+                    "Location": f"s3://{BUCKET}/tables/{table_name}",
+                },
             },
         )
 

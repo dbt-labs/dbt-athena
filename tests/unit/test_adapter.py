@@ -279,8 +279,10 @@ class TestAthenaAdapter:
         self.adapter.acquire_connection("dummy")
         self.adapter.clean_up_partitions(DATABASE_NAME, table_name, "dt < '2022-01-03'")
         assert (
-            "Deleting objects for partition '['2022-01-01']' at "
-            "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-01'" in caplog.text
+            "Deleting table data: path="
+            "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-01', "
+            "bucket='test-dbt-athena-test-delete-partitions', "
+            "prefix='tables/table/dt=2022-01-01/'" in caplog.text
         )
         assert (
             "Calling s3:delete_objects with {'Bucket': 'test-dbt-athena-test-delete-partitions', "
@@ -288,8 +290,10 @@ class TestAthenaAdapter:
             "{'Key': 'tables/table/dt=2022-01-01/data2.parquet'}]}}" in caplog.text
         )
         assert (
-            "Deleting objects for partition '['2022-01-02']' at "
-            "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-02'" in caplog.text
+            "Deleting table data: path="
+            "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-02', "
+            "bucket='test-dbt-athena-test-delete-partitions', "
+            "prefix='tables/table/dt=2022-01-02/'" in caplog.text
         )
         assert (
             "Calling s3:delete_objects with {'Bucket': 'test-dbt-athena-test-delete-partitions', "
@@ -320,7 +324,11 @@ class TestAthenaAdapter:
         self.mock_aws_service.add_data_in_table("table")
         self.adapter.acquire_connection("dummy")
         self.adapter.clean_up_table(DATABASE_NAME, "table")
-        assert "Deleting table data from 's3://test-dbt-athena-test-delete-partitions/tables/table/'" in caplog.text
+        assert (
+            "Deleting table data: path='s3://test-dbt-athena-test-delete-partitions/tables/table', "
+            "bucket='test-dbt-athena-test-delete-partitions', "
+            "prefix='tables/table/'" in caplog.text
+        )
         s3 = boto3.client("s3", region_name=AWS_REGION)
         objs = s3.list_objects_v2(Bucket=BUCKET)
         assert objs["KeyCount"] == 0
@@ -402,6 +410,51 @@ class TestAthenaAdapter:
         res = self.adapter._get_data_catalog(DATA_CATALOG_NAME)
         assert {"Name": "awsdatacatalog", "Type": "GLUE", "Parameters": {"catalog-id": "catalog_id"}} == res
 
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test__get_relation_type_table(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.mock_aws_service.create_table("test_table")
+        self.adapter.acquire_connection("dummy")
+        table_type = self.adapter.get_table_type(DATABASE_NAME, "test_table")
+        assert table_type == "table"
+
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test__get_relation_type_with_no_type(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.mock_aws_service.create_table_without_table_type("test_table")
+        self.adapter.acquire_connection("dummy")
+
+        with pytest.raises(ValueError):
+            self.adapter.get_table_type(DATABASE_NAME, "test_table")
+
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test__get_relation_type_view(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.mock_aws_service.create_view("test_view")
+        self.adapter.acquire_connection("dummy")
+        table_type = self.adapter.get_table_type(DATABASE_NAME, "test_view")
+        assert table_type == "view"
+
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test__get_relation_type_iceberg(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.mock_aws_service.create_iceberg_table("test_iceberg")
+        self.adapter.acquire_connection("dummy")
+        table_type = self.adapter.get_table_type(DATABASE_NAME, "test_iceberg")
+        assert table_type == "iceberg_table"
+
     def _test_list_relations_without_caching(self, schema_relation):
         self.adapter.acquire_connection("dummy")
         relations = self.adapter.list_relations_without_caching(schema_relation)
@@ -426,6 +479,7 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_table("table")
         self.mock_aws_service.create_table("other")
         self.mock_aws_service.create_view("view")
+        self.mock_aws_service.create_table_without_table_type("without_table_type")
         schema_relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -442,6 +496,7 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_table("table")
         self.mock_aws_service.create_table("other")
         self.mock_aws_service.create_view("view")
+        self.mock_aws_service.create_table_without_table_type("without_table_type")
         schema_relation = self.adapter.Relation.create(
             database=data_catalog_name,
             schema=DATABASE_NAME,
@@ -462,6 +517,16 @@ class TestAthenaAdapter:
         self.adapter.acquire_connection("dummy")
         self.adapter.list_relations_without_caching(schema_relation)
         parent_list_relations_without_caching.assert_called_once_with(schema_relation)
+
+    @pytest.mark.parametrize(
+        "s3_path,expected",
+        [
+            ("s3://my-bucket/test-dbt/tables/schema/table", ("my-bucket", "test-dbt/tables/schema/table/")),
+            ("s3://my-bucket/test-dbt/tables/schema/table/", ("my-bucket", "test-dbt/tables/schema/table/")),
+        ],
+    )
+    def test_parse_s3_path(self, s3_path, expected):
+        assert self.adapter._parse_s3_path(s3_path) == expected
 
 
 class TestAthenaFilterCatalog:
