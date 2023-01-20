@@ -410,6 +410,51 @@ class TestAthenaAdapter:
         res = self.adapter._get_data_catalog(DATA_CATALOG_NAME)
         assert {"Name": "awsdatacatalog", "Type": "GLUE", "Parameters": {"catalog-id": "catalog_id"}} == res
 
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test__get_relation_type_table(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.mock_aws_service.create_table("test_table")
+        self.adapter.acquire_connection("dummy")
+        table_type = self.adapter.get_table_type(DATABASE_NAME, "test_table")
+        assert table_type == "table"
+
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test__get_relation_type_with_no_type(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.mock_aws_service.create_table_without_table_type("test_table")
+        self.adapter.acquire_connection("dummy")
+
+        with pytest.raises(ValueError):
+            self.adapter.get_table_type(DATABASE_NAME, "test_table")
+
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test__get_relation_type_view(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.mock_aws_service.create_view("test_view")
+        self.adapter.acquire_connection("dummy")
+        table_type = self.adapter.get_table_type(DATABASE_NAME, "test_view")
+        assert table_type == "view"
+
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test__get_relation_type_iceberg(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.mock_aws_service.create_iceberg_table("test_iceberg")
+        self.adapter.acquire_connection("dummy")
+        table_type = self.adapter.get_table_type(DATABASE_NAME, "test_iceberg")
+        assert table_type == "iceberg_table"
+
     def _test_list_relations_without_caching(self, schema_relation):
         self.adapter.acquire_connection("dummy")
         relations = self.adapter.list_relations_without_caching(schema_relation)
