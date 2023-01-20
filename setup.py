@@ -49,9 +49,9 @@ setup(
     include_package_data=True,
     install_requires=[
         # In order to control dbt-core version and package version
-        "dbt-core~=1.3.0",
-        "pyathena~=2.14",
         "boto3~=1.26",
+        "dbt-core~=1.3.2",
+        "pyathena~=2.19",
         "tenacity~=8.1",
     ],
 )
