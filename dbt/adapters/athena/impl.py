@@ -345,4 +345,4 @@ class AthenaAdapter(SQLAdapter):
             return _type
 
         except glue_client.exceptions.EntityNotFoundException as e:
-            logger.debug(e)
+            logger.debug(f"Error calling Glue get_table: {e}")
