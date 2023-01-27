@@ -33,3 +33,41 @@
 
   {{ return(sql) }}
 {% endmacro %}
+
+{% macro athena__load_csv_rows(model, agate_table) %}
+    {% set batch_size = 1000 %}
+
+    {% set statements = [] %}
+
+    {% for chunk in agate_table.rows | batch(batch_size) %}
+        {% set bindings = [] %}
+
+        {% for row in chunk %}
+          {% do bindings.extend(row) %}
+        {% endfor %}
+
+        {% set sql %}
+            insert into {{ this.render() }} values
+            {% for row in chunk -%}
+                ({%- for column in agate_table.columns -%}
+                    {%- if 'date' in (column.data_type | string) -%}
+                      cast(%s as date)
+                    {%- else -%}
+                    %s
+                    {%- endif -%}
+                    {%- if not loop.last%},{%- endif %}
+                {%- endfor -%})
+                {%- if not loop.last%},{%- endif %}
+            {%- endfor %}
+        {% endset %}
+
+        {% do adapter.add_query(sql, bindings=bindings, abridge_sql_log=True) %}
+
+        {% if loop.index0 == 0 %}
+            {% do statements.append(sql) %}
+        {% endif %}
+    {% endfor %}
+
+    {# Return SQL so we can render it out into the compiled files #}
+    {{ return(statements[0]) }}
+{% endmacro %}

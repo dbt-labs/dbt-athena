@@ -1,6 +1,6 @@
-{% macro drop_relation(relation) -%}
+{% macro drop_relation(relation, delay_seconds_before_s3_delete=none) -%}
   {% if config.get('table_type') != 'iceberg' %}
-    {%- do adapter.clean_up_table(relation.schema, relation.table) -%}
+    {%- do adapter.clean_up_table(relation.schema, relation.table, delay_seconds_before_s3_delete) -%}
   {% endif %}
   {% call statement('drop_relation', auto_begin=False) -%}
     drop {{ relation.type }} if exists {{ relation }}

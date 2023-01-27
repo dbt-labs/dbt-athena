@@ -311,7 +311,7 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
         self.adapter.clean_up_table(DATABASE_NAME, "table")
-        assert "Table 'table' does not exists - Ignoring" in caplog.text
+        assert "Table 'table' does not exist - Ignoring" in caplog.text
 
     @mock_glue
     @mock_s3
