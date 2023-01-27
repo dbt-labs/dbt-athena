@@ -1,4 +1,17 @@
 {%
+  Hash function to generate dbt_scd_id. dbt by default uses md5(coalesce(cast(field as varchar)))
+   but it does not work with athena. It throws an error Unexpected parameters (varchar) for function
+   md5. Expected: md5(varbinary)
+%}
+
+{% macro athena__snapshot_hash_arguments(args) -%}
+    to_hex(md5(to_utf8({%- for arg in args -%}
+        coalesce(cast({{ arg }} as varchar ), '')
+        {% if not loop.last %} || '|' || {% endif %}
+    {%- endfor -%})))
+{%- endmacro %}
+
+{%
   Recreate the snapshot table from the new_snapshot_table
 %}
 
