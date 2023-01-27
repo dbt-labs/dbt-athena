@@ -1,7 +1,7 @@
 import posixpath as path
 from itertools import chain
 from threading import Lock
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Dict, Iterator, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -104,7 +104,9 @@ class AthenaAdapter(SQLAdapter):
 
     @available
     def clean_up_partitions(self, database_name: str, table_name: str, where_condition: str):
-        # Look up Glue partitions & clean up
+        """
+        Clean up partitions of a given glue table
+        """
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
@@ -120,50 +122,56 @@ class AthenaAdapter(SQLAdapter):
         partition_pg = paginator.paginate(**partition_params)
         partitions = partition_pg.build_full_result().get("Partitions")
         for partition in partitions:
-            self._delete_from_s3(client, partition["StorageDescriptor"]["Location"])
+            self._delete_from_s3(partition["StorageDescriptor"]["Location"])
 
     @available
-    def clean_up_table(self, database_name: str, table_name: str):
-        # Look up Glue partitions & clean up
+    def get_table_location(self, database_name: str, table_name: str) -> [str, None]:
         conn = self.connections.get_thread_connection()
         client = conn.handle
+
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
         try:
             table = glue_client.get_table(DatabaseName=database_name, Name=table_name)
+            table_location = table["Table"]["StorageDescriptor"]["Location"]
+            logger.debug(f"{database_name}.{table_name} is stored in {table_location}")
+            return table_location
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
                 logger.debug(f"Table '{table_name}' does not exists - Ignoring")
                 return
 
-        if table is not None:
-            s3_location = table["Table"]["StorageDescriptor"]["Location"]
-            self._delete_from_s3(client, s3_location)
+    @available
+    def clean_up_table(self, database_name: str, table_name: str):
+        table_location = self.get_table_location(database_name, table_name)
+
+        if table_location is not None:
+            self._delete_from_s3(table_location)
 
     @available
     def prune_s3_table_location(self, s3_table_location: str):
         """
-        Prunes an s3 table location.
-        This is ncessary resolve the HIVE_PARTITION_ALREADY_EXISTS error
+        Prunes a s3 table location.
+        This is necessary resolve the HIVE_PARTITION_ALREADY_EXISTS error
         that occurs during retrying after receiving a 503 Slow Down error
         during a CTA command, if partial files have already been written to s3.
         """
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-        self._delete_from_s3(client, s3_table_location)
+        self._delete_from_s3(s3_table_location)
 
     @available
     def quote_seed_column(self, column: str, quote_config: Optional[bool]) -> str:
         return super().quote_seed_column(column, False)
 
-    def _delete_from_s3(self, client: Any, s3_path: str):
+    def _delete_from_s3(self, s3_path: str):
         """
         Deletes files from s3.
-        Additionally parses the response from the s3 delete request and raises
+        Additionally, parses the response from the s3 delete request and raises
         a RunTimeException in case it included errors.
         """
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
         bucket_name, prefix = self._parse_s3_path(s3_path)
-        if self._s3_path_exists(client, bucket_name, prefix):
+        if self._s3_path_exists(bucket_name, prefix):
             s3_resource = client.session.resource("s3", region_name=client.region_name, config=get_boto3_config())
             s3_bucket = s3_resource.Bucket(bucket_name)
             logger.debug(f"Deleting table data: path='{s3_path}', bucket='{bucket_name}', prefix='{prefix}'")
@@ -188,7 +196,7 @@ class AthenaAdapter(SQLAdapter):
     @staticmethod
     def _parse_s3_path(s3_path: str) -> Tuple[str, str]:
         """
-        Parses and splits an s3 path into bucket name and prefix.
+        Parses and splits a s3 path into bucket name and prefix.
         This assumes that s3_path is a prefix instead of a URI. It adds a
         trailing slash to the prefix, if there is none.
         """
@@ -197,12 +205,14 @@ class AthenaAdapter(SQLAdapter):
         prefix = o.path.lstrip("/").rstrip("/") + "/"
         return bucket_name, prefix
 
-    @staticmethod
-    def _s3_path_exists(client: Any, s3_bucket: str, s3_prefix: str) -> bool:
+    def _s3_path_exists(self, s3_bucket: str, s3_prefix: str) -> bool:
         """Checks whether a given s3 path exists."""
-        response = client.session.client(
-            "s3", region_name=client.region_name, config=get_boto3_config()
-        ).list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+        with boto3_client_lock:
+            s3_client = client.session.client("s3", region_name=client.region_name, config=get_boto3_config())
+        # TODO list objects with pagination call
+        response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
         return True if "Contents" in response else False
 
     def _join_catalog_table_owners(self, table: agate.Table, manifest: Manifest) -> agate.Table:
@@ -321,6 +331,13 @@ class AthenaAdapter(SQLAdapter):
         return relations
 
     @available
+    def get_unique_identifier(self) -> str:
+        """
+        Give a unique identifier that can be used in a table name and in s3 path.
+        """
+        return str(uuid4()).replace("-", "_")
+
+    @available
     def get_table_type(self, db_name, table_name):
         conn = self.connections.get_thread_connection()
         client = conn.handle
@@ -346,3 +363,28 @@ class AthenaAdapter(SQLAdapter):
 
         except glue_client.exceptions.EntityNotFoundException as e:
             logger.debug(f"Error calling Glue get_table: {e}")
+
+    @available
+    def swap_table(self, src_database: str, src_table_name: str, target_database: str, target_table_name: str):
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        input_table = glue_client.get_table(DatabaseName=src_database, Name=src_table_name)
+        logger.debug(input_table)
+
+        target_table_version = {
+            "Name": target_table_name,
+            "StorageDescriptor": input_table["Table"]["StorageDescriptor"],
+            "PartitionKeys": input_table["Table"]["PartitionKeys"],
+            "TableType": input_table["Table"]["TableType"],
+            "Parameters": input_table["Table"]["Parameters"],
+        }
+
+        response = glue_client.update_table(
+            DatabaseName=target_database,
+            TableInput=target_table_version,
+        )
+        logger.debug(response)
