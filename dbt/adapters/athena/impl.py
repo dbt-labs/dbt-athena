@@ -372,19 +372,75 @@ class AthenaAdapter(SQLAdapter):
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
-        input_table = glue_client.get_table(DatabaseName=src_database, Name=src_table_name)
-        logger.debug(input_table)
+        src_table = glue_client.get_table(DatabaseName=src_database, Name=src_table_name).get("Table")
+        src_table_partitions = glue_client.get_partitions(DatabaseName=src_database, TableName=src_table_name).get(
+            "Partitions"
+        )
+        logger.debug(src_table)
+        logger.debug(src_table_partitions)
+
+        target_table_partitions = glue_client.get_partitions(
+            DatabaseName=target_database, TableName=target_table_name
+        ).get("Partitions")
+        logger.debug(target_table_partitions)
 
         target_table_version = {
             "Name": target_table_name,
-            "StorageDescriptor": input_table["Table"]["StorageDescriptor"],
-            "PartitionKeys": input_table["Table"]["PartitionKeys"],
-            "TableType": input_table["Table"]["TableType"],
-            "Parameters": input_table["Table"]["Parameters"],
+            "StorageDescriptor": src_table["StorageDescriptor"],
+            "PartitionKeys": src_table["PartitionKeys"],
+            "TableType": src_table["TableType"],
+            "Parameters": src_table["Parameters"],
         }
 
+        # perform a table swap
         response = glue_client.update_table(
             DatabaseName=target_database,
             TableInput=target_table_version,
         )
         logger.debug(response)
+
+        # we delete the target table partitions in any case
+        # if source table has partitions we need to delete and add partitions
+        # it source table hasn't any partitions we need to delete target table partitions
+        if target_table_partitions:
+            glue_client.batch_delete_partition(
+                DatabaseName=target_database,
+                TableName=target_table_name,
+                PartitionsToDelete=[{"Values": i["Values"]} for i in target_table_partitions],
+            )
+
+        if src_table_partitions:
+            glue_client.batch_create_partition(
+                DatabaseName=target_database,
+                TableName=target_table_name,
+                PartitionInputList=[
+                    {"Values": p["Values"], "StorageDescriptor": p["StorageDescriptor"], "Parameters": p["Parameters"]}
+                    for p in src_table_partitions
+                ],
+            )
+
+    @available
+    def expire_glue_table_versions(self, database_name, table_name):
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        paginator = glue_client.get_paginator("get_table_versions")
+        response_iterator = paginator.paginate(
+            **{
+                "DatabaseName": database_name,
+                "TableName": table_name,
+            }
+        )
+        table_versions = response_iterator.build_full_result().get("TableVersions")
+        table_versions_ordered = sorted(table_versions, key=lambda i: i["Table"]["UpdateTime"], reverse=True)
+        # pick all version except the first - the latest
+        versions_to_delete = list(map(lambda i: i["Table"]["VersionId"], table_versions_ordered[1:]))
+        logger.debug(f"Preparing to delete {versions_to_delete} from table {database_name}.{table_name}")
+        glue_client.batch_delete_table_version(
+            DatabaseName=database_name, TableName=table_name, VersionIds=versions_to_delete
+        )
+        logger.debug(f"Deleted {versions_to_delete} for table {database_name}.{table_name}")
+        return versions_to_delete
