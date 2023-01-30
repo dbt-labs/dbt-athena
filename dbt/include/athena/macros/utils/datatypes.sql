@@ -12,3 +12,7 @@
 {%- macro athena__type_int() -%}
     INTEGER
 {%- endmacro -%}
+
+{%- macro athena__type_string() -%}
+    VARCHAR
+{%- endmacro -%}
