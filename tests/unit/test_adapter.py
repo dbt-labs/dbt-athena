@@ -182,7 +182,7 @@ class TestAthenaAdapter:
 
     @mock.patch("dbt.adapters.athena.connections.AthenaConnection")
     def test_acquire_connection_exc(self, connection_cls, caplog):
-        caplog.at_level(logging.ERROR)
+        caplog.set_level(logging.ERROR)
         connection_cls.side_effect = lambda **_: (_ for _ in ()).throw(Exception("foobar"))
         connection = self.adapter.acquire_connection("dummy")
         conn_res = None
@@ -272,7 +272,6 @@ class TestAthenaAdapter:
     @mock_athena
     def test_clean_up_partitions_will_work(self, caplog, aws_credentials):
         caplog.set_level("DEBUG")
-        caplog.at_level("DEBUG")
         table_name = "table"
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database()
