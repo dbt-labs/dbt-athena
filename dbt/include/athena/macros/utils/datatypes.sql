@@ -16,3 +16,4 @@
 {%- macro athena__type_string() -%}
     VARCHAR
 {%- endmacro -%}
+
