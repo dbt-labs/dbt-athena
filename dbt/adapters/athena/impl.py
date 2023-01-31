@@ -393,10 +393,7 @@ class AthenaAdapter(SQLAdapter):
         }
 
         # perform a table swap
-        response = glue_client.update_table(
-            DatabaseName=target_database,
-            TableInput=target_table_version,
-        )
+        response = glue_client.update_table(DatabaseName=target_database, TableInput=target_table_version)
         logger.debug(response)
 
         # we delete the target table partitions in any case
@@ -420,7 +417,7 @@ class AthenaAdapter(SQLAdapter):
             )
 
     @available
-    def expire_glue_table_versions(self, database_name, table_name):
+    def expire_glue_table_versions(self, database_name: str, table_name: str, to_keep: int, delete_s3: bool):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
@@ -435,12 +432,28 @@ class AthenaAdapter(SQLAdapter):
             }
         )
         table_versions = response_iterator.build_full_result().get("TableVersions")
+        logger.debug(f"Total versions {len(table_versions)}")
         table_versions_ordered = sorted(table_versions, key=lambda i: i["Table"]["UpdateTime"], reverse=True)
-        # pick all version except the first - the latest
-        versions_to_delete = list(map(lambda i: i["Table"]["VersionId"], table_versions_ordered[1:]))
-        logger.debug(f"Preparing to delete {versions_to_delete} from table {database_name}.{table_name}")
-        glue_client.batch_delete_table_version(
-            DatabaseName=database_name, TableName=table_name, VersionIds=versions_to_delete
-        )
-        logger.debug(f"Deleted {versions_to_delete} for table {database_name}.{table_name}")
-        return versions_to_delete
+
+        versions_to_delete = table_versions_ordered[int(to_keep) + 1 :]
+
+        logger.debug(f"Preparing to delete {len(versions_to_delete)} versions from table {database_name}.{table_name}")
+
+        deleted_versions = []
+        for v in versions_to_delete:
+            version = v["Table"]["VersionId"]
+            location = v["Table"]["StorageDescriptor"]["Location"]
+            try:
+                glue_client.delete_table_version(
+                    DatabaseName=database_name, TableName=table_name, VersionId=str(version)
+                )
+                logger.debug(f"Deleted version {version} of table {database_name}.{table_name} ")
+                if delete_s3:
+                    self._delete_from_s3(location)
+            except Exception as err:
+                logger.debug(f"There was this {err} when deleting location {location}")
+
+            logger.debug(f"{location} was deleted")
+            deleted_versions.append(version)
+
+        return deleted_versions
