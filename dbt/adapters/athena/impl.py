@@ -376,13 +376,10 @@ class AthenaAdapter(SQLAdapter):
         src_table_partitions = glue_client.get_partitions(DatabaseName=src_database, TableName=src_table_name).get(
             "Partitions"
         )
-        logger.debug(src_table)
-        logger.debug(src_table_partitions)
 
         target_table_partitions = glue_client.get_partitions(
             DatabaseName=target_database, TableName=target_table_name
         ).get("Partitions")
-        logger.debug(target_table_partitions)
 
         target_table_version = {
             "Name": target_table_name,
@@ -393,8 +390,10 @@ class AthenaAdapter(SQLAdapter):
         }
 
         # perform a table swap
-        response = glue_client.update_table(DatabaseName=target_database, TableInput=target_table_version)
-        logger.debug(response)
+        glue_client.update_table(DatabaseName=target_database, TableInput=target_table_version)
+        logger.debug(
+            f"Table {target_database}.{target_table_name} swapped with the contend of {src_database}.{src_table}"
+        )
 
         # we delete the target table partitions in any case
         # if source table has partitions we need to delete and add partitions
