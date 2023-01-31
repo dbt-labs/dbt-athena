@@ -1,7 +1,7 @@
 {% materialization table_hive_ha, adapter='athena' -%}
   {%- set identifier = model['alias'] -%}
   {%- set table_type = 'hive' -%}
-  {%- set versions_to_keep = config.get('versions_to_keep', default=3) -%}
+  {%- set versions_to_keep = config.get('versions_to_keep', default=4) -%}
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
   {%- set s3_data_naming = config.get('s3_data_naming', default='table_unique') -%}
   {%- set external_location = config.get('external_location', default=none) -%}
