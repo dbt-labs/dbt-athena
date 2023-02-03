@@ -19,6 +19,7 @@
   * On Hive tables :
     * Support two incremental update strategies: `insert_overwrite` and `append`
     * Does **not** support the use of `unique_key`
+* Supports [snapshots][snapshots]
 * Does not support [Python models][python-models]
 
 [seeds]: https://docs.getdbt.com/docs/building-a-dbt-project/seeds
@@ -26,6 +27,7 @@
 [table]: https://docs.getdbt.com/docs/build/materializations#table
 [python-models]: https://docs.getdbt.com/docs/build/python-models#configuring-python-models
 [athena-iceberg]: https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg.html
+[snapshots]: https://docs.getdbt.com/docs/build/snapshots
 
 ### Installation
 
@@ -197,13 +199,24 @@ It is possible to use iceberg in an incremental fashion, specifically 2 strategi
    It performs an upsert, new record are added, and record already existing are updated
 
 
-#### Unsupported functionality
+### Snapshots
 
-Due to the nature of AWS Athena, not all core dbt functionality is supported.
-The following features of dbt are not implemented on Athena:
-* Snapshots
+The adapter supports snapshot materialization. It supports both timestamp and check strategy. To create a snapshot create a snapshot file in the snapshots directory. If directory does not exist create one.
 
-#### Known issues
+#### Timestamp strategy
+
+To use the timestamp strategy refer to the [dbt docs](https://docs.getdbt.com/docs/build/snapshots#timestamp-strategy-recommended)
+
+#### Check strategy
+
+To use the check strategy refer to the [dbt docs](https://docs.getdbt.com/docs/build/snapshots#check-strategy)
+
+#### Hard-deletes
+
+The materialization also supports invalidating hard deletes. Check the [docs](https://docs.getdbt.com/docs/build/snapshots#hard-deletes-opt-in) to understand usage.
+
+
+### Known issues
 
 * Incremental Iceberg models - Sync all columns on schema change can't remove columns used as partitioning.
 The only way, from a dbt perspective, is to do a full-refresh of the incremental model.
@@ -227,6 +240,8 @@ The only way, from a dbt perspective, is to do a full-refresh of the incremental
 
 * In order to avoid potential conflicts, make sure [`dbt-athena-adapter`](https://github.com/Tomme/dbt-athena) is not installed in the target environment.
   See https://github.com/dbt-athena/dbt-athena/issues/103 for more details.
+
+* Snapshot does not support dropping columns from the source table. If you drop a column make sure to drop the column from the snapshot as well. Another workaround is to NULL the column in the snapshot definition to preserve history
 
 ### Contributing
 
