@@ -281,7 +281,7 @@ class AthenaAdapter(SQLAdapter):
         schema_relation: AthenaRelation,
     ) -> List[BaseRelation]:
         catalog_id = None
-        if schema_relation.database.lower() != "awsdatacatalog":
+        if schema_relation.database is not None and schema_relation.database.lower() != "awsdatacatalog":
             data_catalog = self._get_data_catalog(schema_relation.database.lower())
             # For non-Glue Data Catalogs, use the original Athena query against INFORMATION_SCHEMA approach
             if data_catalog["Type"] != "GLUE":
