@@ -105,7 +105,6 @@ class TestAthenaAdapter:
                 alias="bar",
                 fqn=["root", "model2"],
                 package_name="root",
-                # root_path="/usr/src/app",
                 refs=[],
                 sources=[],
                 depends_on=DependsOn(),
