@@ -346,3 +346,17 @@ class AthenaAdapter(SQLAdapter):
 
         except glue_client.exceptions.EntityNotFoundException as e:
             logger.debug(f"Error calling Glue get_table: {e}")
+
+    def set_relations_cache(
+        self,
+        manifest: Manifest,
+        clear: bool = False,
+        required_schemas: Set[BaseRelation] = None,
+    ) -> None:
+        """Run a query that gets a populated cache of the relations in the
+        database and set the cache on this adapter.
+        """
+        with self.cache.lock:
+            if clear:
+                self.cache.clear()
+            self._relations_cache_for_schemas(manifest, required_schemas)
