@@ -1,4 +1,4 @@
 boto3~=1.26
-dbt-core~=1.4.1
+dbt-core~=1.4.0
 pyathena~=2.20
 tenacity~=8.1
