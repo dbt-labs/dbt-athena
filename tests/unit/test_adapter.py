@@ -188,7 +188,6 @@ class TestAthenaAdapter:
         conn_res = None
         with pytest.raises(ConnectionError) as exc:
             conn_res = connection.handle
-            print(caplog.text)
 
         assert conn_res is None
         assert connection.state == ConnectionState.FAIL
