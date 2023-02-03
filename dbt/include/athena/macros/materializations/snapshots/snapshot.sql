@@ -150,11 +150,7 @@
     Add new columns to the table if applicable
 #}
 
-{% macro create_columns(relation, columns) -%}
-  {{ adapter.dispatch('create_columns', 'dbt')(relation, columns) }}
-{% endmacro %}
-
-{% macro default__create_columns(relation, columns) -%}
+{% macro athena__create_columns(relation, columns) -%}
   {%- for column in columns -%}
     {% if column.data_type|lower == 'boolean' %}
     {% set query -%}
@@ -304,8 +300,6 @@
   {% do persist_docs(target_relation, model) %}
 
   {{ run_hooks(post_hooks, inside_transaction=True) }}
-
-  {{ adapter.commit() }}
 
   {% if staging_table is defined %}
       {% do adapter.drop_relation(staging_table) %}
