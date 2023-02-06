@@ -36,9 +36,7 @@
     {%- endif -%}
   {%- endif %}
 
-{%- if table_type != 'iceberg' -%}
-    {% do adapter.prune_s3_table_location(location) %}
-{%- endif -%}
+  {% do adapter.delete_from_s3(location) %}
 
   create table
     {{ relation }}

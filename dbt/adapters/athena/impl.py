@@ -103,8 +103,26 @@ class AthenaAdapter(SQLAdapter):
         return table_location
 
     @available
+    def get_table_location(self, database_name: str, table_name: str) -> [str, None]:
+        """
+        Helper function to S3 get table location
+        """
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+        try:
+            table = glue_client.get_table(DatabaseName=database_name, Name=table_name)
+            table_location = table["Table"]["StorageDescriptor"]["Location"]
+            logger.debug(f"{database_name}.{table_name} is stored in {table_location}")
+            return table_location
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "EntityNotFoundException":
+                logger.debug(f"Table '{table_name}' does not exists - Ignoring")
+                return
+
+    @available
     def clean_up_partitions(self, database_name: str, table_name: str, where_condition: str):
-        # Look up Glue partitions & clean up
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
@@ -120,50 +138,28 @@ class AthenaAdapter(SQLAdapter):
         partition_pg = paginator.paginate(**partition_params)
         partitions = partition_pg.build_full_result().get("Partitions")
         for partition in partitions:
-            self._delete_from_s3(client, partition["StorageDescriptor"]["Location"])
+            self.delete_from_s3(partition["StorageDescriptor"]["Location"])
 
     @available
     def clean_up_table(self, database_name: str, table_name: str):
-        # Look up Glue partitions & clean up
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-        table = None
-        with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
-        try:
-            table = glue_client.get_table(DatabaseName=database_name, Name=table_name)
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "EntityNotFoundException":
-                logger.debug(f"Table '{table_name}' does not exists - Ignoring")
-                return
+        table_location = self.get_table_location(database_name, table_name)
 
-        if table is not None:
-            s3_location = table["Table"]["StorageDescriptor"]["Location"]
-            if s3_location:
-                self._delete_from_s3(client, s3_location)
-
-    @available
-    def prune_s3_table_location(self, s3_table_location: str):
-        """
-        Prunes an s3 table location.
-        This is ncessary resolve the HIVE_PARTITION_ALREADY_EXISTS error
-        that occurs during retrying after receiving a 503 Slow Down error
-        during a CTA command, if partial files have already been written to s3.
-        """
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-        self._delete_from_s3(client, s3_table_location)
+        if table_location is not None:
+            self.delete_from_s3(table_location)
 
     @available
     def quote_seed_column(self, column: str, quote_config: Optional[bool]) -> str:
         return super().quote_seed_column(column, False)
 
-    def _delete_from_s3(self, client: Any, s3_path: str):
+    @available
+    def delete_from_s3(self, s3_path: str):
         """
-        Deletes files from s3.
-        Additionally parses the response from the s3 delete request and raises
-        a RunTimeException in case it included errors.
+        Deletes files from s3 given a s3 path in the format: s3://my_bucket/prefix
+        Additionally, parses the response from the s3 delete request and raises
+        a DbtRuntimeError in case it included errors.
         """
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
         bucket_name, prefix = self._parse_s3_path(s3_path)
         if self._s3_path_exists(client, bucket_name, prefix):
             s3_resource = client.session.resource("s3", region_name=client.region_name, config=get_boto3_config())
@@ -190,7 +186,7 @@ class AthenaAdapter(SQLAdapter):
     @staticmethod
     def _parse_s3_path(s3_path: str) -> Tuple[str, str]:
         """
-        Parses and splits an s3 path into bucket name and prefix.
+        Parses and splits a s3 path into bucket name and prefix.
         This assumes that s3_path is a prefix instead of a URI. It adds a
         trailing slash to the prefix, if there is none.
         """
