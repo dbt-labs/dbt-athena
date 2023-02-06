@@ -253,6 +253,28 @@ class TestAthenaAdapter:
             self.adapter.s3_table_location(None, "other", "schema", "table")
         assert exc.value.__str__() == "Unknown value for s3_data_naming: other"
 
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test_get_table_location(self, dbt_debug_caplog):
+        table_name = "test_table"
+        self.adapter.acquire_connection("dummy")
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.mock_aws_service.create_table(table_name)
+        assert self.adapter.get_table_location(DATABASE_NAME, table_name) == "s3://test-dbt-athena/tables/test_table"
+
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test_get_table_location_with_failure(self, dbt_debug_caplog):
+        table_name = "test_table"
+        self.adapter.acquire_connection("dummy")
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        assert self.adapter.get_table_location(DATABASE_NAME, table_name) is None
+        assert f"Table '{table_name}' does not exists - Ignoring" in dbt_debug_caplog.getvalue()
+
     @pytest.fixture(scope="function")
     def aws_credentials(self):
         """Mocked AWS Credentials for moto."""
@@ -276,14 +298,14 @@ class TestAthenaAdapter:
         log_records = dbt_debug_caplog.getvalue()
         assert (
             "Deleting table data: path="
-            "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-01', "
-            "bucket='test-dbt-athena-test-delete-partitions', "
+            "'s3://test-dbt-athena/tables/table/dt=2022-01-01', "
+            "bucket='test-dbt-athena', "
             "prefix='tables/table/dt=2022-01-01/'" in log_records
         )
         assert (
             "Deleting table data: path="
-            "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-02', "
-            "bucket='test-dbt-athena-test-delete-partitions', "
+            "'s3://test-dbt-athena/tables/table/dt=2022-01-02', "
+            "bucket='test-dbt-athena', "
             "prefix='tables/table/dt=2022-01-02/'" in log_records
         )
         s3 = boto3.client("s3", region_name=AWS_REGION)
@@ -311,8 +333,8 @@ class TestAthenaAdapter:
         self.adapter.acquire_connection("dummy")
         self.adapter.clean_up_table(DATABASE_NAME, "table")
         assert (
-            "Deleting table data: path='s3://test-dbt-athena-test-delete-partitions/tables/table', "
-            "bucket='test-dbt-athena-test-delete-partitions', "
+            "Deleting table data: path='s3://test-dbt-athena/tables/table', "
+            "bucket='test-dbt-athena', "
             "prefix='tables/table/'" in dbt_debug_caplog.getvalue()
         )
         s3 = boto3.client("s3", region_name=AWS_REGION)
