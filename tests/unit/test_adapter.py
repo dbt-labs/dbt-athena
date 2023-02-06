@@ -1,5 +1,4 @@
 import decimal
-import logging
 import os
 from unittest import mock
 from unittest.mock import patch
@@ -179,8 +178,7 @@ class TestAthenaAdapter:
         connection_cls.assert_called_once()
 
     @mock.patch("dbt.adapters.athena.connections.AthenaConnection")
-    def test_acquire_connection_exc(self, connection_cls, caplog):
-        caplog.set_level(logging.ERROR)
+    def test_acquire_connection_exc(self, connection_cls, dbt_error_caplog):
         connection_cls.side_effect = lambda **_: (_ for _ in ()).throw(Exception("foobar"))
         connection = self.adapter.acquire_connection("dummy")
         conn_res = None
@@ -190,7 +188,7 @@ class TestAthenaAdapter:
         assert conn_res is None
         assert connection.state == ConnectionState.FAIL
         assert exc.value.__str__() == "foobar"
-        # assert "Got an error when attempting to open a Athena connection due to foobar" in caplog.text
+        assert "Got an error when attempting to open a Athena connection due to foobar" in dbt_error_caplog.getvalue()
 
     @pytest.mark.parametrize(
         ("s3_data_dir", "s3_data_naming", "external_location", "is_temporary_table", "expected"),
@@ -267,8 +265,7 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
-    def test_clean_up_partitions_will_work(self, caplog, aws_credentials):
-        caplog.set_level("DEBUG")
+    def test_clean_up_partitions_will_work(self, dbt_debug_caplog, aws_credentials):
         table_name = "table"
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database()
@@ -276,58 +273,48 @@ class TestAthenaAdapter:
         self.mock_aws_service.add_data_in_table(table_name)
         self.adapter.acquire_connection("dummy")
         self.adapter.clean_up_partitions(DATABASE_NAME, table_name, "dt < '2022-01-03'")
-        # assert (
-        #     "Deleting table data: path="
-        #     "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-01', "
-        #     "bucket='test-dbt-athena-test-delete-partitions', "
-        #     "prefix='tables/table/dt=2022-01-01/'" in caplog.text
-        # )
-        # assert (
-        #     "Calling s3:delete_objects with {'Bucket': 'test-dbt-athena-test-delete-partitions', "
-        #     "'Delete': {'Objects': [{'Key': 'tables/table/dt=2022-01-01/data1.parquet'}, "
-        #     "{'Key': 'tables/table/dt=2022-01-01/data2.parquet'}]}}" in caplog.text
-        # )
-        # assert (
-        #     "Deleting table data: path="
-        #     "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-02', "
-        #     "bucket='test-dbt-athena-test-delete-partitions', "
-        #     "prefix='tables/table/dt=2022-01-02/'" in caplog.text
-        # )
-        # assert (
-        #     "Calling s3:delete_objects with {'Bucket': 'test-dbt-athena-test-delete-partitions', "
-        #     "'Delete': {'Objects': [{'Key': 'tables/table/dt=2022-01-02/data.parquet'}]}}" in caplog.text
-        # )
+        log_records = dbt_debug_caplog.getvalue()
+        assert (
+            "Deleting table data: path="
+            "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-01', "
+            "bucket='test-dbt-athena-test-delete-partitions', "
+            "prefix='tables/table/dt=2022-01-01/'" in log_records
+        )
+        assert (
+            "Deleting table data: path="
+            "'s3://test-dbt-athena-test-delete-partitions/tables/table/dt=2022-01-02', "
+            "bucket='test-dbt-athena-test-delete-partitions', "
+            "prefix='tables/table/dt=2022-01-02/'" in log_records
+        )
         s3 = boto3.client("s3", region_name=AWS_REGION)
         keys = [obj["Key"] for obj in s3.list_objects_v2(Bucket=BUCKET)["Contents"]]
         assert set(keys) == {"tables/table/dt=2022-01-03/data1.parquet", "tables/table/dt=2022-01-03/data2.parquet"}
 
     @mock_glue
     @mock_athena
-    def test_clean_up_table_table_does_not_exist(self, caplog, aws_credentials):
-        caplog.set_level("DEBUG")
+    def test_clean_up_table_table_does_not_exist(self, dbt_debug_caplog, aws_credentials):
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
         result = self.adapter.clean_up_table(DATABASE_NAME, "table")
         assert result is None
-        # assert "Table 'table' does not exists - Ignoring" in caplog.text
+        assert "Table 'table' does not exists - Ignoring" in dbt_debug_caplog.getvalue()
 
     @mock_glue
     @mock_s3
     @mock_athena
-    def test_clean_up_table_delete_table(self, caplog, aws_credentials):
-        caplog.set_level("DEBUG")
+    def test_clean_up_table_delete_table(self, dbt_debug_caplog, aws_credentials):
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database()
         self.mock_aws_service.create_table("table")
         self.mock_aws_service.add_data_in_table("table")
         self.adapter.acquire_connection("dummy")
         self.adapter.clean_up_table(DATABASE_NAME, "table")
-        # assert (
-        #     "Deleting table data: path='s3://test-dbt-athena-test-delete-partitions/tables/table', "
-        #     "bucket='test-dbt-athena-test-delete-partitions', "
-        #     "prefix='tables/table/'" in caplog.text
-        # )
+        assert (
+            "Deleting table data: path='s3://test-dbt-athena-test-delete-partitions/tables/table', "
+            "bucket='test-dbt-athena-test-delete-partitions', "
+            "prefix='tables/table/'" in dbt_debug_caplog.getvalue()
+        )
         s3 = boto3.client("s3", region_name=AWS_REGION)
         objs = s3.list_objects_v2(Bucket=BUCKET)
         assert objs["KeyCount"] == 0
