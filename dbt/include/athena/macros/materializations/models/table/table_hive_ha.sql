@@ -46,7 +46,7 @@
       drop table if exists {{ tmp_relation }}
     {%- endcall %}
 
-    --{% set result_table_version_expiration = adapter.expire_glue_table_versions(target_relation.schema, target_relation.table, versions_to_keep, True) %}
+    {% set result_table_version_expiration = adapter.expire_glue_table_versions(target_relation.schema, target_relation.table, versions_to_keep, True) %}
 
 
   {%- else -%}
