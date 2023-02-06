@@ -145,7 +145,7 @@ class AthenaAdapter(SQLAdapter):
         table_location = self.get_table_location(database_name, table_name)
 
         # this check avoid issues for when the table location is an empty string
-        # or when the table do not exist table location is None
+        # or when the table do not exist and table location is None
         if table_location:
             self.delete_from_s3(table_location)
 
