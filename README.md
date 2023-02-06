@@ -5,7 +5,7 @@
 
 # dbt-athena
 
-* Supports dbt version `1.3.*`
+* Supports dbt version `1.4.*`
 * Supports [Seeds][seeds]
 * Correctly detects views and their columns
 * Supports [table materialization][table]
@@ -245,7 +245,7 @@ The only way, from a dbt perspective, is to do a full-refresh of the incremental
 
 ### Contributing
 
-This connector works with Python from 3.7 to 3.10.
+This connector works with Python from 3.7 to 3.11.
 
 #### Getting started
 

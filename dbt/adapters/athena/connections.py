@@ -30,7 +30,7 @@ from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import AdapterResponse, Connection, ConnectionState
 from dbt.events import AdapterLogger
-from dbt.exceptions import FailedToConnectException, RuntimeException
+from dbt.exceptions import ConnectionError, DbtRuntimeError
 
 logger = AdapterLogger("Athena")
 
@@ -141,7 +141,7 @@ class AthenaConnectionManager(SQLConnectionManager):
             yield
         except Exception as e:
             logger.debug(f"Error running SQL: {sql}")
-            raise RuntimeException(str(e)) from e
+            raise DbtRuntimeError(str(e)) from e
 
     @classmethod
     def open(cls, connection: Connection) -> Connection:
@@ -179,7 +179,7 @@ class AthenaConnectionManager(SQLConnectionManager):
             logger.exception(f"Got an error when attempting to open a Athena connection due to {exc}")
             connection.handle = None
             connection.state = ConnectionState.FAIL
-            raise FailedToConnectException(str(exc))
+            raise ConnectionError(str(exc))
 
         return connection
 
