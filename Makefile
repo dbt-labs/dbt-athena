@@ -7,8 +7,7 @@ CHANGED_FILES_IN_BRANCH := $(shell git diff --name-only $(shell git merge-base o
 .PHONY : install_deps setup pre-commit pre-commit-in-branch pre-commit-all test help
 
 install_deps:  ## Install all dependencies.
-	pip install -r dev-requirements.txt
-	pip install -r requirements.txt
+	pip install -r requirements.txt -r dev-requirements.txt
 	pip install -e .
 
 setup:  ## Install all dependencies and setup pre-commit

@@ -15,10 +15,10 @@ from dbt.adapters.base import available
 from dbt.adapters.base.impl import GET_CATALOG_MACRO_NAME
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
-from dbt.contracts.graph.compiled import CompileResultNode
 from dbt.contracts.graph.manifest import Manifest
+from dbt.contracts.graph.nodes import CompiledNode
 from dbt.events import AdapterLogger
-from dbt.exceptions import RuntimeException
+from dbt.exceptions import DbtRuntimeError
 
 logger = AdapterLogger("Athena")
 
@@ -183,7 +183,7 @@ class AthenaAdapter(SQLAdapter):
                             bucket_name,
                         )
             if is_all_successful is False:
-                raise RuntimeException("Failed to delete files from S3.")
+                raise DbtRuntimeError("Failed to delete files from S3.")
         else:
             logger.debug("S3 path does not exist")
 
@@ -250,7 +250,7 @@ class AthenaAdapter(SQLAdapter):
 
     def _get_catalog_schemas(self, manifest: Manifest) -> AthenaSchemaSearchMap:
         info_schema_name_map = AthenaSchemaSearchMap()
-        nodes: Iterator[CompileResultNode] = chain(
+        nodes: Iterator[CompiledNode] = chain(
             [node for node in manifest.nodes.values() if (node.is_relational and not node.is_ephemeral_model)],
             manifest.sources.values(),
         )
