@@ -23,7 +23,7 @@
 
   -- cleanup
   {%- if old_relation is not none -%}
-    {% set tmp_relation = make_temp_relation(target_relation, '_ha') %}
+    {% set tmp_relation = make_temp_relation(target_relation, '__ha') %}
 
     -- be sure to drop the tmp_relation
     {% call statement('drop_tmp_relation', auto_begin=False) -%}
