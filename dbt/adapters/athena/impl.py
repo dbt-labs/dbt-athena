@@ -103,29 +103,10 @@ class AthenaAdapter(SQLAdapter):
         return table_location
 
     @available
-    def clean_up_partitions(self, database_name: str, table_name: str, where_condition: str):
-        """
-        Clean up partitions of a given glue table
-        """
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
-        paginator = glue_client.get_paginator("get_partitions")
-        partition_params = {
-            "DatabaseName": database_name,
-            "TableName": table_name,
-            "Expression": where_condition,
-            "ExcludeColumnSchema": True,
-        }
-        partition_pg = paginator.paginate(**partition_params)
-        partitions = partition_pg.build_full_result().get("Partitions")
-        for partition in partitions:
-            self._delete_from_s3(partition["StorageDescriptor"]["Location"])
-
-    @available
     def get_table_location(self, database_name: str, table_name: str) -> [str, None]:
+        """
+        Helper function to S3 get table location
+        """
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
@@ -141,31 +122,43 @@ class AthenaAdapter(SQLAdapter):
                 return
 
     @available
+    def clean_up_partitions(self, database_name: str, table_name: str, where_condition: str):
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+        paginator = glue_client.get_paginator("get_partitions")
+        partition_params = {
+            "DatabaseName": database_name,
+            "TableName": table_name,
+            "Expression": where_condition,
+            "ExcludeColumnSchema": True,
+        }
+        partition_pg = paginator.paginate(**partition_params)
+        partitions = partition_pg.build_full_result().get("Partitions")
+        for partition in partitions:
+            self.delete_from_s3(partition["StorageDescriptor"]["Location"])
+
+    @available
     def clean_up_table(self, database_name: str, table_name: str):
         table_location = self.get_table_location(database_name, table_name)
 
-        if table_location is not None:
-            self._delete_from_s3(table_location)
-
-    @available
-    def prune_s3_table_location(self, s3_table_location: str):
-        """
-        Prunes a s3 table location.
-        This is necessary resolve the HIVE_PARTITION_ALREADY_EXISTS error
-        that occurs during retrying after receiving a 503 Slow Down error
-        during a CTA command, if partial files have already been written to s3.
-        """
-        self._delete_from_s3(s3_table_location)
+        # this check avoid issues for when the table location is an empty string
+        # or when the table do not exist and table location is None
+        if table_location:
+            self.delete_from_s3(table_location)
 
     @available
     def quote_seed_column(self, column: str, quote_config: Optional[bool]) -> str:
         return super().quote_seed_column(column, False)
 
-    def _delete_from_s3(self, s3_path: str):
+    @available
+    def delete_from_s3(self, s3_path: str):
         """
-        Deletes files from s3.
+        Deletes files from s3 given a s3 path in the format: s3://my_bucket/prefix
         Additionally, parses the response from the s3 delete request and raises
-        a RunTimeException in case it included errors.
+        a DbtRuntimeError in case it included errors.
         """
         conn = self.connections.get_thread_connection()
         client = conn.handle
@@ -210,7 +203,6 @@ class AthenaAdapter(SQLAdapter):
         client = conn.handle
         with boto3_client_lock:
             s3_client = client.session.client("s3", region_name=client.region_name, config=get_boto3_config())
-        # TODO list objects with pagination call
         response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
         return True if "Contents" in response else False
 
@@ -440,7 +432,7 @@ class AthenaAdapter(SQLAdapter):
                 )
                 logger.debug(f"Deleted version {version} of table {database_name}.{table_name} ")
                 if delete_s3:
-                    self._delete_from_s3(location)
+                    self.delete_from_s3(location)
             except Exception as err:
                 logger.debug(f"There was this {err} when deleting location {location}")
 
