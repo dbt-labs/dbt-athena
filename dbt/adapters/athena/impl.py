@@ -127,6 +127,7 @@ class AthenaAdapter(SQLAdapter):
         # Look up Glue partitions & clean up
         conn = self.connections.get_thread_connection()
         client = conn.handle
+        table = None
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
         try:
@@ -138,7 +139,8 @@ class AthenaAdapter(SQLAdapter):
 
         if table is not None:
             s3_location = table["Table"]["StorageDescriptor"]["Location"]
-            self._delete_from_s3(client, s3_location)
+            if s3_location:
+                self._delete_from_s3(client, s3_location)
 
     @available
     def prune_s3_table_location(self, s3_table_location: str):
