@@ -1,7 +1,7 @@
 import posixpath as path
 from itertools import chain
 from threading import Lock
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Dict, Iterator, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -144,7 +144,9 @@ class AthenaAdapter(SQLAdapter):
     def clean_up_table(self, database_name: str, table_name: str):
         table_location = self.get_table_location(database_name, table_name)
 
-        if table_location is not None:
+        # this check avoid issues for when the table location is an empty string
+        # or when the table do not exist and table location is None
+        if table_location:
             self.delete_from_s3(table_location)
 
     @available
@@ -161,7 +163,7 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
         bucket_name, prefix = self._parse_s3_path(s3_path)
-        if self._s3_path_exists(client, bucket_name, prefix):
+        if self._s3_path_exists(bucket_name, prefix):
             s3_resource = client.session.resource("s3", region_name=client.region_name, config=get_boto3_config())
             s3_bucket = s3_resource.Bucket(bucket_name)
             logger.debug(f"Deleting table data: path='{s3_path}', bucket='{bucket_name}', prefix='{prefix}'")
@@ -195,12 +197,13 @@ class AthenaAdapter(SQLAdapter):
         prefix = o.path.lstrip("/").rstrip("/") + "/"
         return bucket_name, prefix
 
-    @staticmethod
-    def _s3_path_exists(client: Any, s3_bucket: str, s3_prefix: str) -> bool:
+    def _s3_path_exists(self, s3_bucket: str, s3_prefix: str) -> bool:
         """Checks whether a given s3 path exists."""
-        response = client.session.client(
-            "s3", region_name=client.region_name, config=get_boto3_config()
-        ).list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+        with boto3_client_lock:
+            s3_client = client.session.client("s3", region_name=client.region_name, config=get_boto3_config())
+        response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
         return True if "Contents" in response else False
 
     def _join_catalog_table_owners(self, table: agate.Table, manifest: Manifest) -> agate.Table:

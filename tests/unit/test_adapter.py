@@ -323,6 +323,16 @@ class TestAthenaAdapter:
         assert "Table 'table' does not exists - Ignoring" in dbt_debug_caplog.getvalue()
 
     @mock_glue
+    @mock_athena
+    def test_clean_up_table_view(self, dbt_debug_caplog, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.adapter.acquire_connection("dummy")
+        self.mock_aws_service.create_view("test_view")
+        result = self.adapter.clean_up_table(DATABASE_NAME, "test_view")
+        assert result is None
+
+    @mock_glue
     @mock_s3
     @mock_athena
     def test_clean_up_table_delete_table(self, dbt_debug_caplog, aws_credentials):
