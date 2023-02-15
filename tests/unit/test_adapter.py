@@ -627,6 +627,28 @@ class TestAthenaAdapter:
         assert self.adapter.get_table_location(DATABASE_NAME, target_table) == f"s3://{BUCKET}/tables/{source_table}"
         assert len(target_table_partitions_after) == 3
 
+    @mock_athena
+    @mock_glue
+    @mock_s3
+    def test_expire_glue_table_versions(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.adapter.acquire_connection("dummy")
+        table_name = "my_table"
+        self.mock_aws_service.create_table(table_name)
+        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        table_versions = glue.get_table_versions(DatabaseName=DATABASE_NAME, TableName=table_name).get("TableVersions")
+        print(table_versions)
+        assert len(table_versions) == 3
+        # TODO due to a limitation with moto this is not fully testable
+        # self.adapter.expire_glue_table_versions(DATABASE_NAME, table_name, 1, False)
+        # table_versions_after_expiration = glue.get_table_versions(
+        #     DatabaseName=DATABASE_NAME,
+        #     TableName=table_name).get("TableVersions")
+        # assert len(table_versions_after_expiration) == 1
+
 
 class TestAthenaFilterCatalog:
     def test__catalog_filter_table(self):

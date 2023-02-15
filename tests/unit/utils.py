@@ -360,3 +360,15 @@ class MockAWSService:
         glue.batch_create_partition(
             DatabaseName=database, TableName=table_name, PartitionInputList=partition_input_list
         )
+
+    def add_table_version(self, database, table_name):
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        table = glue.get_table(DatabaseName=database, Name=table_name).get("Table")
+        new_table_version = {
+            "Name": table_name,
+            "StorageDescriptor": table["StorageDescriptor"],
+            "PartitionKeys": table["PartitionKeys"],
+            "TableType": table["TableType"],
+            "Parameters": table["Parameters"],
+        }
+        glue.update_table(DatabaseName=database, TableInput=new_table_version)
