@@ -161,7 +161,7 @@ class MockAWSService:
                             "Type": "date",
                         },
                     ],
-                    "Location": f"s3://{BUCKET}/tables/{view_name}",
+                    "Location": "",
                 },
                 "TableType": "VIRTUAL_VIEW",
             },
