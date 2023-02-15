@@ -614,16 +614,18 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_table(source_table)
         self.mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
         self.mock_aws_service.create_table_without_partitions(target_table)
-
-        self.adapter.swap_table(DATABASE_NAME, source_table, DATABASE_NAME, target_table)
         glue_client = boto3.client("glue", region_name=AWS_REGION)
-
         target_table_partitions = glue_client.get_partitions(DatabaseName=DATABASE_NAME, TableName=target_table).get(
             "Partitions"
         )
+        assert len(target_table_partitions) == 0
+        self.adapter.swap_table(DATABASE_NAME, source_table, DATABASE_NAME, target_table)
+        target_table_partitions_after = glue_client.get_partitions(
+            DatabaseName=DATABASE_NAME, TableName=target_table
+        ).get("Partitions")
 
         assert self.adapter.get_table_location(DATABASE_NAME, target_table) == f"s3://{BUCKET}/tables/{source_table}"
-        assert len(target_table_partitions) == 3
+        assert len(target_table_partitions_after) == 3
 
 
 class TestAthenaFilterCatalog:
