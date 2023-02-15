@@ -40,7 +40,7 @@
       , 'insert' AS dbt_change_type
       , CAST('9999-01-01' as timestamp) AS dbt_valid_to
       , True AS is_current_record
-      , {{ current_timestamp() }} AS dbt_snapshot_at
+      , {{ strategy.updated_at }} AS dbt_snapshot_at
     FROM ({{ source_sql }}) source;
 {% endmacro %}
 
@@ -98,7 +98,7 @@
         SELECT
         {% for column in target_columns if not column.name == 'dbt_snapshot_at' %}
           {% if column.name == 'dbt_valid_from' %}
-            {{ current_timestamp() }} AS dbt_valid_from {%- if not loop.last -%},{%- endif -%}
+            {{ strategy.updated_at }} AS dbt_valid_from {%- if not loop.last -%},{%- endif -%}
           {% elif column.name == 'dbt_change_type' %}
             'delete' AS dbt_change_type {%- if not loop.last -%},{%- endif -%}
           {% elif column.name == 'dbt_valid_to' %}
@@ -151,28 +151,24 @@
 #}
 
 {% macro athena__create_columns(relation, columns) -%}
+  {% set query -%}
+  ALTER TABLE {{ relation }} ADD COLUMNS (
   {%- for column in columns -%}
     {% if column.data_type|lower == 'boolean' %}
-    {% set query -%}
-      ALTER TABLE {{ relation }} ADD COLUMNS ({{ column.name }} BOOLEAN);
-    {%- endset -%}
+       {{ column.name }} BOOLEAN {%- if not loop.last -%},{%- endif -%}
     {% elif column.data_type|lower == 'character varying(256)' %}
-    {% set query -%}
-      ALTER TABLE {{ relation }} ADD COLUMNS ({{ column.name }} VARCHAR);
-    {%- endset -%}
+      {{ column.name }} VARCHAR {%- if not loop.last -%},{%- endif -%}
     {% elif column.data_type|lower == 'integer' %}
-    {% set query -%}
-      ALTER TABLE {{ relation }} ADD COLUMNS ({{ column.name }} INT);
-    {%- endset -%}
+      {{ column.name }} BIGINT {%- if not loop.last -%},{%- endif -%}
     {% elif column.data_type|lower == 'float' %}
-    {% set query -%}
-      ALTER TABLE {{ relation }} ADD COLUMNS ({{ column.name }} FLOAT);
-    {%- endset -%}
+      {{ column.name }} FLOAT {%- if not loop.last -%},{%- endif -%}
     {% else %}
-      ALTER TABLE {{ relation }} ADD COLUMNS ({{ column.name }} {{ column.data_type }});
+      {{ column.name }} {{ column.data_type }} {%- if not loop.last -%},{%- endif -%}
     {% endif %}
-    {% do run_query(query) %}
   {%- endfor %}
+  )
+  {%- endset -%}
+  {% do run_query(query) %}
 {% endmacro %}
 
 {#
@@ -210,17 +206,16 @@
               {% if column.name == 'dbt_valid_to' %}
               CASE
               WHEN dbt_valid_to=CAST('9999-01-01' as timestamp) AND is_current_record=True
-              THEN {{ current_timestamp() }}
+              THEN {{ strategy.updated_at }}
               ELSE dbt_valid_to
               END AS dbt_valid_to {%- if not loop.last -%},{%- endif -%}
               {% elif column.name == 'is_current_record' %}
-              CASE WHEN is_current_record=True THEN False ELSE is_current_record END
-              AS is_current_record {%- if not loop.last -%},{%- endif -%}
+              False AS is_current_record {%- if not loop.last -%},{%- endif -%}
               {% else %}
                 {{ column.name }} {%- if not loop.last -%},{%- endif -%}
               {% endif %}
         {% endfor %}
-        ,{{ current_timestamp() }} AS dbt_snapshot_at
+        ,{{ strategy.updated_at }} AS dbt_snapshot_at
       from {{ target }}
       WHERE dbt_unique_key IN ( SELECT dbt_unique_key FROM {{ source }} )
       UNION ALL
@@ -228,7 +223,7 @@
         {% for column in source_columns %}
             {{ column.name }} {%- if not loop.last -%},{%- endif -%}
         {% endfor %}
-        ,{{ current_timestamp() }} AS dbt_snapshot_at
+        ,{{ strategy.updated_at }} AS dbt_snapshot_at
       FROM {{ source }};
     {%- endset -%}
 
