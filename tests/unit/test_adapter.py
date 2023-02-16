@@ -605,7 +605,7 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
-    def test_swap_table_with_no_partitions_to_one_without(self, aws_credentials):
+    def test_swap_table_with_no_partitions_to_one_with(self, aws_credentials):
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
