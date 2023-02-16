@@ -16,7 +16,7 @@
 %}
 
 {% macro athena__snapshot_merge_sql(target, source) -%}
-    {%- set target_relation = adapter.get_relation(database=none, schema=target.schema, identifier=target.identifier) -%}
+    {%- set target_relation = adapter.get_relation(database=target.database, schema=target.schema, identifier=target.identifier) -%}
     {%- if target_relation is not none -%}
       {% do adapter.drop_relation(target_relation) %}
     {%- endif -%}
@@ -132,7 +132,7 @@
 
     {%- set tmp_relation = api.Relation.create(identifier=tmp_identifier,
                                                   schema=target_relation.schema,
-                                                  database=none,
+                                                  database=target_relation.database,
                                                   type='table') -%}
 
     {% do adapter.drop_relation(tmp_relation) %}
@@ -183,7 +183,7 @@
 {% macro athena__create_new_snapshot_table(target, source) %}
     {%- set tmp_identifier = target.identifier ~ '__dbt_tmp_1' -%}
 
-    {%- set tmp_relation = adapter.get_relation(database=none, schema=target.schema, identifier=tmp_identifier) -%}
+    {%- set tmp_relation = adapter.get_relation(database=target.database, schema=target.schema, identifier=tmp_identifier) -%}
 
     {%- set target_relation = api.Relation.create(identifier=tmp_identifier,
       schema=target.schema,
@@ -248,20 +248,16 @@
   {%- set unique_key = config.get('unique_key') %}
   {%- set file_format = config.get('file_format', 'parquet') -%}
 
+  {{ log('Checking if target table exists') }}
   {% set target_relation_exists, target_relation = get_or_create_relation(
-          database=none,
+          database=model.database,
           schema=model.schema,
           identifier=target_table,
           type='table') -%}
 
-
   {% if not adapter.check_schema_exists(model.database, model.schema) %}
     {% do create_schema(model.database, model.schema) %}
   {% endif %}
-
-  {%- if not target_relation.is_table -%}
-    {% do exceptions.relation_wrong_type(target_relation, 'table') %}
-  {%- endif -%}
 
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
 
