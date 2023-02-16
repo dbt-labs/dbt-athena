@@ -98,7 +98,7 @@
         SELECT
         {% for column in target_columns if not column.name == 'dbt_snapshot_at' %}
           {% if column.name == 'dbt_valid_from' %}
-            {{ strategy.updated_at }} AS dbt_valid_from {%- if not loop.last -%},{%- endif -%}
+            snapshotted_data.{{ strategy.updated_at }} AS dbt_valid_from {%- if not loop.last -%},{%- endif -%}
           {% elif column.name == 'dbt_change_type' %}
             'delete' AS dbt_change_type {%- if not loop.last -%},{%- endif -%}
           {% elif column.name == 'dbt_valid_to' %}
@@ -157,7 +157,7 @@
     {% if column.data_type|lower == 'boolean' %}
        {{ column.name }} BOOLEAN {%- if not loop.last -%},{%- endif -%}
     {% elif column.data_type|lower == 'character varying(256)' %}
-      {{ column.name }} VARCHAR {%- if not loop.last -%},{%- endif -%}
+      {{ column.name }} VARCHAR(255) {%- if not loop.last -%},{%- endif -%}
     {% elif column.data_type|lower == 'integer' %}
       {{ column.name }} BIGINT {%- if not loop.last -%},{%- endif -%}
     {% elif column.data_type|lower == 'float' %}
@@ -176,7 +176,7 @@
     snapshot rows being updated and create a new temporary table to hold them
 #}
 
-{% macro athena__create_new_snapshot_table(target, source) %}
+{% macro athena__create_new_snapshot_table(strategy, target, source) %}
     {%- set tmp_identifier = target.identifier ~ '__dbt_tmp_1' -%}
 
     {%- set tmp_relation = adapter.get_relation(database=target.database, schema=target.schema, identifier=tmp_identifier) -%}
@@ -274,7 +274,7 @@
 
       {% do create_columns(target_relation, missing_columns) %}
 
-      {% set new_snapshot_table = athena__create_new_snapshot_table(target = target_relation, source = staging_table) %}
+      {% set new_snapshot_table = athena__create_new_snapshot_table(strategy, target_relation, staging_table) %}
 
       {% set final_sql = athena__snapshot_merge_sql(
             target = target_relation,
