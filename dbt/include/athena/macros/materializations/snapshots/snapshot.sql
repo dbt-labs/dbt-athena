@@ -38,7 +38,7 @@
       , {{ strategy.updated_at }} AS dbt_valid_from
       , {{ strategy.scd_id }} AS dbt_scd_id
       , 'insert' AS dbt_change_type
-      , CAST('9999-01-01' as timestamp) AS dbt_valid_to
+      , end_of_time() AS dbt_valid_to
       , True AS is_current_record
       , {{ strategy.updated_at }} AS dbt_snapshot_at
     FROM ({{ source_sql }}) source;
@@ -79,7 +79,7 @@
               WHEN snapshotted_data.dbt_unique_key IS NULL THEN 'insert'
               ELSE 'update'
             END as dbt_change_type
-          , CAST('9999-01-01' as timestamp) AS dbt_valid_to
+          , end_of_time() AS dbt_valid_to
           , True AS is_current_record
         FROM source_data
         LEFT JOIN snapshotted_data
@@ -102,7 +102,7 @@
           {% elif column.name == 'dbt_change_type' %}
             'delete' AS dbt_change_type {%- if not loop.last -%},{%- endif -%}
           {% elif column.name == 'dbt_valid_to' %}
-            CAST('9999-01-01' as timestamp) AS dbt_valid_to {%- if not loop.last -%},{%- endif -%}
+            end_of_time() AS dbt_valid_to {%- if not loop.last -%},{%- endif -%}
           {% elif column.name == 'is_current_record' %}
             True AS is_current_record {%- if not loop.last -%},{%- endif -%}
           {% else %}
@@ -183,7 +183,7 @@
 
     {%- set target_relation = api.Relation.create(identifier=tmp_identifier,
       schema=target.schema,
-      database=none,
+      database=target.database,
       type='table') -%}
 
     {%- set source_columns = adapter.get_columns_in_relation(source) -%}
@@ -203,17 +203,17 @@
       UNION ALL
       SELECT
         {% for column in source_columns %}
-              {% if column.name == 'dbt_valid_to' %}
-              CASE
-              WHEN dbt_valid_to=CAST('9999-01-01' as timestamp) AND is_current_record=True
-              THEN {{ strategy.updated_at }}
-              ELSE dbt_valid_to
-              END AS dbt_valid_to {%- if not loop.last -%},{%- endif -%}
-              {% elif column.name == 'is_current_record' %}
-              False AS is_current_record {%- if not loop.last -%},{%- endif -%}
-              {% else %}
-                {{ column.name }} {%- if not loop.last -%},{%- endif -%}
-              {% endif %}
+          {% if column.name == 'dbt_valid_to' %}
+          CASE
+          WHEN dbt_valid_to=end_of_time() AND is_current_record
+          THEN current_timestamp()
+          ELSE dbt_valid_to
+          END AS dbt_valid_to {%- if not loop.last -%},{%- endif -%}
+          {% elif column.name == 'is_current_record' %}
+          False AS is_current_record {%- if not loop.last -%},{%- endif -%}
+          {% else %}
+            {{ column.name }} {%- if not loop.last -%},{%- endif -%}
+          {% endif %}
         {% endfor %}
         ,{{ strategy.updated_at }} AS dbt_snapshot_at
       from {{ target }}
