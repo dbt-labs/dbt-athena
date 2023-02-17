@@ -6,6 +6,8 @@
   {%- set s3_data_naming = config.get('s3_data_naming', default='table_unique') -%}
   {%- set external_location = config.get('external_location', default=none) -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
+  {%- set full_refresh_config = config.get('full_refresh', default=False) -%}
+  {%- set full_refresh_mode = (flags.FULL_REFRESH == True or full_refresh_config == True) -%}
   {%- set target_relation = api.Relation.create(identifier=identifier,
                                                 schema=schema,
                                                 database=database,
@@ -21,11 +23,21 @@
 
   {{ run_hooks(pre_hooks) }}
 
-  -- cleanup
-  {%- if old_relation is not none -%}
+  -- in case of full refresh we drop the relation if exist
+  -- the drop statement take care of deleting the data of the current version
+  -- TODO create a drop_relation_with_versions, to be sure to remove all historical versions of a table
+  {%- if full_refresh_mode and old_relation is not none-%}
+    {{ drop_relation(old_relation) }}
+  {%- endif -%}
+
+  {%- if old_relation is none or full_refresh_mode-%}
+    {% call statement('main') -%}
+      {{ create_table_as(False, target_relation, sql) }}
+    {%- endcall %}
+  {%- else -%}
     {% set tmp_relation = make_temp_relation(target_relation, '__ha') %}
 
-    -- be sure to drop the tmp_relation
+    -- drop the tmp_relation
     {% call statement('drop_tmp_relation', auto_begin=False) -%}
       drop table if exists {{ tmp_relation }}
     {%- endcall %}
@@ -48,11 +60,6 @@
 
     {% set result_table_version_expiration = adapter.expire_glue_table_versions(target_relation.schema, target_relation.table, versions_to_keep, True) %}
 
-
-  {%- else -%}
-    {% call statement('main') -%}
-      {{ create_table_as(False, target_relation, sql) }}
-    {%- endcall %}
   {% endif %}
 
   {{ set_table_classification(target_relation) }}
