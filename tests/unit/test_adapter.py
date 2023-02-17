@@ -643,6 +643,7 @@ class TestAthenaAdapter:
         print(table_versions)
         assert len(table_versions) == 3
         # TODO due to a limitation with moto this is not fully testable
+        # TODO re-enable this test when the issue https://github.com/getmoto/moto/issues/5933 is fixed
         # self.adapter.expire_glue_table_versions(DATABASE_NAME, table_name, 1, False)
         # table_versions_after_expiration = glue.get_table_versions(
         #     DatabaseName=DATABASE_NAME,
