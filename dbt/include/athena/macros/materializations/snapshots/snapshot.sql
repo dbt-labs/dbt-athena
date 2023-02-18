@@ -38,7 +38,7 @@
       , {{ strategy.updated_at }} AS dbt_valid_from
       , {{ strategy.scd_id }} AS dbt_scd_id
       , 'insert' AS dbt_change_type
-      , end_of_time() AS dbt_valid_to
+      , CAST('9999-12-31' AS timestamp) AS dbt_valid_to
       , True AS is_current_record
       , {{ strategy.updated_at }} AS dbt_snapshot_at
     FROM ({{ source_sql }}) source;
@@ -79,7 +79,7 @@
               WHEN snapshotted_data.dbt_unique_key IS NULL THEN 'insert'
               ELSE 'update'
             END as dbt_change_type
-          , end_of_time() AS dbt_valid_to
+          , CAST('9999-12-31' AS timestamp) AS dbt_valid_to
           , True AS is_current_record
         FROM source_data
         LEFT JOIN snapshotted_data
@@ -93,30 +93,20 @@
         )
     )
     {%- if strategy.invalidate_hard_deletes -%}
-    {%- set target_columns = adapter.get_columns_in_relation(target_relation) -%}
-    , deletes AS (
-        SELECT
-        {% for column in target_columns if not column.name == 'dbt_snapshot_at' %}
-          {% if column.name == 'dbt_valid_from' %}
-            snapshotted_data.{{ strategy.updated_at }} AS dbt_valid_from {%- if not loop.last -%},{%- endif -%}
-          {% elif column.name == 'dbt_change_type' %}
-            'delete' AS dbt_change_type {%- if not loop.last -%},{%- endif -%}
-          {% elif column.name == 'dbt_valid_to' %}
-            end_of_time() AS dbt_valid_to {%- if not loop.last -%},{%- endif -%}
-          {% elif column.name == 'is_current_record' %}
-            True AS is_current_record {%- if not loop.last -%},{%- endif -%}
-          {% else %}
-            snapshotted_data.{{ column.name }} {%- if not loop.last -%},{%- endif -%}
-          {% endif %}
-        {% endfor %}
-        FROM snapshotted_data
-        LEFT JOIN source_data
-               ON snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
-        WHERE source_data.dbt_unique_key IS NULL
-    )
-    SELECT * FROM upserts
-    UNION ALL
-    SELECT * FROM deletes;
+      , deletes AS (
+          SELECT
+              source_data.*
+            , 'delete' AS dbt_change_type
+            , CAST('9999-12-31' AS timestamp) AS dbt_valid_to
+            , True AS is_current_record
+          FROM snapshotted_data
+          LEFT JOIN source_data
+                 ON snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
+          WHERE source_data.dbt_unique_key IS NULL
+        )
+      SELECT * FROM upserts
+      UNION ALL
+      SELECT * FROM deletes;
     {% else %}
     SELECT * FROM upserts;
     {% endif %}
@@ -205,7 +195,7 @@
         {% for column in source_columns %}
           {% if column.name == 'dbt_valid_to' %}
           CASE
-          WHEN dbt_valid_to=end_of_time() AND is_current_record
+          WHEN dbt_valid_to=CAST('9999-12-31' AS timestamp) AND is_current_record
           THEN current_timestamp()
           ELSE dbt_valid_to
           END AS dbt_valid_to {%- if not loop.last -%},{%- endif -%}
@@ -272,7 +262,9 @@
 
       {% set missing_columns = adapter.get_missing_columns(staging_table, target_relation) %}
 
-      {% do create_columns(target_relation, missing_columns) %}
+      {% if missing_columns %}
+        {% do create_columns(target_relation, missing_columns) %}
+      {% endif %}
 
       {% set new_snapshot_table = athena__create_new_snapshot_table(strategy, target_relation, staging_table) %}
 
