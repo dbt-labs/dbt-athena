@@ -226,7 +226,6 @@ class AthenaParameterFormatter(Formatter):
             kwargs = list()
             if isinstance(parameters, list):
                 for v in parameters:
-
                     # TODO Review this annoying Decimal hack, unsure if issue in dbt, agate or pyathena
                     if isinstance(v, Decimal) and v == int(v):
                         v = int(v)
