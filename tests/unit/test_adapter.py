@@ -643,6 +643,7 @@ class TestAthenaAdapter:
         assert len(table_versions) == 4
         self.adapter.expire_glue_table_versions(DATABASE_NAME, table_name, 1, False)
         # TODO delete_table_version is not implemented in moto
+        # TODO moto issue https://github.com/getmoto/moto/issues/5952
         # assert len(deleted_versions) == 3
 
 
