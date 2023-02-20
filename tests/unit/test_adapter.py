@@ -641,12 +641,9 @@ class TestAthenaAdapter:
         self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
         glue = boto3.client("glue", region_name=AWS_REGION)
         table_versions = glue.get_table_versions(DatabaseName=DATABASE_NAME, TableName=table_name).get("TableVersions")
-        print(table_versions)
         assert len(table_versions) == 4
-        # the expiration always leave the current version and the previous version
-        # if we have 4 versions and ask to expire 1, we will have only 2 version to delete
         deleted_versions = self.adapter.expire_glue_table_versions(DATABASE_NAME, table_name, 1, False)
-        assert len(deleted_versions) == 2
+        assert len(deleted_versions) == 3
 
 
 class TestAthenaFilterCatalog:
