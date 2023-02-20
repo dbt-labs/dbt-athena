@@ -43,8 +43,7 @@
 
   {% do adapter.delete_from_s3(location) %}
 
-  create table
-    {{ relation }}
+  create table {{ relation }}
   with (
     table_type='{{ table_type }}',
     is_external={%- if table_type == 'iceberg' -%}false{%- else -%}true{%- endif %},

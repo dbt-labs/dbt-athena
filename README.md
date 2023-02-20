@@ -256,21 +256,6 @@ The materialization also supports invalidating hard deletes. Check the [docs](ht
 * Incremental Iceberg models - Sync all columns on schema change can't remove columns used as partitioning.
 The only way, from a dbt perspective, is to do a full-refresh of the incremental model.
 
-* Quoting is not currently supported
-  * If you need to quote your sources, escape the quote characters in your source definitions:
-
-  ```yaml
-  version: 2
-
-  sources:
-    - name: my_source
-      tables:
-        - name: first_table
-          identifier: "first table"       # Not like that
-        - name: second_table
-          identifier: "\"second table\""  # Like this
-  ```
-
 * Tables, schemas and database should only be lowercase
 
 * In order to avoid potential conflicts, make sure [`dbt-athena-adapter`](https://github.com/Tomme/dbt-athena) is not installed in the target environment.

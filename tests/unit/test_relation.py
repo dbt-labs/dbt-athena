@@ -1,6 +1,8 @@
 from dbt.adapters.athena.relation import AthenaRelation
 
-from .constants import DATA_CATALOG_NAME, DATABASE_NAME, TABLE_NAME
+from .constants import DATA_CATALOG_NAME, DATABASE_NAME
+
+TABLE_NAME = "test_table"
 
 
 class TestAthenaRelation:
