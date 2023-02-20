@@ -8,7 +8,6 @@ from .utils import config_from_parts_or_dicts
 
 
 class TestQueryHeaders:
-
     query_header = MacroQueryStringSetter(
         config_from_parts_or_dicts(
             {
