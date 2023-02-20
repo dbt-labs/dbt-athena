@@ -10,7 +10,6 @@ from dbt.adapters.athena.connections import AthenaParameterFormatter
 
 
 class TestAthenaParameterFormatter:
-
     formatter = AthenaParameterFormatter()
 
     @pytest.mark.parametrize(
