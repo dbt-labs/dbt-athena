@@ -428,13 +428,13 @@ class AthenaAdapter(SQLAdapter):
                 glue_client.delete_table_version(
                     DatabaseName=database_name, TableName=table_name, VersionId=str(version)
                 )
+                deleted_versions.append(version)
                 logger.debug(f"Deleted version {version} of table {database_name}.{table_name} ")
                 if delete_s3:
                     self.delete_from_s3(location)
             except Exception as err:
-                logger.debug(f"There was this {err} when deleting location {location}")
+                logger.debug(f"There was an error when expiring table version {version} with error: {err}")
 
             logger.debug(f"{location} was deleted")
-            deleted_versions.append(version)
 
         return deleted_versions
