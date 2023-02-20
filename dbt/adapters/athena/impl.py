@@ -415,11 +415,10 @@ class AthenaAdapter(SQLAdapter):
             }
         )
         table_versions = response_iterator.build_full_result().get("TableVersions")
-        logger.debug(f"Total versions {len(table_versions)}")
-        table_versions_ordered = sorted(table_versions, key=lambda i: i["Table"]["VersionId"], reverse=False)
+        logger.debug(f"Total table versions: {[v['VersionId'] for v in table_versions]}")
+        table_versions_ordered = sorted(table_versions, key=lambda i: int(i["Table"]["VersionId"]), reverse=True)
         versions_to_delete = table_versions_ordered[int(to_keep) :]
-
-        logger.debug(f"Preparing to delete {len(versions_to_delete)} versions from table {database_name}.{table_name}")
+        logger.debug(f"Versions to delete: {[v['VersionId'] for v in versions_to_delete]}")
 
         deleted_versions = []
         for v in versions_to_delete:
