@@ -399,8 +399,10 @@ class AthenaAdapter(SQLAdapter):
                 ],
             )
 
-    @available
-    def expire_glue_table_versions(self, database_name: str, table_name: str, to_keep: int, delete_s3: bool):
+    def _get_glue_table_versions_to_expire(self, database_name: str, table_name: str, to_keep: int):
+        """
+        Given a table an the amount of its version to keep, it returns the versions to delete
+        """
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
@@ -417,7 +419,17 @@ class AthenaAdapter(SQLAdapter):
         table_versions = response_iterator.build_full_result().get("TableVersions")
         logger.debug(f"Total table versions: {[v['VersionId'] for v in table_versions]}")
         table_versions_ordered = sorted(table_versions, key=lambda i: int(i["Table"]["VersionId"]), reverse=True)
-        versions_to_delete = table_versions_ordered[int(to_keep) :]
+        return table_versions_ordered[int(to_keep) :]
+
+    @available
+    def expire_glue_table_versions(self, database_name: str, table_name: str, to_keep: int, delete_s3: bool):
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        versions_to_delete = self._get_glue_table_versions_to_expire(database_name, table_name, to_keep)
         logger.debug(f"Versions to delete: {[v['VersionId'] for v in versions_to_delete]}")
 
         deleted_versions = []

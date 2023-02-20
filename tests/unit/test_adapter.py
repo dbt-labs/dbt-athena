@@ -628,8 +628,7 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_glue
-    @mock_s3
-    def test_expire_glue_table_versions(self, aws_credentials, dbt_debug_caplog):
+    def test__get_glue_table_versions_to_expire(self, aws_credentials, dbt_debug_caplog):
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
@@ -641,10 +640,31 @@ class TestAthenaAdapter:
         glue = boto3.client("glue", region_name=AWS_REGION)
         table_versions = glue.get_table_versions(DatabaseName=DATABASE_NAME, TableName=table_name).get("TableVersions")
         assert len(table_versions) == 4
-        self.adapter.expire_glue_table_versions(DATABASE_NAME, table_name, 1, False)
+        version_to_keep = 1
+        versions_to_expire = self.adapter._get_glue_table_versions_to_expire(DATABASE_NAME, table_name, version_to_keep)
+        assert len(versions_to_expire) == 3
+        assert [v["VersionId"] for v in versions_to_expire] == ["3", "2", "1"]
+
+    @mock_athena
+    @mock_glue
+    @mock_s3
+    def test_expire_glue_table_versions(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.adapter.acquire_connection("dummy")
+        table_name = "my_table"
+        self.mock_aws_service.create_table(table_name)
+        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        table_versions = glue.get_table_versions(DatabaseName=DATABASE_NAME, TableName=table_name).get("TableVersions")
+        assert len(table_versions) == 4
+        version_to_keep = 1
+        self.adapter.expire_glue_table_versions(DATABASE_NAME, table_name, version_to_keep, False)
         # TODO delete_table_version is not implemented in moto
         # TODO moto issue https://github.com/getmoto/moto/issues/5952
-        # assert len(deleted_versions) == 3
+        # assert len(result) == 3
 
 
 class TestAthenaFilterCatalog:
