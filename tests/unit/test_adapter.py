@@ -29,7 +29,6 @@ from .utils import (
 
 
 class TestAthenaAdapter:
-
     mock_aws_service = MockAWSService()
 
     def setup_method(self, _):
