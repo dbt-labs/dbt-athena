@@ -198,6 +198,41 @@ It is possible to use iceberg in an incremental fashion, specifically 2 strategi
 * `merge`: must be used in combination with `unique_key` and it's only available with Engine version 3.
    It performs an upsert, new record are added, and record already existing are updated
 
+#### High available table materialization
+The current implementation of the table materialization can lead to downtime, as target table is dropped and re-created.
+To have the less destructive behavior it's possible to use `table='table_hive_ha'` materialization.
+**table_hive_ha** leverage the table versions feature of glue catalog, creating a tmp table and swapping
+the target table to the location of the tmp table.
+This materialization is only available for `table_type=hive` and requires using unique locations.
+
+```
+{{ config(
+    materialized='table_hive_ha',
+    format='parquet',
+    partition_by=['status'],
+    s3_data_naming='table_unique'
+) }}
+
+
+select
+  'a' as user_id,
+  'pi' as user_name,
+  'active' as status
+union all
+select
+  'b' as user_id,
+  'sh' as user_name,
+  'disabled' as status
+```
+
+By default, the materialization keeps the last 4 table versions, you can change it that setting `versions_to_keep`.
+
+##### Known issues
+* When swapping from a table with partitions to a table without (and the other way around), there could be a little downtime.
+  In case high performances are needed consider bucketing instead of partitions
+* By default, Glue "duplicate" the versions internally, so the last 2 versions of a table point to the same location
+* It's recommended to have versions_to_keep>= 4, as this will avoid to have the older location removed
+
 
 ### Snapshots
 
