@@ -545,6 +545,127 @@ class TestAthenaAdapter:
     def test_parse_s3_path(self, s3_path, expected):
         assert self.adapter._parse_s3_path(s3_path) == expected
 
+    @mock_athena
+    @mock_glue
+    @mock_s3
+    def test_swap_table_with_partitions(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.adapter.acquire_connection("dummy")
+        target_table = "target_table"
+        source_table = "source_table"
+        self.mock_aws_service.create_table(source_table)
+        self.mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
+        self.mock_aws_service.create_table(target_table)
+        self.mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
+        self.adapter.swap_table(DATABASE_NAME, source_table, DATABASE_NAME, target_table)
+        assert self.adapter.get_table_location(DATABASE_NAME, target_table) == f"s3://{BUCKET}/tables/{source_table}"
+
+    @mock_athena
+    @mock_glue
+    @mock_s3
+    def test_swap_table_without_partitions(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.adapter.acquire_connection("dummy")
+        target_table = "target_table"
+        source_table = "source_table"
+        self.mock_aws_service.create_table_without_partitions(source_table)
+        self.mock_aws_service.create_table_without_partitions(target_table)
+        self.adapter.swap_table(DATABASE_NAME, source_table, DATABASE_NAME, target_table)
+        assert self.adapter.get_table_location(DATABASE_NAME, target_table) == f"s3://{BUCKET}/tables/{source_table}"
+
+    @mock_athena
+    @mock_glue
+    @mock_s3
+    def test_swap_table_with_partitions_to_one_without(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.adapter.acquire_connection("dummy")
+        target_table = "target_table"
+        source_table = "source_table"
+        # source table does not have partitions
+        self.mock_aws_service.create_table_without_partitions(source_table)
+
+        # the target table has partitions
+        self.mock_aws_service.create_table(target_table)
+        self.mock_aws_service.add_partitions_to_table(DATABASE_NAME, target_table)
+
+        self.adapter.swap_table(DATABASE_NAME, source_table, DATABASE_NAME, target_table)
+        glue_client = boto3.client("glue", region_name=AWS_REGION)
+
+        target_table_partitions = glue_client.get_partitions(DatabaseName=DATABASE_NAME, TableName=target_table).get(
+            "Partitions"
+        )
+
+        assert self.adapter.get_table_location(DATABASE_NAME, target_table) == f"s3://{BUCKET}/tables/{source_table}"
+        assert len(target_table_partitions) == 0
+
+    @mock_athena
+    @mock_glue
+    @mock_s3
+    def test_swap_table_with_no_partitions_to_one_with(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.adapter.acquire_connection("dummy")
+        target_table = "target_table"
+        source_table = "source_table"
+        self.mock_aws_service.create_table(source_table)
+        self.mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
+        self.mock_aws_service.create_table_without_partitions(target_table)
+        glue_client = boto3.client("glue", region_name=AWS_REGION)
+        target_table_partitions = glue_client.get_partitions(DatabaseName=DATABASE_NAME, TableName=target_table).get(
+            "Partitions"
+        )
+        assert len(target_table_partitions) == 0
+        self.adapter.swap_table(DATABASE_NAME, source_table, DATABASE_NAME, target_table)
+        target_table_partitions_after = glue_client.get_partitions(
+            DatabaseName=DATABASE_NAME, TableName=target_table
+        ).get("Partitions")
+
+        assert self.adapter.get_table_location(DATABASE_NAME, target_table) == f"s3://{BUCKET}/tables/{source_table}"
+        assert len(target_table_partitions_after) == 3
+
+    @mock_athena
+    @mock_glue
+    def test__get_glue_table_versions_to_expire(self, aws_credentials, dbt_debug_caplog):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.adapter.acquire_connection("dummy")
+        table_name = "my_table"
+        self.mock_aws_service.create_table(table_name)
+        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        table_versions = glue.get_table_versions(DatabaseName=DATABASE_NAME, TableName=table_name).get("TableVersions")
+        assert len(table_versions) == 4
+        version_to_keep = 1
+        versions_to_expire = self.adapter._get_glue_table_versions_to_expire(DATABASE_NAME, table_name, version_to_keep)
+        assert len(versions_to_expire) == 3
+        assert [v["VersionId"] for v in versions_to_expire] == ["3", "2", "1"]
+
+    @mock_athena
+    @mock_glue
+    @mock_s3
+    def test_expire_glue_table_versions(self, aws_credentials):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.adapter.acquire_connection("dummy")
+        table_name = "my_table"
+        self.mock_aws_service.create_table(table_name)
+        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        table_versions = glue.get_table_versions(DatabaseName=DATABASE_NAME, TableName=table_name).get("TableVersions")
+        assert len(table_versions) == 4
+        version_to_keep = 1
+        self.adapter.expire_glue_table_versions(DATABASE_NAME, table_name, version_to_keep, False)
+        # TODO delete_table_version is not implemented in moto
+        # TODO moto issue https://github.com/getmoto/moto/issues/5952
+        # assert len(result) == 3
+
 
 class TestAthenaFilterCatalog:
     def test__catalog_filter_table(self):
