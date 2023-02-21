@@ -12,6 +12,14 @@
 {%- endmacro %}
 
 {%
+  Macro to get the end_of_time timestamp
+%}
+
+{% macro end_of_time() -%}
+  CAST('9999-12-31' AS timestamp)
+{%- endmacro %}
+
+{%
   Recreate the snapshot table from the new_snapshot_table
 %}
 
@@ -38,7 +46,7 @@
       , {{ strategy.updated_at }} AS dbt_valid_from
       , {{ strategy.scd_id }} AS dbt_scd_id
       , 'insert' AS dbt_change_type
-      , CAST('9999-12-31' AS timestamp) AS dbt_valid_to
+      , {{ end_of_time() }} AS dbt_valid_to
       , True AS is_current_record
       , {{ strategy.updated_at }} AS dbt_snapshot_at
     FROM ({{ source_sql }}) source;
@@ -79,7 +87,7 @@
               WHEN snapshotted_data.dbt_unique_key IS NULL THEN 'insert'
               ELSE 'update'
             END as dbt_change_type
-          , CAST('9999-12-31' AS timestamp) AS dbt_valid_to
+          , {{ end_of_time() }} AS dbt_valid_to
           , True AS is_current_record
         FROM source_data
         LEFT JOIN snapshotted_data
@@ -97,7 +105,7 @@
           SELECT
               source_data.*
             , 'delete' AS dbt_change_type
-            , CAST('9999-12-31' AS timestamp) AS dbt_valid_to
+            , {{ end_of_time() }} AS dbt_valid_to
             , True AS is_current_record
           FROM snapshotted_data
           LEFT JOIN source_data
@@ -195,8 +203,8 @@
         {% for column in source_columns %}
           {% if column.name == 'dbt_valid_to' %}
           CASE
-          WHEN dbt_valid_to=CAST('9999-12-31' AS timestamp) AND is_current_record
-          THEN current_timestamp()
+          WHEN dbt_valid_to={{ end_of_time() }} AND is_current_record
+          THEN {{ strategy.updated_at }}
           ELSE dbt_valid_to
           END AS dbt_valid_to {%- if not loop.last -%},{%- endif -%}
           {% elif column.name == 'is_current_record' %}
