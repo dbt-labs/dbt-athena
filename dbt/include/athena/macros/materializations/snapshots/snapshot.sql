@@ -233,14 +233,9 @@
   {%- set file_format = config.get('file_format', 'parquet') -%}
   {%- set table_type = config.get('table_type', 'iceberg') -%}
 
-  {% if table_type != 'iceberg' %}
-      {{ exceptions.raise_not_implemented(
-    'snapshot materialization not implemented for any table type except iceberg')
-    }}
-  {% endif %}
 
   {% set target_relation_exists, target_relation = get_or_create_relation(
-          database=none,
+          database=model.database,
           schema=model.schema,
           identifier=target_table,
           type='table') -%}
@@ -255,6 +250,8 @@
   {%- endif -%}
 
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
+
+  {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
   {% set strategy_macro = strategy_dispatch(strategy_name) %}
   {% set strategy = strategy_macro(model, "snapshotted_data", "source_data", config, target_relation_exists) %}
@@ -307,6 +304,8 @@
   {% do persist_docs(target_relation, model) %}
 
   {{ run_hooks(post_hooks, inside_transaction=True) }}
+
+  {{ adapter.commit() }}
 
   {% if staging_table is defined %}
       {% do adapter.drop_relation(staging_table) %}
