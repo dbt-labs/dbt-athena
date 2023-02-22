@@ -203,19 +203,19 @@
         {% for column in source_columns %}
           {% if column.name == 'dbt_valid_to' %}
           CASE
-          WHEN dbt_valid_to={{ end_of_time() }} AND is_current_record
-          THEN {{ strategy.updated_at }}
-          ELSE dbt_valid_to
+          WHEN tgt.is_current_record
+          THEN src.{{ strategy.updated_at }}
+          ELSE tgt.dbt_valid_to
           END AS dbt_valid_to {%- if not loop.last -%},{%- endif -%}
           {% elif column.name == 'is_current_record' %}
           False AS is_current_record {%- if not loop.last -%},{%- endif -%}
           {% else %}
-            {{ column.name }} {%- if not loop.last -%},{%- endif -%}
+            tgt.{{ column.name }} {%- if not loop.last -%},{%- endif -%}
           {% endif %}
         {% endfor %}
-        ,{{ strategy.updated_at }} AS dbt_snapshot_at
-      from {{ target }}
-      WHERE dbt_unique_key IN ( SELECT dbt_unique_key FROM {{ source }} )
+        ,tgt.{{ strategy.updated_at }} AS dbt_snapshot_at
+      FROM {{ target }} tgt
+      JOIN {{ source }} src ON tgt.dbt_unique_key = src.dbt_unique_key
       UNION ALL
       SELECT
         {% for column in source_columns %}
