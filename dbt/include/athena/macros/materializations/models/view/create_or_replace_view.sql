@@ -29,7 +29,10 @@
     {{ create_view_as(target_relation, sql) }}
   {%- endcall %}
 
-  {{ adapter.add_lf_tags_to_table(target_relation.schema, identifier, lf_tags) }}
+  {% if lf_tags is not none %}
+    {{ adapter.add_lf_tags_to_table(target_relation.schema, identifier, lf_tags) }}
+  {% endif %}
+
   {{ run_hooks(post_hooks, inside_transaction=True) }}
 
   {{ adapter.commit() }}

@@ -25,7 +25,9 @@
     {{ set_table_classification(target_relation) }}
   {% endif %}
 
-  {{ adapter.add_lf_tags_to_table(target_relation.schema, identifier, lf_tags) }}
+  {% if lf_tags is not none %}
+    {{ adapter.add_lf_tags_to_table(target_relation.schema, identifier, lf_tags) }}
+  {% endif %}
 
   {{ run_hooks(post_hooks) }}
 
