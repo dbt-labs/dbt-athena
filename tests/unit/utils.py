@@ -295,6 +295,37 @@ class MockAWSService:
             },
         )
 
+    def create_work_group_with_output_location(self, work_group_name: str):
+        athena = boto3.client("athena", region_name=AWS_REGION)
+        athena.create_work_group(
+            Name=work_group_name,
+            Configuration={
+                "ResultConfiguration": {
+                    "OutputLocation": "s3://pre-configured-output-location/",
+                },
+                "EnforceWorkGroupConfiguration": True,
+                "PublishCloudWatchMetricsEnabled": True,
+                "EngineVersion": {
+                    "SelectedEngineVersion": "Athena engine version 2",
+                    "EffectiveEngineVersion": "Athena engine version 2",
+                },
+            },
+        )
+
+    def create_work_group_no_output_location(self, work_group_name: str):
+        athena = boto3.client("athena", region_name=AWS_REGION)
+        athena.create_work_group(
+            Name=work_group_name,
+            Configuration={
+                "EnforceWorkGroupConfiguration": True,
+                "PublishCloudWatchMetricsEnabled": True,
+                "EngineVersion": {
+                    "SelectedEngineVersion": "Athena engine version 2",
+                    "EffectiveEngineVersion": "Athena engine version 2",
+                },
+            },
+        )
+
     def add_data_in_table(self, table_name: str):
         s3 = boto3.client("s3", region_name=AWS_REGION)
         s3.create_bucket(Bucket=BUCKET, CreateBucketConfiguration={"LocationConstraint": AWS_REGION})
