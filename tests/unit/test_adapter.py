@@ -673,6 +673,7 @@ class TestAthenaAdapter:
         # TODO moto issue https://github.com/getmoto/moto/issues/5952
         # assert len(result) == 3
 
+    # TODO: Add more lf-tag unit tests when moto supports lakeformation
     def test__parse_lf_tags(self):
         lf_tag_expression = "tag1=val1,tag2=val2"
 
