@@ -47,7 +47,7 @@
   with (
     table_type='{{ table_type }}',
     is_external={%- if table_type == 'iceberg' -%}false{%- else -%}true{%- endif %},
-  {{ location_property }}='{{ location }}',
+    {{ location_property }}='{{ location }}',
   {%- if partitioned_by is not none %}
     {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', "'") }},
   {%- endif %}
