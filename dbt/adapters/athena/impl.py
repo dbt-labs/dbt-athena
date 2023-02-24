@@ -1,7 +1,7 @@
 import posixpath as path
 from itertools import chain
 from threading import Lock
-from typing import Dict, Iterator, List, Optional, Set, Tuple
+from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -56,6 +56,71 @@ class AthenaAdapter(SQLAdapter):
     def convert_datetime_type(cls, agate_table: agate.Table, col_idx: int) -> str:
         return "timestamp"
 
+    def _parse_lf_tags(self, lf_tags_expr: Optional[str]) -> Dict[str, str]:
+        lf_tags = {}
+        if lf_tags_expr:
+            lf_tags = dict([tag.split("=") for tag in lf_tags_expr.split(",")])
+
+        return lf_tags
+
+    @available
+    def add_lf_tags_to_table(self, database: str, table: str, lf_tags_expr: Optional[str] = None):
+        conn = self.connections.get_thread_connection()
+        session = conn.handle.session
+
+        lf_tags = self._parse_lf_tags(lf_tags_expr)
+        lf_client = session.client("lakeformation")
+
+        if lf_tags:
+            lf_client.add_lf_tags_to_resource(
+                Resource={
+                    "Table": {
+                        "DatabaseName": database,
+                        "Name": table,
+                    },
+                },
+                LFTags=[
+                    {
+                        "TagKey": key,
+                        "TagValues": [
+                            value,
+                        ],
+                    }
+                    for key, value in lf_tags.items()
+                ],
+            )
+
+    @available
+    def add_lf_tags_to_database(self, database: str):
+        conn = self.connections.get_thread_connection()
+        session = conn.handle.session
+
+        lf_tags_expr = conn.credentials.lf_tags
+        lf_tags = self._parse_lf_tags(lf_tags_expr)
+        lf_client = session.client("lakeformation")
+
+        if lf_tags:
+            lf_client.add_lf_tags_to_resource(
+                Resource={
+                    "Database": {"Name": database},
+                },
+                LFTags=[
+                    {
+                        "TagKey": key,
+                        "TagValues": [
+                            value,
+                        ],
+                    }
+                    for key, value in lf_tags.items()
+                ],
+            )
+
+    @available
+    def get_work_group(self) -> Optional[str]:
+        conn = self.connections.get_thread_connection()
+        creds = conn.credentials
+        return creds.work_group
+
     @available
     def s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
         """
@@ -80,7 +145,7 @@ class AthenaAdapter(SQLAdapter):
         table_name: str,
         external_location: Optional[str] = None,
         is_temporary_table: bool = False,
-    ) -> str:
+    ) -> Union[Tuple[str, str], str]:
         """
         Returns either a UUID or database/table prefix for storing a table,
         depending on the value of s3_table

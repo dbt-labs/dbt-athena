@@ -1,6 +1,7 @@
 {% materialization table, adapter='athena' -%}
   {%- set identifier = model['alias'] -%}
 
+  {%- set lf_tags = config.get('lf_tags', default=none) -%}
   {%- set table_type = config.get('table_type', default='hive') | lower -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set target_relation = api.Relation.create(identifier=identifier,
@@ -23,6 +24,8 @@
   {% if table_type != 'iceberg' %}
     {{ set_table_classification(target_relation) }}
   {% endif %}
+
+  {{ adapter.add_lf_tags_to_table(target_relation.schema, identifier, lf_tags) }}
 
   {{ run_hooks(post_hooks) }}
 

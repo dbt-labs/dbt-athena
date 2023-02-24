@@ -8,6 +8,9 @@
 {% endmacro %}
 
 {% macro athena__create_csv_table(model, agate_table) %}
+  {%- set identifier = model['alias'] -%}
+
+  {%- set lf_tags = config.get('lf_tags', default=none) -%}
   {%- set column_override = config.get('column_types', {}) -%}
   {%- set quote_seed_column = config.get('quote_columns', None) -%}
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
@@ -31,6 +34,8 @@
   {% call statement('_') -%}
     {{ sql }}
   {%- endcall %}
+
+  {{ adapter.add_lf_tags_to_table(model.schema, identifier, lf_tags) }}
 
   {{ return(sql) }}
 {% endmacro %}

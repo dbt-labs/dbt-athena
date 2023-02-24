@@ -14,6 +14,7 @@
 
   {%- set location_property = 'external_location' -%}
   {%- set partition_property = 'partitioned_by' -%}
+  {%- set work_group = adapter.get_work_group() -%}
   {%- set location = adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier, external_location, temporary) -%}
 
   {%- if materialized == 'table_hive_ha' -%}
@@ -47,12 +48,14 @@
   with (
     table_type='{{ table_type }}',
     is_external={%- if table_type == 'iceberg' -%}false{%- else -%}true{%- endif %},
+  {%- if work_group is none -%}
     {{ location_property }}='{{ location }}',
+  {%- endif %}
   {%- if partitioned_by is not none %}
-    {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', '\'') }},
+    {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', "'") }},
   {%- endif %}
   {%- if bucketed_by is not none %}
-    bucketed_by=ARRAY{{ bucketed_by | tojson | replace('\"', '\'') }},
+    bucketed_by=ARRAY{{ bucketed_by | tojson | replace('\"', "'") }},
   {%- endif %}
   {%- if bucket_count is not none %}
     bucket_count={{ bucket_count }},
@@ -66,8 +69,7 @@
     format='{{ format }}'
   {%- if extra_table_properties is not none -%}
     {%- for prop_name, prop_value in extra_table_properties.items() -%}
-    ,
-    {{ prop_name }}={{ prop_value }}
+    , {{ prop_name }}={{ prop_value }}
     {%- endfor -%}
   {% endif %}
   )

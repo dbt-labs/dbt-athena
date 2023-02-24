@@ -1,10 +1,16 @@
 {% macro create_or_replace_view(run_outside_transaction_hooks=True) %}
   {%- set identifier = model['alias'] -%}
+
+  {%- set lf_tags = config.get('lf_tags', default=none) -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set exists_as_view = (old_relation is not none and old_relation.is_view) -%}
   {%- set target_relation = api.Relation.create(
-      identifier=identifier, schema=schema, database=database,
-      type='view') -%}
+      identifier=identifier,
+      schema=schema,
+      database=database,
+      type='view',
+    ) -%}
+
   {% if run_outside_transaction_hooks %}
       -- no transactions on BigQuery
       {{ run_hooks(pre_hooks, inside_transaction=False) }}
@@ -23,6 +29,7 @@
     {{ create_view_as(target_relation, sql) }}
   {%- endcall %}
 
+  {{ adapter.add_lf_tags_to_table(target_relation.schema, identifier, lf_tags) }}
   {{ run_hooks(post_hooks, inside_transaction=True) }}
 
   {{ adapter.commit() }}

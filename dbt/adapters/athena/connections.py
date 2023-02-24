@@ -47,6 +47,7 @@ class AthenaCredentials(Credentials):
     num_retries: Optional[int] = 5
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
+    lf_tags: Optional[str] = None
 
     @property
     def type(self) -> str:
@@ -68,6 +69,7 @@ class AthenaCredentials(Credentials):
             "endpoint_url",
             "s3_data_dir",
             "s3_data_naming",
+            "lf_tags",
         )
 
 
