@@ -321,7 +321,7 @@ class AthenaAdapter(SQLAdapter):
                     )
         except ClientError as e:
             # don't error out when schema doesn't exist
-            # this allows for dbt creating and managing schemas/databases
+            # this allows dbt to create and manage schemas/databases
             logger.debug(f"Schema '{schema_relation.schema}' does not exist - Ignoring: {e}")
 
         return relations
