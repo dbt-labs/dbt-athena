@@ -19,7 +19,15 @@ from dbt.contracts.graph.nodes import CompiledNode, DependsOn, NodeConfig
 from dbt.exceptions import ConnectionError, DbtRuntimeError
 from dbt.node_types import NodeType
 
-from .constants import AWS_REGION, BUCKET, DATA_CATALOG_NAME, DATABASE_NAME
+from .constants import (
+    ATHENA_WORKGROUP,
+    AWS_REGION,
+    BUCKET,
+    DATA_CATALOG_NAME,
+    DATABASE_NAME,
+    S3_STAGING_DIR,
+)
+from .fixtures import seed_data
 from .utils import (
     MockAWSService,
     TestAdapterConversions,
@@ -43,10 +51,10 @@ class TestAthenaAdapter:
             "outputs": {
                 "test": {
                     "type": "athena",
-                    "s3_staging_dir": "s3://my-bucket/test-dbt/",
+                    "s3_staging_dir": S3_STAGING_DIR,
                     "region_name": AWS_REGION,
                     "database": DATA_CATALOG_NAME,
-                    "work_group": "dbt-athena-adapter",
+                    "work_group": ATHENA_WORKGROUP,
                     "schema": DATABASE_NAME,
                 }
             },
@@ -665,6 +673,64 @@ class TestAthenaAdapter:
         # TODO delete_table_version is not implemented in moto
         # TODO moto issue https://github.com/getmoto/moto/issues/5952
         # assert len(result) == 3
+
+    @mock_athena
+    def test_get_work_group_output_location(self, aws_credentials):
+        self.adapter.acquire_connection("dummy")
+        self.mock_aws_service.create_work_group_with_output_location(ATHENA_WORKGROUP)
+        work_group_location = self.adapter.get_work_group_output_location()
+        assert work_group_location is not None
+
+    @mock_athena
+    def test_get_work_group_output_location_no_location(self, aws_credentials):
+        self.adapter.acquire_connection("dummy")
+        self.mock_aws_service.create_work_group_no_output_location(ATHENA_WORKGROUP)
+        work_group_location = self.adapter.get_work_group_output_location()
+        assert work_group_location is None
+
+    @pytest.fixture
+    def s3_client(self, aws_credentials):
+        with mock_s3():
+            conn = boto3.client("s3", region_name="us-east-1")
+            yield conn
+
+    @mock_s3
+    def test_upload_seed_to_s3(self, aws_credentials, s3_client):
+        seed_table = agate.Table.from_object(seed_data)
+        self.adapter.acquire_connection("dummy")
+
+        s3_client.create_bucket(Bucket=BUCKET)
+
+        location = self.adapter.upload_seed_to_s3(
+            s3_data_dir=f"s3://{BUCKET}",
+            s3_data_naming="schema_table",
+            external_location=None,
+            database_name="db_seeds",
+            table_name="data",
+            table=seed_table,
+        )
+
+        assert location == "s3://test-dbt-athena/db_seeds/data/"
+
+    @mock_s3
+    def test_upload_seed_to_s3_external_location(self, aws_credentials, s3_client):
+        seed_table = agate.Table.from_object(seed_data)
+        self.adapter.acquire_connection("dummy")
+
+        bucket = "my-external-location"
+        external_location = f"s3://{bucket}/seeds/one/"
+        s3_client.create_bucket(Bucket=bucket)
+
+        location = self.adapter.upload_seed_to_s3(
+            s3_data_dir=None,
+            s3_data_naming="schema_table",
+            external_location=external_location,
+            database_name="db_seeds",
+            table_name="data",
+            table=seed_table,
+        )
+
+        assert location == "s3://my-external-location/seeds/one/"
 
     def test__parse_lf_tags(self):
         lf_tag_expression = "tag1=val1,tag2=val2"
