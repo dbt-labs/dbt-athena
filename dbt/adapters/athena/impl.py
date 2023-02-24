@@ -404,30 +404,27 @@ class AthenaAdapter(SQLAdapter):
         relations = []
         quote_policy = {"database": True, "schema": True, "identifier": True}
 
-        try:
-            for page in page_iterator:
-                tables = page["TableList"]
-                for table in tables:
-                    if "TableType" not in table:
-                        logger.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
-                        continue
-                    _type = table["TableType"]
-                    if _type == "VIRTUAL_VIEW":
-                        _type = self.Relation.View
-                    else:
-                        _type = self.Relation.Table
+        for page in page_iterator:
+            tables = page["TableList"]
+            for table in tables:
+                if "TableType" not in table:
+                    logger.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
+                    continue
+                _type = table["TableType"]
+                if _type == "VIRTUAL_VIEW":
+                    _type = self.Relation.View
+                else:
+                    _type = self.Relation.Table
 
-                    relations.append(
-                        self.Relation.create(
-                            schema=schema_relation.schema,
-                            database=schema_relation.database,
-                            identifier=table["Name"],
-                            quote_policy=quote_policy,
-                            type=_type,
-                        )
+                relations.append(
+                    self.Relation.create(
+                        schema=schema_relation.schema,
+                        database=schema_relation.database,
+                        identifier=table["Name"],
+                        quote_policy=quote_policy,
+                        type=_type,
                     )
-        except ClientError as e:
-            logger.debug(f"Error listing relations: {e}")
+                )
 
         return relations
 
