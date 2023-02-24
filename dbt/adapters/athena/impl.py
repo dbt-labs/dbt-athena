@@ -1,7 +1,9 @@
+import os
 import posixpath as path
+import tempfile
 from itertools import chain
 from threading import Lock
-from typing import Dict, Iterator, List, Optional, Set, Tuple
+from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -103,7 +105,7 @@ class AthenaAdapter(SQLAdapter):
         return table_location
 
     @available
-    def get_table_location(self, database_name: str, table_name: str) -> [str, None]:
+    def get_table_location(self, database_name: str, table_name: str) -> Union[str, None]:
         """
         Helper function to S3 get table location
         """
@@ -152,6 +154,37 @@ class AthenaAdapter(SQLAdapter):
     @available
     def quote_seed_column(self, column: str, quote_config: Optional[bool]) -> str:
         return super().quote_seed_column(column, False)
+
+    @available
+    def upload_seed_to_s3(
+        self,
+        s3_data_dir: Optional[str],
+        s3_data_naming: Optional[str],
+        external_location: Optional[str],
+        database_name: str,
+        table_name: str,
+        table: agate.Table,
+    ) -> str:
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        s3_location = self.s3_table_location(s3_data_dir, s3_data_naming, database_name, table_name, external_location)
+        bucket, prefix = self._parse_s3_path(s3_location)
+
+        # Upload as json to support datetime parsing and better type inference
+        # OpenCSVSerde only supports UNIX timestamps
+        file_name = f"{table_name}.json"
+        object_name = path.join(prefix, file_name)
+
+        with boto3_client_lock:
+            s3_client = client.session.client("s3", region_name=client.region_name, config=get_boto3_config())
+            # This ensures cross-platform support, tempfile.NamedTemporaryFile does not
+            tmpfile = os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
+            table.to_json(tmpfile, newline=True)
+            s3_client.upload_file(tmpfile, bucket, object_name)
+            os.remove(tmpfile)
+
+        return f"s3://{bucket}/{prefix}"
 
     @available
     def delete_from_s3(self, s3_path: str):
