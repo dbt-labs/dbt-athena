@@ -1,6 +1,4 @@
-import os
 import posixpath as path
-import tempfile
 from itertools import chain
 from threading import Lock
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
@@ -68,10 +66,14 @@ class AthenaAdapter(SQLAdapter):
     @available
     def add_lf_tags_to_table(self, database: str, table: str, lf_tags_expr: Optional[str] = None):
         conn = self.connections.get_thread_connection()
-        session = conn.handle.session
+        client = conn.handle
 
         lf_tags = self._parse_lf_tags(lf_tags_expr)
-        lf_client = session.client("lakeformation")
+
+        with boto3_client_lock:
+            lf_client = client.session.client(
+                "lakeformation", region_name=client.region_name, config=get_boto3_config()
+            )
 
         if lf_tags:
             lf_client.add_lf_tags_to_resource(
@@ -95,11 +97,15 @@ class AthenaAdapter(SQLAdapter):
     @available
     def add_lf_tags_to_database(self, database: str):
         conn = self.connections.get_thread_connection()
-        session = conn.handle.session
+        client = conn.handle
 
         lf_tags_expr = conn.credentials.lf_tags
         lf_tags = self._parse_lf_tags(lf_tags_expr)
-        lf_client = session.client("lakeformation")
+
+        with boto3_client_lock:
+            lf_client = client.session.client(
+                "lakeformation", region_name=client.region_name, config=get_boto3_config()
+            )
 
         if lf_tags:
             lf_client.add_lf_tags_to_resource(
@@ -116,21 +122,6 @@ class AthenaAdapter(SQLAdapter):
                     for key, value in lf_tags.items()
                 ],
             )
-
-    @available
-    def get_work_group_output_location(self) -> Optional[str]:
-        conn = self.connections.get_thread_connection()
-        creds = conn.credentials
-        session = conn.handle.session
-
-        athena_client = session.client("athena")
-        work_group = athena_client.get_work_group(WorkGroup=creds.work_group)
-        return (
-            work_group.get("WorkGroup", {})
-            .get("Configuration", {})
-            .get("ResultConfiguration", {})
-            .get("OutputLocation")
-        )
 
     @available
     def s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
@@ -228,37 +219,6 @@ class AthenaAdapter(SQLAdapter):
     @available
     def quote_seed_column(self, column: str, quote_config: Optional[bool]) -> str:
         return super().quote_seed_column(column, False)
-
-    @available
-    def upload_seed_to_s3(
-        self,
-        s3_data_dir: Optional[str],
-        s3_data_naming: Optional[str],
-        external_location: Optional[str],
-        database_name: str,
-        table_name: str,
-        table: agate.Table,
-    ) -> str:
-        conn = self.connections.get_thread_connection()
-        session = conn.handle.session
-
-        s3_location = self.s3_table_location(s3_data_dir, s3_data_naming, database_name, table_name, external_location)
-        bucket, prefix = self._parse_s3_path(s3_location)
-
-        # Upload as json to support datetime parsing and better type inference
-        # OpenCSVSerde only supports UNIX timestamps
-        file_name = f"{table_name}.json"
-        object_name = path.join(prefix, file_name)
-
-        s3_client = session.client("s3")
-        with boto3_client_lock:
-            # This ensures cross-platform support, tempfile.NamedTemporaryFile does not
-            tmpfile = os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
-            table.to_json(tmpfile, newline=True)
-            s3_client.upload_file(tmpfile, bucket, object_name)
-            os.remove(tmpfile)
-
-        return f"s3://{bucket}/{prefix}"
 
     @available
     def delete_from_s3(self, s3_path: str):

@@ -17,17 +17,8 @@
   {%- set s3_data_naming = config.get('s3_data_naming', target.s3_data_naming) -%}
   {%- set external_location = config.get('external_location', default=none) -%}
 
-  {%- set s3_location = adapter.upload_seed_to_s3(
-    s3_data_dir,
-    s3_data_naming,
-    external_location,
-    model.schema,
-    model.name,
-    agate_table,
-  ) -%}
-
   {% set sql %}
-    CREATE EXTERNAL TABLE {{ this.render_hive() }} (
+    create external table {{ this.render_hive() }} (
         {%- for col_name in agate_table.column_names -%}
             {%- set inferred_type = adapter.convert_type(agate_table, loop.index0) -%}
             {%- set type = column_override.get(col_name, inferred_type) -%}
@@ -35,9 +26,9 @@
             {{ adapter.quote_seed_column(column_name, quote_seed_column) }} {{ type }} {%- if not loop.last -%}, {% endif -%}
         {%- endfor -%}
     )
-    ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'
-    WITH SERDEPROPERTIES ("timestamp.formats"="yyyy-MM-dd'T'HH:mm:ss.SSS'Z',yyyy-MM-dd'T'HH:mm:ss,yyyy-MM-dd HH:mm:ss")
-    LOCATION '{{ s3_location }}'
+    stored as parquet
+    location '{{ adapter.s3_table_location(s3_data_dir, s3_data_naming, model["schema"], model["alias"], external_location) }}'
+    tblproperties ('classification'='parquet')
   {% endset %}
 
   {% call statement('_') -%}
@@ -47,8 +38,4 @@
   {{ adapter.add_lf_tags_to_table(model.schema, identifier, lf_tags) }}
 
   {{ return(sql) }}
-{% endmacro %}
-
-{% macro athena__load_csv_rows(model, agate_table) %}
-    SELECT 1
 {% endmacro %}
