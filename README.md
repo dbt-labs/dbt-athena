@@ -136,7 +136,7 @@ Here all the options available for `s3_data_naming`:
 It's possible to set the `s3_data_naming` globally in the target profile, or overwrite the value in the table config,
 or setting up the value for groups of model in dbt_project.yml.
 
-> Note: when using a work group with a default query location configured, `s3_data_naming` and configured buckets are ignored and the location configured in the work group is used.
+> Note: when using a work group with a default output location configured, `s3_data_naming` and any configured buckets are ignored and the location configured in the work group is used.
 
 
 #### Incremental models
