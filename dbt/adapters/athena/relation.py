@@ -31,6 +31,17 @@ class AthenaRelation(BaseRelation):
         object.__setattr__(self, "quote_character", old_value)
         return rendered
 
+    def render_pure(self):
+        """
+        Render relation without quotes characters.
+        This is needed for not standard executions like optimize and vacuum
+        """
+        old_value = self.quote_character
+        object.__setattr__(self, "quote_character", "")
+        rendered = self.render()
+        object.__setattr__(self, "quote_character", old_value)
+        return rendered
+
 
 class AthenaSchemaSearchMap(Dict[InformationSchema, Dict[str, Set[Optional[str]]]]):
     """A utility class to keep track of what information_schema tables to
