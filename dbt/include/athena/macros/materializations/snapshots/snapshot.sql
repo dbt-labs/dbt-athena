@@ -11,13 +11,6 @@
     {%- endfor -%})))
 {%- endmacro %}
 
-{%
-  Macro to get the end_of_time timestamp
-%}
-
-{% macro end_of_time() -%}
-  CAST('9999-12-31' AS timestamp)
-{%- endmacro %}
 
 {%
   Recreate the snapshot table from the new_snapshot_table
@@ -174,7 +167,7 @@
     snapshot rows being updated and create a new temporary table to hold them
 #}
 
-{% macro athena__create_new_snapshot_table(strategy, target, source) %}
+{% macro athena__create_new_snapshot_table(strategy, strategy_name, target, source) %}
     {%- set tmp_identifier = target.identifier ~ '__dbt_tmp_1' -%}
 
     {%- set tmp_relation = adapter.get_relation(database=target.database, schema=target.schema, identifier=tmp_identifier) -%}
@@ -204,7 +197,12 @@
           {% if column.name == 'dbt_valid_to' %}
           CASE
           WHEN tgt.is_current_record
-          THEN src.{{ strategy.updated_at }}
+          THEN
+          {% if strategy_name == 'timestamp' %}
+            src.{{ strategy.updated_at }}
+          {% else %}
+            {{ strategy.updated_at }}
+          {% endif %}
           ELSE tgt.dbt_valid_to
           END AS dbt_valid_to {%- if not loop.last -%},{%- endif -%}
           {% elif column.name == 'is_current_record' %}
@@ -213,9 +211,15 @@
             tgt.{{ column.name }} {%- if not loop.last -%},{%- endif -%}
           {% endif %}
         {% endfor %}
-        ,tgt.{{ strategy.updated_at }} AS dbt_snapshot_at
+        ,
+        {% if strategy_name == 'timestamp' %}
+            tgt.{{ strategy.updated_at }}
+        {% else %}
+          {{ strategy.updated_at }}
+        {% endif %} AS dbt_snapshot_at
       FROM {{ target }} tgt
-      JOIN {{ source }} src ON tgt.dbt_unique_key = src.dbt_unique_key
+      JOIN {{ source }} src
+      ON tgt.dbt_unique_key = src.dbt_unique_key
       UNION ALL
       SELECT
         {% for column in source_columns %}
@@ -274,7 +278,7 @@
         {% do create_columns(target_relation, missing_columns) %}
       {% endif %}
 
-      {% set new_snapshot_table = athena__create_new_snapshot_table(strategy, target_relation, staging_table) %}
+      {% set new_snapshot_table = athena__create_new_snapshot_table(strategy, strategy_name, target_relation, staging_table) %}
 
       {% set final_sql = athena__snapshot_merge_sql(
             target = target_relation,
