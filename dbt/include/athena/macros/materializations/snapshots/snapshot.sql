@@ -11,7 +11,6 @@
     {%- endfor -%})))
 {%- endmacro %}
 
-
 {%
   Recreate the snapshot table from the new_snapshot_table
 %}
