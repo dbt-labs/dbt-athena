@@ -147,7 +147,7 @@ class AthenaAdapter(SQLAdapter):
         table_name: str,
         external_location: Optional[str] = None,
         is_temporary_table: bool = False,
-    ) -> Union[Tuple[str, str], str]:
+    ) -> str:
         """
         Returns either a UUID or database/table prefix for storing a table,
         depending on the value of s3_table
