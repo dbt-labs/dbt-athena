@@ -168,6 +168,7 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
+        # TODO: consider using the workgroup default location when configured
         s3_location = self.s3_table_location(s3_data_dir, s3_data_naming, database_name, table_name, external_location)
         bucket, prefix = self._parse_s3_path(s3_location)
 
