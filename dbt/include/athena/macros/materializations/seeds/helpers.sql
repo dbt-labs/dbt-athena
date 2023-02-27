@@ -24,7 +24,7 @@
   ) -%}
 
   {% set sql %}
-    CREATE EXTERNAL TABLE {{ this.render_hive() }} (
+    create external table {{ this.render_hive() }} (
         {%- for col_name in agate_table.column_names -%}
             {%- set inferred_type = adapter.convert_type(agate_table, loop.index0) -%}
             {%- set type = column_override.get(col_name, inferred_type) -%}
@@ -32,9 +32,9 @@
             {{ adapter.quote_seed_column(column_name, quote_seed_column) }} {{ type }} {%- if not loop.last -%}, {% endif -%}
         {%- endfor -%}
     )
-    ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'
-    WITH SERDEPROPERTIES ("timestamp.formats"="yyyy-MM-dd'T'HH:mm:ss.SSS'Z',yyyy-MM-dd'T'HH:mm:ss,yyyy-MM-dd HH:mm:ss")
-    LOCATION '{{ s3_location }}'
+    row format serde 'org.apache.hive.hcatalog.data.JsonSerDe'
+    with serdeproperties ("timestamp.formats"="yyyy-MM-dd'T'HH:mm:ss.SSS'Z',yyyy-MM-dd'T'HH:mm:ss,yyyy-MM-dd HH:mm:ss")
+    location '{{ s3_location }}'
   {% endset %}
 
   {% call statement('_') -%}
@@ -45,5 +45,5 @@
 {% endmacro %}
 
 {% macro athena__load_csv_rows(model, agate_table) %}
-    SELECT 1
+    select 1
 {% endmacro %}
