@@ -22,7 +22,7 @@
     {%- endif -%}
 
     {% set sql -%}
-      SELECT * FROM {{ source }};
+      select * from {{ source }};
     {%- endset -%}
 
     {{ create_table_as(False, target_relation, sql) }}
@@ -33,15 +33,15 @@
 %}
 
 {% macro build_snapshot_table(strategy, source_sql) %}
-    SELECT *
-      , {{ strategy.unique_key }} AS dbt_unique_key
-      , {{ strategy.updated_at }} AS dbt_valid_from
-      , {{ strategy.scd_id }} AS dbt_scd_id
-      , 'insert' AS dbt_change_type
-      , {{ end_of_time() }} AS dbt_valid_to
-      , True AS is_current_record
-      , {{ strategy.updated_at }} AS dbt_snapshot_at
-    FROM ({{ source_sql }}) source;
+    select *
+      , {{ strategy.unique_key }} as dbt_unique_key
+      , {{ strategy.updated_at }} as dbt_valid_from
+      , {{ strategy.scd_id }} as dbt_scd_id
+      , 'insert' as dbt_change_type
+      , {{ end_of_time() }} as dbt_valid_to
+      , True as is_current_record
+      , {{ strategy.updated_at }} as dbt_snapshot_at
+    from ({{ source_sql }}) source;
 {% endmacro %}
 
 {%
@@ -49,42 +49,42 @@
 %}
 
 {% macro snapshot_staging_table(strategy, source_sql, target_relation) -%}
-    WITH snapshot_query AS (
+    WITH snapshot_query as (
         {{ source_sql }}
     )
-    , snapshotted_data_base AS (
-        SELECT *
+    , snapshotted_data_base as (
+        select *
           , ROW_NUMBER() OVER (
               PARTITION BY dbt_unique_key
               ORDER BY dbt_valid_from DESC
-            ) AS dbt_snapshot_rn
-        FROM {{ target_relation }}
+            ) as dbt_snapshot_rn
+        from {{ target_relation }}
     )
-    , snapshotted_data AS (
-        SELECT *
-        FROM snapshotted_data_base
-        WHERE dbt_snapshot_rn = 1
+    , snapshotted_data as (
+        select *
+        from snapshotted_data_base
+        where dbt_snapshot_rn = 1
           AND dbt_change_type != 'delete'
     )
-    , source_data AS (
-        SELECT *
-          , {{ strategy.unique_key }} AS dbt_unique_key
-          , {{ strategy.updated_at }} AS dbt_valid_from
-          , {{ strategy.scd_id }} AS dbt_scd_id
-        FROM snapshot_query
+    , source_data as (
+        select *
+          , {{ strategy.unique_key }} as dbt_unique_key
+          , {{ strategy.updated_at }} as dbt_valid_from
+          , {{ strategy.scd_id }} as dbt_scd_id
+        from snapshot_query
     )
-    , upserts AS (
-        SELECT source_data.*
-          , CASE
-              WHEN snapshotted_data.dbt_unique_key IS NULL THEN 'insert'
-              ELSE 'update'
-            END as dbt_change_type
-          , {{ end_of_time() }} AS dbt_valid_to
-          , True AS is_current_record
-        FROM source_data
-        LEFT JOIN snapshotted_data
-               ON snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
-        WHERE snapshotted_data.dbt_unique_key IS NULL
+    , upserts as (
+        select source_data.*
+          , case
+              when snapshotted_data.dbt_unique_key IS NULL THEN 'insert'
+              else 'update'
+            end as dbt_change_type
+          , {{ end_of_time() }} as dbt_valid_to
+          , True as is_current_record
+        from source_data
+        LEFT join snapshotted_data
+               on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
+        where snapshotted_data.dbt_unique_key IS NULL
            OR (
                 snapshotted_data.dbt_unique_key IS NOT NULL
             AND (
@@ -93,22 +93,22 @@
         )
     )
     {%- if strategy.invalidate_hard_deletes -%}
-      , deletes AS (
-          SELECT
+      , deletes as (
+          select
               source_data.*
-            , 'delete' AS dbt_change_type
-            , {{ end_of_time() }} AS dbt_valid_to
-            , True AS is_current_record
-          FROM snapshotted_data
-          LEFT JOIN source_data
-                 ON snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
-          WHERE source_data.dbt_unique_key IS NULL
+            , 'delete' as dbt_change_type
+            , {{ end_of_time() }} as dbt_valid_to
+            , True as is_current_record
+          from snapshotted_data
+          LEFT join source_data
+                 on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
+          where source_data.dbt_unique_key IS NULL
         )
-      SELECT * FROM upserts
-      UNION ALL
-      SELECT * FROM deletes;
+      select * from upserts
+      union all
+      select * from deletes;
     {% else %}
-    SELECT * FROM upserts;
+    select * from upserts;
     {% endif %}
 
 {%- endmacro %}
@@ -142,16 +142,16 @@
 
 {% macro athena__create_columns(relation, columns) -%}
   {% set query -%}
-  ALTER TABLE {{ relation }} ADD COLUMNS (
+  alter table {{ relation }} add columns (
   {%- for column in columns -%}
     {% if column.data_type|lower == 'boolean' %}
-       {{ column.name }} BOOLEAN {%- if not loop.last -%},{%- endif -%}
+       {{ column.name }} boolean {%- if not loop.last -%},{%- endif -%}
     {% elif column.data_type|lower == 'character varying(256)' %}
-      {{ column.name }} VARCHAR(255) {%- if not loop.last -%},{%- endif -%}
+      {{ column.name }} varchar(255) {%- if not loop.last -%},{%- endif -%}
     {% elif column.data_type|lower == 'integer' %}
-      {{ column.name }} BIGINT {%- if not loop.last -%},{%- endif -%}
+      {{ column.name }} bigint {%- if not loop.last -%},{%- endif -%}
     {% elif column.data_type|lower == 'float' %}
-      {{ column.name }} FLOAT {%- if not loop.last -%},{%- endif -%}
+      {{ column.name }} float {%- if not loop.last -%},{%- endif -%}
     {% else %}
       {{ column.name }} {{ column.data_type }} {%- if not loop.last -%},{%- endif -%}
     {% endif %}
@@ -183,29 +183,29 @@
     {% endif %}
 
     {% set sql -%}
-      SELECT
+      select
         {% for column in source_columns %}
           {{ column.name }} {%- if not loop.last -%},{%- endif -%}
         {% endfor %}
         ,dbt_snapshot_at
       from {{ target }}
-      WHERE dbt_unique_key NOT IN ( SELECT dbt_unique_key FROM {{ source }} )
-      UNION ALL
-      SELECT
+      where dbt_unique_key NOT IN ( select dbt_unique_key from {{ source }} )
+      union all
+      select
         {% for column in source_columns %}
           {% if column.name == 'dbt_valid_to' %}
-          CASE
-          WHEN tgt.is_current_record
+          case
+          when tgt.is_current_record
           THEN
           {% if strategy_name == 'timestamp' %}
             src.{{ strategy.updated_at }}
           {% else %}
             {{ strategy.updated_at }}
           {% endif %}
-          ELSE tgt.dbt_valid_to
-          END AS dbt_valid_to {%- if not loop.last -%},{%- endif -%}
+          else tgt.dbt_valid_to
+          end as dbt_valid_to {%- if not loop.last -%},{%- endif -%}
           {% elif column.name == 'is_current_record' %}
-          False AS is_current_record {%- if not loop.last -%},{%- endif -%}
+          False as is_current_record {%- if not loop.last -%},{%- endif -%}
           {% else %}
             tgt.{{ column.name }} {%- if not loop.last -%},{%- endif -%}
           {% endif %}
@@ -215,17 +215,17 @@
             tgt.{{ strategy.updated_at }}
         {% else %}
           {{ strategy.updated_at }}
-        {% endif %} AS dbt_snapshot_at
-      FROM {{ target }} tgt
-      JOIN {{ source }} src
-      ON tgt.dbt_unique_key = src.dbt_unique_key
-      UNION ALL
-      SELECT
+        {% endif %} as dbt_snapshot_at
+      from {{ target }} tgt
+      join {{ source }} src
+      on tgt.dbt_unique_key = src.dbt_unique_key
+      union all
+      select
         {% for column in source_columns %}
             {{ column.name }} {%- if not loop.last -%},{%- endif -%}
         {% endfor %}
-        ,{{ strategy.updated_at }} AS dbt_snapshot_at
-      FROM {{ source }};
+        ,{{ strategy.updated_at }} as dbt_snapshot_at
+      from {{ source }};
     {%- endset -%}
 
     {% call statement('create_new_snapshot_table') %}

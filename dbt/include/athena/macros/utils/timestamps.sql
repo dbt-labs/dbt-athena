@@ -11,5 +11,9 @@
 %}
 
 {% macro end_of_time() -%}
-  CAST('9999-01-01' AS timestamp)
+  {{ return(adapter.dispatch('end_of_time')()) }}
+{%- endmacro %}
+
+{% macro athena__end_of_time() -%}
+  cast('9999-01-01' AS timestamp)
 {%- endmacro %}
