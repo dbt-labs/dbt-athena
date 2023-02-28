@@ -44,6 +44,7 @@
   {{ return(sql) }}
 {% endmacro %}
 
+{# Overwrite to satisfy dbt-core logic #}
 {% macro athena__load_csv_rows(model, agate_table) %}
     select 1
 {% endmacro %}

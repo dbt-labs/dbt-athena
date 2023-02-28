@@ -696,7 +696,7 @@ class TestAthenaAdapter:
         prefix = "db_seeds/data"
         objects = s3_client.list_objects(Bucket=BUCKET, Prefix=prefix).get("Contents")
 
-        assert location == f"s3://{BUCKET}/{prefix}/"
+        assert location == f"s3://{BUCKET}/{prefix}"
         assert len(objects) == 1
         assert objects[0].get("Key").endswith(".json")
 
@@ -723,7 +723,7 @@ class TestAthenaAdapter:
 
         objects = s3_client.list_objects(Bucket=bucket, Prefix=prefix).get("Contents")
 
-        assert location == f"s3://{bucket}/{prefix}/"
+        assert location == f"s3://{bucket}/{prefix}"
         assert len(objects) == 1
         assert objects[0].get("Key").endswith(".json")
 

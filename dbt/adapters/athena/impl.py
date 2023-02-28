@@ -185,7 +185,7 @@ class AthenaAdapter(SQLAdapter):
             s3_client.upload_file(tmpfile, bucket, object_name)
             os.remove(tmpfile)
 
-        return f"s3://{bucket}/{prefix}"
+        return s3_location
 
     @available
     def delete_from_s3(self, s3_path: str):
