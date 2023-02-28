@@ -49,7 +49,7 @@
 %}
 
 {% macro snapshot_staging_table(strategy, source_sql, target_relation) -%}
-    WITH snapshot_query as (
+    with snapshot_query as (
         {{ source_sql }}
     )
     , snapshotted_data_base as (
