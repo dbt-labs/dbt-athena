@@ -21,6 +21,7 @@
     * Does **not** support the use of `unique_key`
 * Supports [snapshots][snapshots]
 * Does not support [Python models][python-models]
+* Does not support [persist docs][persist-docs] for views
 
 [seeds]: https://docs.getdbt.com/docs/building-a-dbt-project/seeds
 [incremental]: https://docs.getdbt.com/docs/build/incremental-models
@@ -28,6 +29,7 @@
 [python-models]: https://docs.getdbt.com/docs/build/python-models#configuring-python-models
 [athena-iceberg]: https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg.html
 [snapshots]: https://docs.getdbt.com/docs/build/snapshots
+[persist-docs]: https://docs.getdbt.com/reference/resource-configs/persist_docs
 
 ### Installation
 
