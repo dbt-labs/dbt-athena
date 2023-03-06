@@ -86,6 +86,7 @@
   Identify records that needs to be upserted or deleted into the snapshot table
 %}
 
+
 {% macro snapshot_staging_table(strategy, source_sql, target_relation, table_type) -%}
     {% if table_type=='iceberg' %}
         with snapshot_query as (
@@ -171,7 +172,7 @@
                 {{ strategy.row_changed }}
             )
         )
-
+        
         {%- if strategy.invalidate_hard_deletes -%}
         ,
 
@@ -440,6 +441,7 @@
 
       {{ adapter.valid_snapshot_target(target_relation) }}
 
+
       {% set staging_table = athena__build_snapshot_staging_table(strategy, sql, target_relation, table_type) %}
 
       {% set missing_columns = adapter.get_missing_columns(staging_table, target_relation)
@@ -449,9 +451,11 @@
                                    | rejectattr('name', 'equalto', 'DBT_UNIQUE_KEY')
                                    | list %}
 
+
       {% if missing_columns %}
         {% do create_columns(target_relation, missing_columns) %}
       {% endif %}
+
 
       {% if table_type == 'iceberg' %}
           {% set source_columns = adapter.get_columns_in_relation(staging_table)
@@ -483,6 +487,7 @@
              )
           %}
       {% endif %}
+
   {% endif %}
 
   {% call statement('main') %}

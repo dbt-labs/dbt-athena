@@ -13,8 +13,34 @@ class AthenaIncludePolicy(Policy):
 
 @dataclass(frozen=True, eq=False, repr=False)
 class AthenaRelation(BaseRelation):
-    quote_character: str = ""
+    quote_character: str = '"'  # Presto quote character
     include_policy: Policy = field(default_factory=lambda: AthenaIncludePolicy())
+
+    def render_hive(self):
+        """
+        Render relation with Hive format. Athena uses Hive format for some DDL statements.
+
+        See:
+        - https://aws.amazon.com/athena/faqs/ "Q: How do I create tables and schemas for my data on Amazon S3?"
+        - https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DDL
+        """
+
+        old_value = self.quote_character
+        object.__setattr__(self, "quote_character", "`")  # Hive quote char
+        rendered = self.render()
+        object.__setattr__(self, "quote_character", old_value)
+        return rendered
+
+    def render_pure(self):
+        """
+        Render relation without quotes characters.
+        This is needed for not standard executions like optimize and vacuum
+        """
+        old_value = self.quote_character
+        object.__setattr__(self, "quote_character", "")
+        rendered = self.render()
+        object.__setattr__(self, "quote_character", old_value)
+        return rendered
 
 
 class AthenaSchemaSearchMap(Dict[InformationSchema, Dict[str, Set[Optional[str]]]]):

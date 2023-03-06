@@ -1,7 +1,7 @@
 import posixpath as path
 from itertools import chain
 from threading import Lock
-from typing import Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -11,6 +11,7 @@ from botocore.exceptions import ClientError
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
+from dbt.adapters.athena.utils import clean_sql_comment
 from dbt.adapters.base import available
 from dbt.adapters.base.impl import GET_CATALOG_MACRO_NAME
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
@@ -297,27 +298,32 @@ class AthenaAdapter(SQLAdapter):
         relations = []
         quote_policy = {"database": True, "schema": True, "identifier": True}
 
-        for page in page_iterator:
-            tables = page["TableList"]
-            for table in tables:
-                if "TableType" not in table:
-                    logger.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
-                    continue
-                _type = table["TableType"]
-                if _type == "VIRTUAL_VIEW":
-                    _type = self.Relation.View
-                else:
-                    _type = self.Relation.Table
+        try:
+            for page in page_iterator:
+                tables = page["TableList"]
+                for table in tables:
+                    if "TableType" not in table:
+                        logger.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
+                        continue
+                    _type = table["TableType"]
+                    if _type == "VIRTUAL_VIEW":
+                        _type = self.Relation.View
+                    else:
+                        _type = self.Relation.Table
 
-                relations.append(
-                    self.Relation.create(
-                        schema=schema_relation.schema,
-                        database=schema_relation.database,
-                        identifier=table["Name"],
-                        quote_policy=quote_policy,
-                        type=_type,
+                    relations.append(
+                        self.Relation.create(
+                            schema=schema_relation.schema,
+                            database=schema_relation.database,
+                            identifier=table["Name"],
+                            quote_policy=quote_policy,
+                            type=_type,
+                        )
                     )
-                )
+        except ClientError as e:
+            # don't error out when schema doesn't exist
+            # this allows dbt to create and manage schemas/databases
+            logger.debug(f"Schema '{schema_relation.schema}' does not exist - Ignoring: {e}")
 
         return relations
 
@@ -371,6 +377,7 @@ class AthenaAdapter(SQLAdapter):
             "PartitionKeys": src_table["PartitionKeys"],
             "TableType": src_table["TableType"],
             "Parameters": src_table["Parameters"],
+            "Description": src_table.get("Description", ""),
         }
 
         # perform a table swap
@@ -450,3 +457,40 @@ class AthenaAdapter(SQLAdapter):
             logger.debug(f"{location} was deleted")
 
         return deleted_versions
+
+    @available
+    def persist_docs_to_glue(
+        self,
+        relation: AthenaRelation,
+        model: Dict[str, Any],
+        persist_relation_docs: bool = False,
+        persist_column_docs: bool = False,
+    ):
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.name).get("Table")
+        updated_table = {
+            "Name": table["Name"],
+            "StorageDescriptor": table["StorageDescriptor"],
+            "PartitionKeys": table.get("PartitionKeys", []),
+            "TableType": table["TableType"],
+            "Parameters": table.get("Parameters", {}),
+            "Description": table.get("Description", ""),
+        }
+        if persist_relation_docs:
+            table_comment = clean_sql_comment(model["description"])
+            updated_table["Description"] = table_comment
+            updated_table["Parameters"]["comment"] = table_comment
+
+        if persist_column_docs:
+            for col_obj in updated_table["StorageDescriptor"]["Columns"]:
+                col_name = col_obj["Name"]
+                col_comment = model["columns"].get(col_name, {}).get("description")
+                if col_comment:
+                    col_obj["Comment"] = clean_sql_comment(col_comment)
+
+        glue_client.update_table(DatabaseName=relation.schema, TableInput=updated_table)
