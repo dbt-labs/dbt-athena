@@ -503,7 +503,10 @@
   {% if staging_table is defined %}
       {% do adapter.drop_relation(staging_table) %}
   {% endif %}
-
+  
+  {% if new_snapshot_table is defined %}
+      {% do adapter.drop_relation(new_snapshot_table) %}
+  {% endif %}
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
 
