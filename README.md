@@ -234,6 +234,7 @@ By default, the materialization keeps the last 4 table versions, you can change 
   In case high performances are needed consider bucketing instead of partitions
 * By default, Glue "duplicate" the versions internally, so the last 2 versions of a table point to the same location
 * It's recommended to have versions_to_keep>= 4, as this will avoid to have the older location removed
+* The macro athena__end_of_time needs to be overwritten by the user if using Athena v3 since it requires a precision parameter for timestamps
 
 
 ### Snapshots
