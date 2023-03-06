@@ -686,6 +686,88 @@ class TestAthenaAdapter:
         work_group_location = self.adapter.get_work_group_output_location()
         assert work_group_location is None
 
+    @mock_glue
+    @mock_s3
+    def test_persist_docs_to_glue_no_comment(self):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.adapter.acquire_connection("dummy")
+        table_name = "my_table"
+        self.mock_aws_service.create_table(table_name)
+        schema_relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=table_name,
+        )
+        self.adapter.persist_docs_to_glue(
+            schema_relation,
+            {
+                "description": """
+                        A table with str, 123, &^% \" and '
+
+                          and an other paragraph.
+                    """,
+                "columns": {
+                    "id": {
+                        "description": """
+                        A column with str, 123, &^% \" and '
+
+                          and an other paragraph.
+                    """,
+                    }
+                },
+            },
+            False,
+            False,
+        )
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        table = glue.get_table(DatabaseName=DATABASE_NAME, Name=table_name).get("Table")
+        assert not table.get("Description", "")
+        assert not table["Parameters"].get("comment")
+        assert all(not col.get("Comment") for col in table["StorageDescriptor"]["Columns"])
+
+    @mock_athena
+    @mock_glue
+    @mock_s3
+    def test_persist_docs_to_glue_comment(self):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.adapter.acquire_connection("dummy")
+        table_name = "my_table"
+        self.mock_aws_service.create_table(table_name)
+        schema_relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=table_name,
+        )
+        self.adapter.persist_docs_to_glue(
+            schema_relation,
+            {
+                "description": """
+                        A table with str, 123, &^% \" and '
+
+                          and an other paragraph.
+                    """,
+                "columns": {
+                    "id": {
+                        "description": """
+                        A column with str, 123, &^% \" and '
+
+                          and an other paragraph.
+                    """,
+                    }
+                },
+            },
+            True,
+            True,
+        )
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        table = glue.get_table(DatabaseName=DATABASE_NAME, Name=table_name).get("Table")
+        assert table["Description"] == "A table with str, 123, &^% \" and ' and an other paragraph."
+        assert table["Parameters"]["comment"] == "A table with str, 123, &^% \" and ' and an other paragraph."
+        col_id = [col for col in table["StorageDescriptor"]["Columns"] if col["Name"] == "id"][0]
+        assert col_id["Comment"] == "A column with str, 123, &^% \" and ' and an other paragraph."
+
 
 class TestAthenaFilterCatalog:
     def test__catalog_filter_table(self):
