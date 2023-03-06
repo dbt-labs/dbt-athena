@@ -686,6 +686,7 @@ class TestAthenaAdapter:
         work_group_location = self.adapter.get_work_group_output_location()
         assert work_group_location is None
 
+    @mock_athena
     @mock_glue
     @mock_s3
     def test_persist_docs_to_glue_no_comment(self):
