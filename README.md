@@ -20,7 +20,6 @@
     * Support two incremental update strategies: `insert_overwrite` and `append`
     * Does **not** support the use of `unique_key`
 * Supports [snapshots][snapshots]
-  * Only on iceberg tables
 * Does not support [Python models][python-models]
 * Does not support [persist docs][persist-docs] for views
 
