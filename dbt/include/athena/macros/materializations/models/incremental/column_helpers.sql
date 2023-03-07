@@ -4,7 +4,7 @@
   {% endif %}
 
   {% set sql -%}
-      alter {{ relation.type }} {{ relation }}
+      alter {{ relation.type }} {{ relation.render_hive() }}
           add columns (
             {%- for column in add_columns -%}
                 {{ column.name }} {{ ddl_data_type(column.data_type) }}{{ ', ' if not loop.last }}
@@ -24,7 +24,7 @@
 
   {%- for column in remove_columns -%}
     {% set sql -%}
-      alter {{ relation.type }} {{ relation }} drop column {{ column.name }}
+      alter {{ relation.type }} {{ relation.render_hive() }} drop column {{ column.name }}
     {% endset %}
     {% do run_query(sql) %}
   {%- endfor -%}
@@ -36,7 +36,7 @@
   {% endif %}
 
   {% set sql -%}
-      alter {{ relation.type }} {{ relation }}
+      alter {{ relation.type }} {{ relation.render_hive() }}
           replace columns (
             {%- for column in replace_columns -%}
                 {{ column.name }} {{ ddl_data_type(column.data_type) }}{{ ', ' if not loop.last }}
