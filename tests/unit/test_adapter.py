@@ -12,6 +12,7 @@ from dbt.adapters.athena import AthenaAdapter
 from dbt.adapters.athena import Plugin as AthenaPlugin
 from dbt.adapters.athena.connections import AthenaCursor, AthenaParameterFormatter
 from dbt.adapters.athena.relation import AthenaRelation
+from dbt.adapters.base import Column
 from dbt.clients import agate_helper
 from dbt.contracts.connection import ConnectionState
 from dbt.contracts.files import FileHash
@@ -62,11 +63,11 @@ class TestAthenaAdapter:
         self.config = config_from_parts_or_dicts(project_cfg, profile_cfg)
         self._adapter = None
         self.mock_manifest = mock.MagicMock()
-        self.mock_manifest.get_used_schemas.return_value = {("dbt", "foo"), ("dbt", "quux")}
+        self.mock_manifest.get_used_schemas.return_value = {("awsdatacatalog", "foo"), ("awsdatacatalog", "quux")}
         self.mock_manifest.nodes = {
             "model.root.model1": CompiledNode(
                 name="model1",
-                database="dbt",
+                database="awsdatacatalog",
                 schema="foo",
                 resource_type=NodeType.Model,
                 unique_id="model.root.model1",
@@ -102,7 +103,7 @@ class TestAthenaAdapter:
             ),
             "model.root.model2": CompiledNode(
                 name="model2",
-                database="dbt",
+                database="awsdatacatalog",
                 schema="quux",
                 resource_type=NodeType.Model,
                 unique_id="model.root.model2",
@@ -361,30 +362,24 @@ class TestAthenaAdapter:
         self.adapter.quote_seed_column("col", None)
         parent_quote_seed_column.assert_called_once_with("col", False)
 
-    @mock.patch.object(AthenaAdapter, "execute_macro")
-    def test__get_one_catalog(self, mock_execute):
-        column_names = [
-            "table_database",
-            "table_schema",
-            "table_name",
-            "table_type",
-            "table_comment",
-            "column_name",
-            "column_index",
-            "column_type",
-            "column_comment",
-        ]
-        rows = [
-            ("dbt", "foo", "bar", "table", None, "id", 0, "string", None),
-            ("dbt", "foo", "bar", "table", None, "dt", 1, "date", None),
-            ("dbt", None, "bar", "table", None, "id", 0, "string", None),
-            ("dbt", None, "bar", "table", None, "dt", 1, "date", None),
-            ("dbt", "quux", "bar", "table", None, "id", 0, "string", None),
-            ("dbt", "quux", "bar", "table", None, "category", 1, "string", None),
-            ("dbt", "skip", "bar", "table", None, "id", 0, "string", None),
-            ("dbt", "skip", "bar", "table", None, "category", 1, "string", None),
-        ]
-        mock_execute.return_value = agate.Table(rows=rows, column_names=column_names)
+    @mock_glue
+    @mock_athena
+    def test__get_one_catalog(self):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database("foo")
+        self.mock_aws_service.create_database("quux")
+        self.mock_aws_service.create_table(table_name="bar", database_name="foo")
+        self.mock_aws_service.create_table(table_name="bar", database_name="quux")
+
+        self.adapter.acquire_connection("dummy")
+        actual = self.adapter._get_one_catalog(
+            mock.MagicMock(),
+            {
+                "foo": {"bar"},
+                "quux": {"bar"},
+            },
+            self.mock_manifest,
+        )
 
         expected_column_names = (
             "table_database",
@@ -399,17 +394,14 @@ class TestAthenaAdapter:
             "table_owner",
         )
         expected_rows = [
-            ("dbt", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
-            ("dbt", "foo", "bar", "table", None, "dt", 1, "date", None, "data-engineers"),
-            ("dbt", "quux", "bar", "table", None, "id", 0, "string", None, "data-analysts"),
-            ("dbt", "quux", "bar", "table", None, "category", 1, "string", None, "data-analysts"),
+            ("awsdatacatalog", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
+            ("awsdatacatalog", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
+            ("awsdatacatalog", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
+            ("awsdatacatalog", "quux", "bar", "table", None, "id", 0, "string", None, "data-analysts"),
+            ("awsdatacatalog", "quux", "bar", "table", None, "country", 1, "string", None, "data-analysts"),
+            ("awsdatacatalog", "quux", "bar", "table", None, "dt", 2, "date", None, "data-analysts"),
         ]
-        actual = self.adapter._get_one_catalog(
-            # No need to mock information_schemas relation and schemas since we are mock execute_macro
-            mock.MagicMock(),
-            mock.MagicMock(),
-            self.mock_manifest,
-        )
+
         assert actual.column_names == expected_column_names
         assert len(actual.rows) == len(expected_rows)
         for row in actual.rows.values():
@@ -421,7 +413,7 @@ class TestAthenaAdapter:
         information_schema = list(res.keys())[0]
         assert information_schema.name == "INFORMATION_SCHEMA"
         assert information_schema.schema is None
-        assert information_schema.database == "dbt"
+        assert information_schema.database == "awsdatacatalog"
         relations = list(res.values())[0]
         assert set(relations.keys()) == {"foo", "quux"}
         assert list(relations.values()) == [{"bar"}, {"bar"}]
@@ -768,6 +760,37 @@ class TestAthenaAdapter:
         assert table["Parameters"]["comment"] == "A table with str, 123, &^% \" and ' and an other paragraph."
         col_id = [col for col in table["StorageDescriptor"]["Columns"] if col["Name"] == "id"][0]
         assert col_id["Comment"] == "A column with str, 123, &^% \" and ' and an other paragraph."
+
+    @mock_athena
+    @mock_glue
+    def test_list_schemas(self):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database(name="foo")
+        self.mock_aws_service.create_database(name="bar")
+        self.mock_aws_service.create_database(name="quux")
+        self.adapter.acquire_connection("dummy")
+        res = self.adapter.list_schemas("")
+        assert sorted(res) == ["bar", "foo", "quux"]
+
+    @mock_athena
+    @mock_glue
+    def test_get_columns_in_relation(self):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.mock_aws_service.create_table("tbl_name")
+        self.adapter.acquire_connection("dummy")
+        columns = self.adapter.get_columns_in_relation(
+            self.adapter.Relation.create(
+                database=DATA_CATALOG_NAME,
+                schema=DATABASE_NAME,
+                identifier="tbl_name",
+            )
+        )
+        assert columns == [
+            Column("id", "string"),
+            Column("country", "string"),
+            Column("dt", "date"),
+        ]
 
 
 class TestAthenaFilterCatalog:
