@@ -383,7 +383,7 @@ class AthenaAdapter(SQLAdapter):
         # perform a table swap
         glue_client.update_table(DatabaseName=target_database, TableInput=target_table_version)
         logger.debug(
-            f"Table {target_database}.{target_table_name} swapped with the contend of {src_database}.{src_table}"
+            f"Table {target_database}.{target_table_name} swapped with the content of {src_database}.{src_table}"
         )
 
         # we delete the target table partitions in any case
