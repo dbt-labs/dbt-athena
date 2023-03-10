@@ -172,7 +172,7 @@
                 {{ strategy.row_changed }}
             )
         )
-        
+
         {%- if strategy.invalidate_hard_deletes -%}
         ,
 
@@ -503,7 +503,7 @@
   {% if staging_table is defined %}
       {% do adapter.drop_relation(staging_table) %}
   {% endif %}
-  
+
   {% if new_snapshot_table is defined %}
       {% do adapter.drop_relation(new_snapshot_table) %}
   {% endif %}
