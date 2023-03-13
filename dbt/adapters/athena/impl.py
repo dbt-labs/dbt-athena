@@ -58,6 +58,23 @@ class AthenaAdapter(SQLAdapter):
         return "timestamp"
 
     @available
+    def get_work_group_output_location(self) -> Optional[str]:
+        conn = self.connections.get_thread_connection()
+        creds = conn.credentials
+        client = conn.handle
+
+        with boto3_client_lock:
+            athena_client = client.session.client("athena", region_name=client.region_name, config=get_boto3_config())
+
+        work_group = athena_client.get_work_group(WorkGroup=creds.work_group)
+        return (
+            work_group.get("WorkGroup", {})
+            .get("Configuration", {})
+            .get("ResultConfiguration", {})
+            .get("OutputLocation")
+        )
+
+    @available
     def s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
         """
         Returns the root location for storing tables in S3.

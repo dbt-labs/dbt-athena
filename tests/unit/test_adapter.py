@@ -19,7 +19,13 @@ from dbt.contracts.graph.nodes import CompiledNode, DependsOn, NodeConfig
 from dbt.exceptions import ConnectionError, DbtRuntimeError
 from dbt.node_types import NodeType
 
-from .constants import AWS_REGION, BUCKET, DATA_CATALOG_NAME, DATABASE_NAME
+from .constants import (
+    ATHENA_WORKGROUP,
+    AWS_REGION,
+    BUCKET,
+    DATA_CATALOG_NAME,
+    DATABASE_NAME,
+)
 from .utils import (
     MockAWSService,
     TestAdapterConversions,
@@ -46,7 +52,7 @@ class TestAthenaAdapter:
                     "s3_staging_dir": "s3://my-bucket/test-dbt/",
                     "region_name": AWS_REGION,
                     "database": DATA_CATALOG_NAME,
-                    "work_group": "dbt-athena-adapter",
+                    "work_group": ATHENA_WORKGROUP,
                     "schema": DATABASE_NAME,
                 }
             },
@@ -665,6 +671,20 @@ class TestAthenaAdapter:
         # TODO delete_table_version is not implemented in moto
         # TODO moto issue https://github.com/getmoto/moto/issues/5952
         # assert len(result) == 3
+
+    @mock_athena
+    def test_get_work_group_output_location(self, aws_credentials):
+        self.adapter.acquire_connection("dummy")
+        self.mock_aws_service.create_work_group_with_output_location(ATHENA_WORKGROUP)
+        work_group_location = self.adapter.get_work_group_output_location()
+        assert work_group_location is not None
+
+    @mock_athena
+    def test_get_work_group_output_location_no_location(self, aws_credentials):
+        self.adapter.acquire_connection("dummy")
+        self.mock_aws_service.create_work_group_no_output_location(ATHENA_WORKGROUP)
+        work_group_location = self.adapter.get_work_group_output_location()
+        assert work_group_location is None
 
     @mock_athena
     @mock_glue
