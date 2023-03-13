@@ -246,6 +246,27 @@ class AthenaAdapter(SQLAdapter):
             right_key=join_keys,
         )
 
+    def _get_one_table_for_catalog(self, table: dict, database: str) -> list:
+        table_catalog = {
+            "table_database": database,
+            "table_schema": table["DatabaseName"],
+            "table_name": table["Name"],
+            "table_type": self.relation_type_map[table["TableType"]],
+            "table_comment": table.get("Parameters", {}).get("comment", table.get("Description", "")),
+        }
+        return [
+            {
+                **table_catalog,
+                **{
+                    "column_name": col["Name"],
+                    "column_index": idx,
+                    "column_type": col["Type"],
+                    "column_comment": col.get("Comment", ""),
+                },
+            }
+            for idx, col in enumerate(table["StorageDescriptor"]["Columns"] + table.get("PartitionKeys", []))
+        ]
+
     def _get_one_catalog(
         self,
         information_schema: InformationSchema,
@@ -264,29 +285,7 @@ class AthenaAdapter(SQLAdapter):
             for page in paginator.paginate(DatabaseName=schema, MaxResults=100):
                 for table in page["TableList"]:
                     if table["Name"] in relations:
-                        table_catalog = {
-                            "table_database": conn.credentials.database,
-                            "table_schema": table["DatabaseName"],
-                            "table_name": table["Name"],
-                            "table_type": self.relation_type_map[table["TableType"]],
-                            "table_comment": table.get("Parameters", {}).get("comment", table.get("Description", "")),
-                        }
-                        catalog.extend(
-                            [
-                                {
-                                    **table_catalog,
-                                    **{
-                                        "column_name": col["Name"],
-                                        "column_index": idx,
-                                        "column_type": col["Type"],
-                                        "column_comment": col.get("Comment", ""),
-                                    },
-                                }
-                                for idx, col in enumerate(
-                                    table["StorageDescriptor"]["Columns"] + table.get("PartitionKeys", [])
-                                )
-                            ]
-                        )
+                        catalog.extend(self._get_one_table_for_catalog(table, conn.credentials.database))
 
         table = agate.Table.from_object(catalog)
         filtered_table = self._catalog_filter_table(table, manifest)
