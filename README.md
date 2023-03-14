@@ -72,7 +72,7 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | aws_profile_name | Profile to use from your AWS shared credentials file.                          | Optional    | `my-profile`          |
 | work_group       | Identifier of Athena workgroup                                                 | Optional    | `my-custom-workgroup` |
 | num_retries      | Number of times to retry a failing query                                       | Optional    | `3`                   |
-| lf_tags          | Default lf tags to apply to any database created by dbt                        | Optional    | `origin=dbt`          |
+| lf_tags          | Default lf tags to apply to any database created by dbt                        | Optional    | `{"origin": "dbt", "team": "analytics"}`          |
 
 **Example profiles.yml entry:**
 ```yaml
@@ -89,7 +89,9 @@ athena:
       database: awsdatacatalog
       aws_profile_name: my-profile
       work_group: my-workgroup
-      lf_tags: origin=dbt,team=analytics
+      lf_tags:
+        origin: dbt
+        team: analytics
 ```
 
 _Additional information_

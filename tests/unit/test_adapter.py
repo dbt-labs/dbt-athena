@@ -673,21 +673,6 @@ class TestAthenaAdapter:
         # TODO moto issue https://github.com/getmoto/moto/issues/5952
         # assert len(result) == 3
 
-    # TODO: Add more lf-tag unit tests when moto supports lakeformation
-    # moto issue: https://github.com/getmoto/moto/issues/5979
-    def test__parse_lf_tags(self):
-        lf_tag_expression = "tag1=val1,tag2=val2"
-
-        self.adapter.acquire_connection("dummy")
-        tags = self.adapter._parse_lf_tags(lf_tag_expression)
-        assert tags == {
-            "tag1": "val1",
-            "tag2": "val2",
-        }
-
-        tags = self.adapter._parse_lf_tags(None)
-        assert tags == {}
-
     @mock_athena
     def test_get_work_group_output_location(self, aws_credentials):
         self.adapter.acquire_connection("dummy")

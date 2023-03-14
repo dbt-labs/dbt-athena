@@ -30,7 +30,7 @@
   {%- endcall %}
 
   {% if lf_tags is not none %}
-    {{ adapter.add_lf_tags_to_table(target_relation.schema, identifier, lf_tags) }}
+    {{ adapter.add_lf_tags(target_relation.schema, identifier, lf_tags) }}
   {% endif %}
 
   {{ run_hooks(post_hooks, inside_transaction=True) }}

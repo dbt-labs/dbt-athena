@@ -57,72 +57,45 @@ class AthenaAdapter(SQLAdapter):
     def convert_datetime_type(cls, agate_table: agate.Table, col_idx: int) -> str:
         return "timestamp"
 
-    def _parse_lf_tags(self, lf_tags_expr: Optional[str]) -> Dict[str, str]:
-        lf_tags = {}
-        if lf_tags_expr:
-            lf_tags = dict([tag.split("=") for tag in lf_tags_expr.split(",")])
-
-        return lf_tags
-
+    # TODO: Add more lf-tag unit tests when moto supports lakeformation
+    # moto issue: https://github.com/getmoto/moto/issues/5964
     @available
-    def add_lf_tags_to_table(self, database: str, table: str, lf_tags_expr: Optional[str] = None):
+    def add_lf_tags(self, database: str, table: str = None, lf_tags: Dict[str, str] = {}):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
-        lf_tags = self._parse_lf_tags(lf_tags_expr)
+        if not lf_tags:
+            lf_tags = conn.credentials.lf_tags
+
+        resource = {
+            "Database": {"Name": database},
+        }
+
+        if table:
+            resource = {
+                "Table": {
+                    "DatabaseName": database,
+                    "Name": table,
+                }
+            }
 
         with boto3_client_lock:
             lf_client = client.session.client(
                 "lakeformation", region_name=client.region_name, config=get_boto3_config()
             )
 
-        if lf_tags:
-            lf_client.add_lf_tags_to_resource(
-                Resource={
-                    "Table": {
-                        "DatabaseName": database,
-                        "Name": table,
-                    },
-                },
-                LFTags=[
-                    {
-                        "TagKey": key,
-                        "TagValues": [
-                            value,
-                        ],
-                    }
-                    for key, value in lf_tags.items()
-                ],
-            )
-
-    @available
-    def add_lf_tags_to_database(self, database: str):
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        lf_tags_expr = conn.credentials.lf_tags
-        lf_tags = self._parse_lf_tags(lf_tags_expr)
-
-        with boto3_client_lock:
-            lf_client = client.session.client(
-                "lakeformation", region_name=client.region_name, config=get_boto3_config()
-            )
-
-        if lf_tags:
-            lf_client.add_lf_tags_to_resource(
-                Resource={
-                    "Database": {"Name": database},
-                },
-                LFTags=[
-                    {
-                        "TagKey": key,
-                        "TagValues": [
-                            value,
-                        ],
-                    }
-                    for key, value in lf_tags.items()
-                ],
-            )
+        lf_client.add_lf_tags_to_resource(
+            Resource=resource,
+            LFTags=[
+                {
+                    "TagKey": key,
+                    "TagValues": [
+                        value,
+                    ],
+                }
+                for key, value in lf_tags.items()
+            ],
+        )
 
     @available
     def get_work_group_output_location(self) -> Optional[str]:

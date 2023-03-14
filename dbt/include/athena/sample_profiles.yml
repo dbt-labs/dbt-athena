@@ -7,6 +7,9 @@ default:
       region_name: [region_name]
       database: [database name]
       schema: [dev_schema]
+      lf_tags:
+        origin: dbt
+        team: analytics
 
     prod:
       type: athena
