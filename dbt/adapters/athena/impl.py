@@ -60,9 +60,12 @@ class AthenaAdapter(SQLAdapter):
     # TODO: Add more lf-tag unit tests when moto supports lakeformation
     # moto issue: https://github.com/getmoto/moto/issues/5964
     @available
-    def add_lf_tags(self, database: str, table: str = None, lf_tags: Dict[str, str] = {}):
+    def add_lf_tags(self, database: str, table: str = None, lf_tags: Dict[str, str] = None):
         conn = self.connections.get_thread_connection()
         client = conn.handle
+
+        if not lf_tags and not conn.credentials.lf_tags:
+            return
 
         if not lf_tags:
             lf_tags = conn.credentials.lf_tags
