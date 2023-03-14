@@ -689,6 +689,20 @@ class TestAthenaAdapter:
         assert tags == {}
 
     @mock_athena
+    def test_get_work_group_output_location(self, aws_credentials):
+        self.adapter.acquire_connection("dummy")
+        self.mock_aws_service.create_work_group_with_output_location(ATHENA_WORKGROUP)
+        work_group_location = self.adapter.get_work_group_output_location()
+        assert work_group_location is not None
+
+    @mock_athena
+    def test_get_work_group_output_location_no_location(self, aws_credentials):
+        self.adapter.acquire_connection("dummy")
+        self.mock_aws_service.create_work_group_no_output_location(ATHENA_WORKGROUP)
+        work_group_location = self.adapter.get_work_group_output_location()
+        assert work_group_location is None
+
+    @mock_athena
     @mock_glue
     @mock_s3
     def test_persist_docs_to_glue_no_comment(self):
