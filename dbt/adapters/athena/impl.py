@@ -64,12 +64,10 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
-        if not lf_tags and not conn.credentials.lf_tags:
+        lf_tags = lf_tags or conn.credentials.lf_tags
+        if not lf_tags:
             logger.debug("No LF tags configured")
             return
-
-        if not lf_tags:
-            lf_tags = conn.credentials.lf_tags
 
         resource = {
             "Database": {"Name": database},
