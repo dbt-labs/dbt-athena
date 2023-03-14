@@ -65,6 +65,7 @@ class AthenaAdapter(SQLAdapter):
         client = conn.handle
 
         if not lf_tags and not conn.credentials.lf_tags:
+            logger.debug("No LF tags configured")
             return
 
         if not lf_tags:
