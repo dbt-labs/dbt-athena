@@ -21,6 +21,7 @@
     * Does **not** support the use of `unique_key`
 * Supports [snapshots][snapshots]
 * Does not support [Python models][python-models]
+* Does not support [persist docs][persist-docs] for views
 
 [seeds]: https://docs.getdbt.com/docs/building-a-dbt-project/seeds
 [incremental]: https://docs.getdbt.com/docs/build/incremental-models
@@ -28,6 +29,7 @@
 [python-models]: https://docs.getdbt.com/docs/build/python-models#configuring-python-models
 [athena-iceberg]: https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg.html
 [snapshots]: https://docs.getdbt.com/docs/build/snapshots
+[persist-docs]: https://docs.getdbt.com/reference/resource-configs/persist_docs
 
 ### Installation
 
@@ -134,7 +136,9 @@ Here all the options available for `s3_data_naming`:
 * `s3_data_naming=schema_table_unique`: `{s3_data_dir}/{schema}/{table}/{uuid4()}/`
 
 It's possible to set the `s3_data_naming` globally in the target profile, or overwrite the value in the table config,
-or setting up the value for groups of model in dbt_project.yml
+or setting up the value for groups of model in dbt_project.yml.
+
+> Note: when using a work group with a default output location configured, `s3_data_naming` and any configured buckets are ignored and the location configured in the work group is used.
 
 
 #### Incremental models
@@ -232,6 +236,7 @@ By default, the materialization keeps the last 4 table versions, you can change 
   In case high performances are needed consider bucketing instead of partitions
 * By default, Glue "duplicate" the versions internally, so the last 2 versions of a table point to the same location
 * It's recommended to have versions_to_keep>= 4, as this will avoid to have the older location removed
+* The macro athena__end_of_time needs to be overwritten by the user if using Athena v3 since it requires a precision parameter for timestamps
 
 
 ### Snapshots

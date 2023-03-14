@@ -3,7 +3,7 @@ import posixpath as path
 import tempfile
 from itertools import chain
 from threading import Lock
-from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -13,6 +13,7 @@ from botocore.exceptions import ClientError
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
+from dbt.adapters.athena.utils import clean_sql_comment
 from dbt.adapters.base import available
 from dbt.adapters.base.impl import GET_CATALOG_MACRO_NAME
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
@@ -57,6 +58,23 @@ class AthenaAdapter(SQLAdapter):
     @classmethod
     def convert_datetime_type(cls, agate_table: agate.Table, col_idx: int) -> str:
         return "timestamp"
+
+    @available
+    def get_work_group_output_location(self) -> Optional[str]:
+        conn = self.connections.get_thread_connection()
+        creds = conn.credentials
+        client = conn.handle
+
+        with boto3_client_lock:
+            athena_client = client.session.client("athena", region_name=client.region_name, config=get_boto3_config())
+
+        work_group = athena_client.get_work_group(WorkGroup=creds.work_group)
+        return (
+            work_group.get("WorkGroup", {})
+            .get("Configuration", {})
+            .get("ResultConfiguration", {})
+            .get("OutputLocation")
+        )
 
     @available
     def s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
@@ -410,12 +428,13 @@ class AthenaAdapter(SQLAdapter):
             "PartitionKeys": src_table["PartitionKeys"],
             "TableType": src_table["TableType"],
             "Parameters": src_table["Parameters"],
+            "Description": src_table.get("Description", ""),
         }
 
         # perform a table swap
         glue_client.update_table(DatabaseName=target_database, TableInput=target_table_version)
         logger.debug(
-            f"Table {target_database}.{target_table_name} swapped with the contend of {src_database}.{src_table}"
+            f"Table {target_database}.{target_table_name} swapped with the content of {src_database}.{src_table}"
         )
 
         # we delete the target table partitions in any case
@@ -489,3 +508,40 @@ class AthenaAdapter(SQLAdapter):
             logger.debug(f"{location} was deleted")
 
         return deleted_versions
+
+    @available
+    def persist_docs_to_glue(
+        self,
+        relation: AthenaRelation,
+        model: Dict[str, Any],
+        persist_relation_docs: bool = False,
+        persist_column_docs: bool = False,
+    ):
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.name).get("Table")
+        updated_table = {
+            "Name": table["Name"],
+            "StorageDescriptor": table["StorageDescriptor"],
+            "PartitionKeys": table.get("PartitionKeys", []),
+            "TableType": table["TableType"],
+            "Parameters": table.get("Parameters", {}),
+            "Description": table.get("Description", ""),
+        }
+        if persist_relation_docs:
+            table_comment = clean_sql_comment(model["description"])
+            updated_table["Description"] = table_comment
+            updated_table["Parameters"]["comment"] = table_comment
+
+        if persist_column_docs:
+            for col_obj in updated_table["StorageDescriptor"]["Columns"]:
+                col_name = col_obj["Name"]
+                col_comment = model["columns"].get(col_name, {}).get("description")
+                if col_comment:
+                    col_obj["Comment"] = clean_sql_comment(col_comment)
+
+        glue_client.update_table(DatabaseName=relation.schema, TableInput=updated_table)
