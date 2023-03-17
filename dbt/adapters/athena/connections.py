@@ -47,6 +47,7 @@ class AthenaCredentials(Credentials):
     num_retries: Optional[int] = 5
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
+    spark_work_group: Optional[str] = None
     lf_tags: Optional[Dict[str, str]] = None
 
     @property
@@ -70,7 +71,17 @@ class AthenaCredentials(Credentials):
             "s3_data_dir",
             "s3_data_naming",
             "lf_tags",
+            "spark_work_group",
         )
+
+    def get_region_name(self) -> str:
+        return self.region_name
+
+    def get_profile_name(self) -> str:
+        return self.aws_profile_name
+
+    def get_spark_work_group(self) -> str:
+        return self.spark_work_group
 
 
 class AthenaCursor(Cursor):

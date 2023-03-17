@@ -1,5 +1,6 @@
-{% materialization table, adapter='athena' -%}
+{% materialization table, adapter='athena', supported_languages=['sql', 'python'] -%}
   {%- set identifier = model['alias'] -%}
+  {%- set language = model['language'] -%}
 
   {%- set lf_tags = config.get('lf_tags', default=none) -%}
   {%- set lf_tags_columns = config.get('lf_tags_columns', default=none) -%}
@@ -18,8 +19,8 @@
   {%- endif -%}
 
   -- build model
-  {% call statement('main') -%}
-    {{ create_table_as(False, target_relation, sql) }}
+  {% call statement('main', language=language) -%}
+    {{ create_table_as(False, target_relation, compiled_code, language) }}
   {%- endcall %}
 
   {% if table_type != 'iceberg' %}

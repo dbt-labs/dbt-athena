@@ -1,7 +1,7 @@
 import posixpath as path
 from itertools import chain
 from threading import Lock
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union, Type
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -10,11 +10,13 @@ from botocore.exceptions import ClientError
 
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.config import get_boto3_config
+from dbt.adapters.athena.python_submissions import AthenaPythonJobHelper
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
 from dbt.adapters.athena.utils import clean_sql_comment
-from dbt.adapters.base import Column, available
+from dbt.adapters.base import PythonJobHelper, Column, available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
+from dbt.contracts.connection import AdapterResponse
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import CompiledNode
 from dbt.events import AdapterLogger
@@ -616,6 +618,19 @@ class AthenaAdapter(SQLAdapter):
                     col_obj["Comment"] = clean_sql_comment(col_comment)
 
         glue_client.update_table(DatabaseName=relation.schema, TableInput=updated_table)
+
+    def generate_python_submission_response(self, submission_result: Any) -> AdapterResponse:
+        if submission_result is not None:
+            return AdapterResponse(_message="OK")
+        return AdapterResponse(_message="ERROR")
+
+    @property
+    def default_python_submission_method(self) -> str:
+        return "athena_helper"
+
+    @property
+    def python_submission_helpers(self) -> Dict[str, Type[PythonJobHelper]]:
+        return {"athena_helper": AthenaPythonJobHelper}
 
     @available
     def list_schemas(self, database: str) -> List[str]:

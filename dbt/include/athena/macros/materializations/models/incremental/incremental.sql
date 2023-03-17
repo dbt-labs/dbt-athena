@@ -1,4 +1,5 @@
-{% materialization incremental, adapter='athena' -%}
+{% materialization incremental, adapter='athena', supported_languages=['sql', 'python'] -%}
+  {%- set language = model['language'] -%}
 
   {% set raw_strategy = config.get('incremental_strategy') or 'insert_overwrite' %}
   {% set table_type = config.get('table_type', default='hive') | lower %}
@@ -24,16 +25,16 @@
 
   {% set to_drop = [] %}
   {% if existing_relation is none %}
-    {% set build_sql = create_table_as(False, target_relation, sql) -%}
+    {% set build_sql = create_table_as(False, target_relation, sql, language) -%}
   {% elif existing_relation.is_view or should_full_refresh() %}
     {% do drop_relation(existing_relation) %}
-    {% set build_sql = create_table_as(False, target_relation, sql) -%}
+    {% set build_sql = create_table_as(False, target_relation, sql, language) -%}
   {% elif partitioned_by is not none and strategy == 'insert_overwrite' %}
     {% set tmp_relation = make_temp_relation(target_relation) %}
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% do run_query(create_table_as(True, tmp_relation, sql)) %}
+    {% do run_query(create_table_as(True, tmp_relation, sql, language)) %}
     {% do delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by) %}
     {% set build_sql = incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation) %}
     {% do to_drop.append(tmp_relation) %}
@@ -42,7 +43,7 @@
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% do run_query(create_table_as(True, tmp_relation, sql)) %}
+    {% do run_query(create_table_as(True, tmp_relation, sql, language)) %}
     {% set build_sql = incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation) %}
     {% do to_drop.append(tmp_relation) %}
   {% elif strategy == 'merge' and table_type == 'iceberg' %}
@@ -58,12 +59,12 @@
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% do run_query(create_table_as(True, tmp_relation, sql)) %}
+    {% do run_query(create_table_as(True, tmp_relation, sql, language)) %}
     {% set build_sql = iceberg_merge(on_schema_change, tmp_relation, target_relation, unique_key, existing_relation) %}
     {% do to_drop.append(tmp_relation) %}
   {% endif %}
 
-  {% call statement("main") %}
+  {% call statement("main", language=language) %}
     {{ build_sql }}
   {% endcall %}
 
