@@ -59,6 +59,13 @@
   {%- endif %}
   {%- if bucket_count is not none %}
     bucket_count={{ bucket_count }},
+  {%- endif %}
+  {%- if field_delimiter is not none %}
+    field_delimiter='{{ field_delimiter }}',
+  {%- endif %}
+  {%- if write_compression is not none %}
+    write_compression='{{ write_compression }}',
+  {%- endif %}
     format='{{ format }}'
   {%- if extra_table_properties is not none -%}
     {%- for prop_name, prop_value in extra_table_properties.items() -%}
