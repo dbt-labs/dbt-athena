@@ -52,24 +52,19 @@
     {{ location_property }}='{{ location }}',
   {%- endif %}
   {%- if partitioned_by is not none %}
-    {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', "'") }},
+    {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', '\'') }},
   {%- endif %}
   {%- if bucketed_by is not none %}
-    bucketed_by=ARRAY{{ bucketed_by | tojson | replace('\"', "'") }},
+    bucketed_by=ARRAY{{ bucketed_by | tojson | replace('\"', '\'') }},
   {%- endif %}
   {%- if bucket_count is not none %}
     bucket_count={{ bucket_count }},
-  {%- endif %}
-  {%- if field_delimiter is not none %}
-    field_delimiter='{{ field_delimiter }}',
-  {%- endif %}
-  {%- if write_compression is not none %}
-    write_compression='{{ write_compression }}',
-  {%- endif %}
+	@@ -69,8 +69,7 @@
     format='{{ format }}'
   {%- if extra_table_properties is not none -%}
     {%- for prop_name, prop_value in extra_table_properties.items() -%}
-    , {{ prop_name }}={{ prop_value }}
+    ,
+    {{ prop_name }}={{ prop_value }}
     {%- endfor -%}
   {% endif %}
   )
