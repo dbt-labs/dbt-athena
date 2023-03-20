@@ -59,7 +59,6 @@
   {%- endif %}
   {%- if bucket_count is not none %}
     bucket_count={{ bucket_count }},
-	@@ -69,8 +69,7 @@
     format='{{ format }}'
   {%- if extra_table_properties is not none -%}
     {%- for prop_name, prop_value in extra_table_properties.items() -%}
