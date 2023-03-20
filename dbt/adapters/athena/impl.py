@@ -85,7 +85,7 @@ class AthenaAdapter(SQLAdapter):
                 "lakeformation", region_name=client.region_name, config=get_boto3_config()
             )
 
-        lf_client.add_lf_tags_to_resource(
+        response = lf_client.add_lf_tags_to_resource(
             Resource=resource,
             LFTags=[
                 {
@@ -97,6 +97,18 @@ class AthenaAdapter(SQLAdapter):
                 for key, value in lf_tags.items()
             ],
         )
+
+        failures = response.get("Failures", [])
+        tbl_appendix = f".{table}" if table else ""
+        if failures:
+            base_msg = f"Failed to add LF tags: {lf_tags} to {database}" + tbl_appendix
+            for failure in failures:
+                tag = failure.get("LFTag", {}).get("TagKey")
+                error = failure.get("Error", {}).get("ErrorMessage")
+                logger.error(f"Failed to set {tag} for {database}" + tbl_appendix + f" - {error}")
+            raise DbtRuntimeError(base_msg)
+        else:
+            logger.debug(f"Added LF tags: {lf_tags} to {database}" + tbl_appendix)
 
     @available
     def get_work_group_output_location(self) -> Optional[str]:

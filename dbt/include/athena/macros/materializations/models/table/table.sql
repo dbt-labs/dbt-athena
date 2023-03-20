@@ -25,11 +25,11 @@
     {{ set_table_classification(target_relation) }}
   {% endif %}
 
+  {{ run_hooks(post_hooks) }}
+
   {% if lf_tags is not none %}
     {{ adapter.add_lf_tags(target_relation.schema, identifier, lf_tags) }}
   {% endif %}
-
-  {{ run_hooks(post_hooks) }}
 
   {% do persist_docs(target_relation, model) %}
 

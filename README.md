@@ -124,7 +124,7 @@ _Additional information_
 * `table_properties`: table properties to add to the table, valid for Iceberg only
 * `lf_tags` (`default=none`)
   * lf tags to associate with the table
-  * format: `tag1=value1,tag2=value2`
+  * format: `[tag1: value1, tag2: value2]`
 
 #### Table location
 
