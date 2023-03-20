@@ -136,9 +136,9 @@ class MockAWSService:
         athena = boto3.client("athena", region_name=AWS_REGION)
         athena.create_data_catalog(Name=catalog_name, Type=catalog_type, Parameters={"catalog-id": CATALOG_ID})
 
-    def create_database(self):
+    def create_database(self, name: str = DATABASE_NAME):
         glue = boto3.client("glue", region_name=AWS_REGION)
-        glue.create_database(DatabaseInput={"Name": DATABASE_NAME}, CatalogId=CATALOG_ID)
+        glue.create_database(DatabaseInput={"Name": name}, CatalogId=CATALOG_ID)
 
     def create_view(self, view_name: str):
         glue = boto3.client("glue", region_name=AWS_REGION)
@@ -167,10 +167,10 @@ class MockAWSService:
             },
         )
 
-    def create_table(self, table_name: str):
+    def create_table(self, table_name: str, database_name: str = DATABASE_NAME):
         glue = boto3.client("glue", region_name=AWS_REGION)
         glue.create_table(
-            DatabaseName=DATABASE_NAME,
+            DatabaseName=database_name,
             TableInput={
                 "Name": table_name,
                 "StorageDescriptor": {
@@ -182,10 +182,6 @@ class MockAWSService:
                         {
                             "Name": "country",
                             "Type": "string",
-                        },
-                        {
-                            "Name": "dt",
-                            "Type": "date",
                         },
                     ],
                     "Location": f"s3://{BUCKET}/tables/{table_name}",

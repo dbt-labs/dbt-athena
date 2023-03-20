@@ -15,8 +15,7 @@ from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
 from dbt.adapters.athena.utils import clean_sql_comment
-from dbt.adapters.base import available
-from dbt.adapters.base.impl import GET_CATALOG_MACRO_NAME
+from dbt.adapters.base import Column, available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
@@ -280,21 +279,48 @@ class AthenaAdapter(SQLAdapter):
             right_key=join_keys,
         )
 
+    def _get_one_table_for_catalog(self, table: dict, database: str) -> list:
+        table_catalog = {
+            "table_database": database,
+            "table_schema": table["DatabaseName"],
+            "table_name": table["Name"],
+            "table_type": self.relation_type_map[table["TableType"]],
+            "table_comment": table.get("Parameters", {}).get("comment", table.get("Description", "")),
+        }
+        return [
+            {
+                **table_catalog,
+                **{
+                    "column_name": col["Name"],
+                    "column_index": idx,
+                    "column_type": col["Type"],
+                    "column_comment": col.get("Comment", ""),
+                },
+            }
+            for idx, col in enumerate(table["StorageDescriptor"]["Columns"] + table.get("PartitionKeys", []))
+        ]
+
     def _get_one_catalog(
         self,
         information_schema: InformationSchema,
         schemas: Dict[str, Optional[Set[str]]],
         manifest: Manifest,
     ) -> agate.Table:
-        kwargs = {"information_schema": information_schema, "schemas": schemas}
-        table = self.execute_macro(
-            GET_CATALOG_MACRO_NAME,
-            kwargs=kwargs,
-            # pass in the full manifest so we get any local project
-            # overrides
-            manifest=manifest,
-        )
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
 
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        catalog = []
+        paginator = glue_client.get_paginator("get_tables")
+        for schema, relations in schemas.items():
+            for page in paginator.paginate(DatabaseName=schema, MaxResults=100):
+                for table in page["TableList"]:
+                    if table["Name"] in relations:
+                        catalog.extend(self._get_one_table_for_catalog(table, conn.credentials.database))
+
+        table = agate.Table.from_object(catalog)
         filtered_table = self._catalog_filter_table(table, manifest)
         return self._join_catalog_table_owners(filtered_table, manifest)
 
@@ -544,3 +570,30 @@ class AthenaAdapter(SQLAdapter):
                     col_obj["Comment"] = clean_sql_comment(col_comment)
 
         glue_client.update_table(DatabaseName=relation.schema, TableInput=updated_table)
+
+    @available
+    def list_schemas(self, database: str) -> List[str]:
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        paginator = glue_client.get_paginator("get_databases")
+        result = []
+        for page in paginator.paginate():
+            result.extend([schema["Name"] for schema in page["DatabaseList"]])
+        return result
+
+    @available
+    def get_columns_in_relation(self, relation: AthenaRelation) -> List[Column]:
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)["Table"]
+        return [
+            Column(c["Name"], c["Type"]) for c in table["StorageDescriptor"]["Columns"] + table.get("PartitionKeys", [])
+        ]
