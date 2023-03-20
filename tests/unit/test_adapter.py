@@ -699,7 +699,7 @@ class TestAthenaAdapter:
 
         assert location == f"s3://{BUCKET}/{prefix}"
         assert len(objects) == 1
-        assert objects[0].get("Key").endswith(".json")
+        assert objects[0].get("Key").endswith(".csv")
 
     @mock_s3
     def test_upload_seed_to_s3_external_location(self, aws_credentials):
@@ -726,7 +726,7 @@ class TestAthenaAdapter:
 
         assert location == f"s3://{bucket}/{prefix}"
         assert len(objects) == 1
-        assert objects[0].get("Key").endswith(".json")
+        assert objects[0].get("Key").endswith(".csv")
 
     @mock_athena
     def test_get_work_group_output_location(self, aws_credentials):

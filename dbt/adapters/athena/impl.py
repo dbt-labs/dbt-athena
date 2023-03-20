@@ -1,3 +1,4 @@
+import csv
 import os
 import posixpath as path
 import tempfile
@@ -190,16 +191,14 @@ class AthenaAdapter(SQLAdapter):
         s3_location = self.s3_table_location(s3_data_dir, s3_data_naming, database_name, table_name, external_location)
         bucket, prefix = self._parse_s3_path(s3_location)
 
-        # Upload as json to support datetime parsing and better type inference
-        # OpenCSVSerde only supports UNIX timestamps
-        file_name = f"{table_name}.json"
+        file_name = f"{table_name}.csv"
         object_name = path.join(prefix, file_name)
 
         with boto3_client_lock:
             s3_client = client.session.client("s3", region_name=client.region_name, config=get_boto3_config())
             # This ensures cross-platform support, tempfile.NamedTemporaryFile does not
             tmpfile = os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
-            table.to_json(tmpfile, newline=True)
+            table.to_csv(tmpfile, quoting=csv.QUOTE_NONNUMERIC)
             s3_client.upload_file(tmpfile, bucket, object_name)
             os.remove(tmpfile)
 
