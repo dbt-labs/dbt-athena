@@ -1,7 +1,7 @@
 import posixpath as path
 from itertools import chain
 from threading import Lock
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -12,8 +12,7 @@ from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
 from dbt.adapters.athena.utils import clean_sql_comment
-from dbt.adapters.base import available
-from dbt.adapters.base.impl import GET_CATALOG_MACRO_NAME
+from dbt.adapters.base import Column, available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
@@ -56,6 +55,77 @@ class AthenaAdapter(SQLAdapter):
     @classmethod
     def convert_datetime_type(cls, agate_table: agate.Table, col_idx: int) -> str:
         return "timestamp"
+
+    # TODO: Add more lf-tag unit tests when moto supports lakeformation
+    # moto issue: https://github.com/getmoto/moto/issues/5964
+    @available
+    def add_lf_tags(self, database: str, table: str = None, lf_tags: Dict[str, str] = None):
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        lf_tags = lf_tags or conn.credentials.lf_tags
+        if not lf_tags:
+            logger.debug("No LF tags configured")
+            return
+
+        resource = {
+            "Database": {"Name": database},
+        }
+
+        if table:
+            resource = {
+                "Table": {
+                    "DatabaseName": database,
+                    "Name": table,
+                }
+            }
+
+        with boto3_client_lock:
+            lf_client = client.session.client(
+                "lakeformation", region_name=client.region_name, config=get_boto3_config()
+            )
+
+        response = lf_client.add_lf_tags_to_resource(
+            Resource=resource,
+            LFTags=[
+                {
+                    "TagKey": key,
+                    "TagValues": [
+                        value,
+                    ],
+                }
+                for key, value in lf_tags.items()
+            ],
+        )
+
+        failures = response.get("Failures", [])
+        tbl_appendix = f".{table}" if table else ""
+        if failures:
+            base_msg = f"Failed to add LF tags: {lf_tags} to {database}" + tbl_appendix
+            for failure in failures:
+                tag = failure.get("LFTag", {}).get("TagKey")
+                error = failure.get("Error", {}).get("ErrorMessage")
+                logger.error(f"Failed to set {tag} for {database}" + tbl_appendix + f" - {error}")
+            raise DbtRuntimeError(base_msg)
+        else:
+            logger.debug(f"Added LF tags: {lf_tags} to {database}" + tbl_appendix)
+
+    @available
+    def get_work_group_output_location(self) -> Optional[str]:
+        conn = self.connections.get_thread_connection()
+        creds = conn.credentials
+        client = conn.handle
+
+        with boto3_client_lock:
+            athena_client = client.session.client("athena", region_name=client.region_name, config=get_boto3_config())
+
+        work_group = athena_client.get_work_group(WorkGroup=creds.work_group)
+        return (
+            work_group.get("WorkGroup", {})
+            .get("Configuration", {})
+            .get("ResultConfiguration", {})
+            .get("OutputLocation")
+        )
 
     @available
     def s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
@@ -104,7 +174,7 @@ class AthenaAdapter(SQLAdapter):
         return table_location
 
     @available
-    def get_table_location(self, database_name: str, table_name: str) -> [str, None]:
+    def get_table_location(self, database_name: str, table_name: str) -> Union[str, None]:
         """
         Helper function to S3 get table location
         """
@@ -230,21 +300,48 @@ class AthenaAdapter(SQLAdapter):
             right_key=join_keys,
         )
 
+    def _get_one_table_for_catalog(self, table: dict, database: str) -> list:
+        table_catalog = {
+            "table_database": database,
+            "table_schema": table["DatabaseName"],
+            "table_name": table["Name"],
+            "table_type": self.relation_type_map[table["TableType"]],
+            "table_comment": table.get("Parameters", {}).get("comment", table.get("Description", "")),
+        }
+        return [
+            {
+                **table_catalog,
+                **{
+                    "column_name": col["Name"],
+                    "column_index": idx,
+                    "column_type": col["Type"],
+                    "column_comment": col.get("Comment", ""),
+                },
+            }
+            for idx, col in enumerate(table["StorageDescriptor"]["Columns"] + table.get("PartitionKeys", []))
+        ]
+
     def _get_one_catalog(
         self,
         information_schema: InformationSchema,
         schemas: Dict[str, Optional[Set[str]]],
         manifest: Manifest,
     ) -> agate.Table:
-        kwargs = {"information_schema": information_schema, "schemas": schemas}
-        table = self.execute_macro(
-            GET_CATALOG_MACRO_NAME,
-            kwargs=kwargs,
-            # pass in the full manifest so we get any local project
-            # overrides
-            manifest=manifest,
-        )
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
 
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        catalog = []
+        paginator = glue_client.get_paginator("get_tables")
+        for schema, relations in schemas.items():
+            for page in paginator.paginate(DatabaseName=schema, MaxResults=100):
+                for table in page["TableList"]:
+                    if table["Name"] in relations:
+                        catalog.extend(self._get_one_table_for_catalog(table, conn.credentials.database))
+
+        table = agate.Table.from_object(catalog)
         filtered_table = self._catalog_filter_table(table, manifest)
         return self._join_catalog_table_owners(filtered_table, manifest)
 
@@ -494,3 +591,30 @@ class AthenaAdapter(SQLAdapter):
                     col_obj["Comment"] = clean_sql_comment(col_comment)
 
         glue_client.update_table(DatabaseName=relation.schema, TableInput=updated_table)
+
+    @available
+    def list_schemas(self, database: str) -> List[str]:
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        paginator = glue_client.get_paginator("get_databases")
+        result = []
+        for page in paginator.paginate():
+            result.extend([schema["Name"] for schema in page["DatabaseList"]])
+        return result
+
+    @available
+    def get_columns_in_relation(self, relation: AthenaRelation) -> List[Column]:
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)["Table"]
+        return [
+            Column(c["Name"], c["Type"]) for c in table["StorageDescriptor"]["Columns"] + table.get("PartitionKeys", [])
+        ]
