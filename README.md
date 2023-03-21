@@ -72,7 +72,7 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | aws_profile_name | Profile to use from your AWS shared credentials file.                          | Optional    | `my-profile`          |
 | work_group       | Identifier of Athena workgroup                                                 | Optional    | `my-custom-workgroup` |
 | num_retries      | Number of times to retry a failing query                                       | Optional    | `3`                   |
-
+| lf_tags          | Default lf tags to apply to any database created by dbt                        | Optional    | `{"origin": "dbt", "team": "analytics"}`|
 
 **Example profiles.yml entry:**
 ```yaml
@@ -89,6 +89,9 @@ athena:
       database: awsdatacatalog
       aws_profile_name: my-profile
       work_group: my-workgroup
+      lf_tags:
+        origin: dbt
+        team: analytics
 ```
 
 _Additional information_
@@ -119,6 +122,9 @@ _Additional information_
 * `field_delimiter` (`default=none`)
   * Custom field delimiter, for when format is set to `TEXTFILE`
 * `table_properties`: table properties to add to the table, valid for Iceberg only
+* `lf_tags` (`default=none`)
+  * lf tags to associate with the table
+  * format: `{"tag1": "value1", "tag2": "value2"}`
 
 #### Table location
 

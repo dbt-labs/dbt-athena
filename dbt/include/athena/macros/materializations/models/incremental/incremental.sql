@@ -5,6 +5,7 @@
   {% set strategy = validate_get_incremental_strategy(raw_strategy, table_type) %}
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
 
+  {% set lf_tags = config.get('lf_tags', default=none) %}
   {% set partitioned_by = config.get('partitioned_by', default=none) %}
   {% set target_relation = this.incorporate(type='table') %}
   {% set existing_relation = load_relation(this) %}
@@ -82,6 +83,10 @@
   {% endfor %}
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
+
+  {% if lf_tags is not none %}
+    {{ adapter.add_lf_tags(target_relation.schema, target_relation.identifier, lf_tags) }}
+  {% endif %}
 
   {{ return({'relations': [target_relation]}) }}
 

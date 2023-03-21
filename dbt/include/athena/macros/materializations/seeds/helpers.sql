@@ -8,6 +8,9 @@
 {% endmacro %}
 
 {% macro athena__create_csv_table(model, agate_table) %}
+  {%- set identifier = model['alias'] -%}
+
+  {%- set lf_tags = config.get('lf_tags', default=none) -%}
   {%- set column_override = config.get('column_types', {}) -%}
   {%- set quote_seed_column = config.get('quote_columns', None) -%}
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
@@ -102,7 +105,7 @@
   {%- endcall -%}
 
   -- create target table from tmp table
-  {% set sql_table =create_table_as(false, relation, sql)  %}
+  {% set sql_table = create_table_as(false, relation, sql)  %}
   {% call statement('_') -%}
     {{ sql_table }}
   {%- endcall %}
@@ -112,6 +115,10 @@
 
   -- delete csv file from s3
   {% do adapter.delete_from_s3(s3_location) %}
+
+  {% if lf_tags is not none %}
+    {{ adapter.add_lf_tags(model.schema, identifier, lf_tags) }}
+  {% endif %}
 
   {{ return(sql_table) }}
 {% endmacro %}
