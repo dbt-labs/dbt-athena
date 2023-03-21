@@ -1,10 +1,9 @@
 {%
     pyathena converts time zoned timestamps to strings so lets avoid them now()
-    Iceberg tables and Athena V3 will require a local overwrite of the athena__current_timestamp macro to timestamp(6))
 %}
 
 {% macro athena__current_timestamp() -%}
-    cast(now() as timestamp)
+    cast(now() as timestamp(6))
 {%- endmacro %}
 
 {%
