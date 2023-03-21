@@ -26,6 +26,7 @@ from .constants import (
     BUCKET,
     DATA_CATALOG_NAME,
     DATABASE_NAME,
+    S3_STAGING_DIR,
 )
 from .utils import (
     MockAWSService,
@@ -50,7 +51,7 @@ class TestAthenaAdapter:
             "outputs": {
                 "test": {
                     "type": "athena",
-                    "s3_staging_dir": "s3://my-bucket/test-dbt/",
+                    "s3_staging_dir": S3_STAGING_DIR,
                     "region_name": AWS_REGION,
                     "database": DATA_CATALOG_NAME,
                     "work_group": ATHENA_WORKGROUP,

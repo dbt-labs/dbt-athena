@@ -1,7 +1,7 @@
 import posixpath as path
 from itertools import chain
 from threading import Lock
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -55,6 +55,60 @@ class AthenaAdapter(SQLAdapter):
     @classmethod
     def convert_datetime_type(cls, agate_table: agate.Table, col_idx: int) -> str:
         return "timestamp"
+
+    # TODO: Add more lf-tag unit tests when moto supports lakeformation
+    # moto issue: https://github.com/getmoto/moto/issues/5964
+    @available
+    def add_lf_tags(self, database: str, table: str = None, lf_tags: Dict[str, str] = None):
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        lf_tags = lf_tags or conn.credentials.lf_tags
+        if not lf_tags:
+            logger.debug("No LF tags configured")
+            return
+
+        resource = {
+            "Database": {"Name": database},
+        }
+
+        if table:
+            resource = {
+                "Table": {
+                    "DatabaseName": database,
+                    "Name": table,
+                }
+            }
+
+        with boto3_client_lock:
+            lf_client = client.session.client(
+                "lakeformation", region_name=client.region_name, config=get_boto3_config()
+            )
+
+        response = lf_client.add_lf_tags_to_resource(
+            Resource=resource,
+            LFTags=[
+                {
+                    "TagKey": key,
+                    "TagValues": [
+                        value,
+                    ],
+                }
+                for key, value in lf_tags.items()
+            ],
+        )
+
+        failures = response.get("Failures", [])
+        tbl_appendix = f".{table}" if table else ""
+        if failures:
+            base_msg = f"Failed to add LF tags: {lf_tags} to {database}" + tbl_appendix
+            for failure in failures:
+                tag = failure.get("LFTag", {}).get("TagKey")
+                error = failure.get("Error", {}).get("ErrorMessage")
+                logger.error(f"Failed to set {tag} for {database}" + tbl_appendix + f" - {error}")
+            raise DbtRuntimeError(base_msg)
+        else:
+            logger.debug(f"Added LF tags: {lf_tags} to {database}" + tbl_appendix)
 
     @available
     def get_work_group_output_location(self) -> Optional[str]:
@@ -120,7 +174,7 @@ class AthenaAdapter(SQLAdapter):
         return table_location
 
     @available
-    def get_table_location(self, database_name: str, table_name: str) -> [str, None]:
+    def get_table_location(self, database_name: str, table_name: str) -> Union[str, None]:
         """
         Helper function to S3 get table location
         """
