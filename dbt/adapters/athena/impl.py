@@ -112,27 +112,24 @@ class AthenaAdapter(SQLAdapter):
                 logger.debug(self.parse_lf_response(response, database, table, None, lf_tags))
 
             if lf_tags_columns:
+                # Validate lf_tags_columns before start to interact with AWS API to apply tags
                 for tag_key, tag_config in lf_tags_columns.items():
                     if isinstance(tag_config, Dict):
                         for tag_value, columns in tag_config.items():
-                            if isinstance(columns, List):
-                                response = lf_client.add_lf_tags_to_resource(
-                                    Resource={
-                                        "TableWithColumns": {
-                                            "DatabaseName": database,
-                                            "Name": table,
-                                            "ColumnNames": columns,
-                                        }
-                                    },
-                                    LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}],
-                                )
-                                logger.debug(
-                                    self.parse_lf_response(response, database, table, columns, {tag_key: tag_value})
-                                )
-                            else:
+                            if not isinstance(columns, List):
                                 raise DbtRuntimeError(f"Not a list: {columns}." + "Expected: ['c1', 'c2']")
                     else:
                         raise DbtRuntimeError(f"Not a dict: {tag_config}." + "Expected: {'tag_value': ['c1', 'c2']}")
+
+                for tag_key, tag_config in lf_tags_columns.items():
+                    for tag_value, columns in tag_config.items():
+                        response = lf_client.add_lf_tags_to_resource(
+                            Resource={
+                                "TableWithColumns": {"DatabaseName": database, "Name": table, "ColumnNames": columns}
+                            },
+                            LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}],
+                        )
+                        logger.debug(self.parse_lf_response(response, database, table, columns, {tag_key: tag_value}))
 
     @available
     def get_work_group_output_location(self) -> Optional[str]:
