@@ -130,9 +130,9 @@ class AthenaAdapter(SQLAdapter):
                                     self.parse_lf_response(response, database, table, columns, {tag_key: tag_value})
                                 )
                             else:
-                                raise DbtRuntimeError(f"Not a list: {columns}." + "Expected: ['c1', c2]")
+                                raise DbtRuntimeError(f"Not a list: {columns}." + "Expected: ['c1', 'c2']")
                     else:
-                        raise DbtRuntimeError(f"Not a dict: {tag_config}." + "Expected: {'tag_value': ['c1', c2]}")
+                        raise DbtRuntimeError(f"Not a dict: {tag_config}." + "Expected: {'tag_value': ['c1', 'c2']}")
 
     @available
     def get_work_group_output_location(self) -> Optional[str]:
