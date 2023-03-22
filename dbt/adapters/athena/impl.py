@@ -57,14 +57,14 @@ class AthenaAdapter(SQLAdapter):
         return "timestamp"
 
     @classmethod
-    def parse_lf_client_response(
+    def parse_lf_response(
         cls,
         response: Dict[str, Any],
         database: str,
         table: Optional[str],
         columns: Optional[List[str]],
-        lf_tags: Union[Dict[str, str], Dict[str, Dict[str, List[str]]]],
-    ) -> None:
+        lf_tags: Dict[str, str],
+    ) -> str:
         failures = response.get("Failures", [])
         tbl_appendix = f".{table}" if table else ""
         columns_appendix = f" for columns {columns}" if columns else ""
@@ -76,8 +76,7 @@ class AthenaAdapter(SQLAdapter):
                 error = failure.get("Error", {}).get("ErrorMessage")
                 logger.error(f"Failed to set {tag} for {database}" + msg_appendix + f" - {error}")
             raise DbtRuntimeError(base_msg)
-        else:
-            logger.debug(f"Added LF tags: {lf_tags} to {database}" + msg_appendix)
+        return f"Added LF tags: {lf_tags} to {database}" + msg_appendix
 
     # TODO: Add more lf-tag unit tests when moto supports lakeformation
     # moto issue: https://github.com/getmoto/moto/issues/5964
@@ -110,18 +109,30 @@ class AthenaAdapter(SQLAdapter):
                 response = lf_client.add_lf_tags_to_resource(
                     Resource=resource, LFTags=[{"TagKey": key, "TagValues": [value]} for key, value in lf_tags.items()]
                 )
-                self.parse_lf_client_response(response, database, table, None, lf_tags)
+                logger.debug(self.parse_lf_response(response, database, table, None, lf_tags))
 
             if lf_tags_columns:
                 for tag_key, tag_config in lf_tags_columns.items():
-                    for tag_value, columns in tag_config.items():
-                        response = lf_client.add_lf_tags_to_resource(
-                            Resource={
-                                "TableWithColumns": {"DatabaseName": database, "Name": table, "ColumnNames": columns}
-                            },
-                            LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}],
-                        )
-                        self.parse_lf_client_response(response, database, table, columns, lf_tags_columns)
+                    if isinstance(tag_config, Dict):
+                        for tag_value, columns in tag_config.items():
+                            if isinstance(columns, List):
+                                response = lf_client.add_lf_tags_to_resource(
+                                    Resource={
+                                        "TableWithColumns": {
+                                            "DatabaseName": database,
+                                            "Name": table,
+                                            "ColumnNames": columns,
+                                        }
+                                    },
+                                    LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}],
+                                )
+                                logger.debug(
+                                    self.parse_lf_response(response, database, table, columns, {tag_key: tag_value})
+                                )
+                            else:
+                                raise DbtRuntimeError(f"Not a list: {columns}." + "Expected: ['c1', c2]")
+                    else:
+                        raise DbtRuntimeError(f"Not a dict: {tag_config}." + "Expected: {'tag_value': ['c1', c2]}")
 
     @available
     def get_work_group_output_location(self) -> Optional[str]:

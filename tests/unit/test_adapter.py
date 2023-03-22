@@ -793,6 +793,58 @@ class TestAthenaAdapter:
             Column("dt", "date"),
         ]
 
+    @pytest.mark.parametrize(
+        "response,database,table,columns,lf_tags,expected",
+        [
+            pytest.param(
+                {
+                    "Failures": [
+                        {
+                            "LFTag": {"CatalogId": "test_catalog", "TagKey": "test_key", "TagValues": ["test_values"]},
+                            "Error": {"ErrorCode": "test_code", "ErrorMessage": "test_err_msg"},
+                        }
+                    ]
+                },
+                "test_database",
+                "test_table",
+                ["column1", "column2"],
+                {"tag_key": "tag_value"},
+                None,
+                id="lf_tag error",
+                marks=pytest.mark.xfail,
+            ),
+            pytest.param(
+                {"Failures": []},
+                "test_database",
+                None,
+                None,
+                {"tag_key": "tag_value"},
+                "Added LF tags: {'tag_key': 'tag_value'} to test_database",
+                id="lf_tag database",
+            ),
+            pytest.param(
+                {"Failures": []},
+                "test_db",
+                "test_table",
+                None,
+                {"tag_key": "tag_value"},
+                "Added LF tags: {'tag_key': 'tag_value'} to test_db.test_table",
+                id="lf_tag database and table",
+            ),
+            pytest.param(
+                {"Failures": []},
+                "test_db",
+                "test_table",
+                ["column1", "column2"],
+                {"tag_key": "tag_value"},
+                "Added LF tags: {'tag_key': 'tag_value'} to test_db.test_table for columns ['column1', 'column2']",
+                id="lf_tag database table and columns",
+            ),
+        ],
+    )
+    def test_parse_lf_response(self, response, database, table, columns, lf_tags, expected):
+        assert self.adapter.parse_lf_response(response, database, table, columns, lf_tags) == expected
+
 
 class TestAthenaFilterCatalog:
     def test__catalog_filter_table(self):
