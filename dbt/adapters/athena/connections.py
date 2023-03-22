@@ -97,6 +97,8 @@ class AthenaCursor(Cursor):
         endpoint_url: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
+        result_reuse_enable: Optional[bool] = None,
+        result_reuse_minutes: Optional[int] = None,
     ):
         def inner():
             query_id = self._execute(
@@ -106,6 +108,8 @@ class AthenaCursor(Cursor):
                 s3_staging_dir=s3_staging_dir,
                 cache_size=cache_size,
                 cache_expiration_time=cache_expiration_time,
+                result_reuse_enable=result_reuse_enable,
+                result_reuse_minutes=result_reuse_minutes,
             )
             query_execution = self._executor.submit(self._collect_result_set, query_id).result()
             if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:

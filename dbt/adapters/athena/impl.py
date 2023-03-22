@@ -56,59 +56,72 @@ class AthenaAdapter(SQLAdapter):
     def convert_datetime_type(cls, agate_table: agate.Table, col_idx: int) -> str:
         return "timestamp"
 
+    @classmethod
+    def parse_lf_client_response(
+        cls,
+        response: Dict[str, Any],
+        database: str,
+        table: Optional[str],
+        columns: Optional[List[str]],
+        lf_tags: Union[Dict[str, str], Dict[str, Dict[str, List[str]]]],
+    ) -> None:
+        failures = response.get("Failures", [])
+        tbl_appendix = f".{table}" if table else ""
+        columns_appendix = f" for columns {columns}" if columns else ""
+        msg_appendix = tbl_appendix + columns_appendix
+        if failures:
+            base_msg = f"Failed to add LF tags: {lf_tags} to {database}" + msg_appendix
+            for failure in failures:
+                tag = failure.get("LFTag", {}).get("TagKey")
+                error = failure.get("Error", {}).get("ErrorMessage")
+                logger.error(f"Failed to set {tag} for {database}" + msg_appendix + f" - {error}")
+            raise DbtRuntimeError(base_msg)
+        else:
+            logger.debug(f"Added LF tags: {lf_tags} to {database}" + msg_appendix)
+
     # TODO: Add more lf-tag unit tests when moto supports lakeformation
     # moto issue: https://github.com/getmoto/moto/issues/5964
     @available
-    def add_lf_tags(self, database: str, table: str = None, lf_tags: Dict[str, str] = None):
+    def add_lf_tags(
+        self,
+        database: str,
+        table: str = None,
+        lf_tags: Optional[Dict[str, str]] = None,
+        lf_tags_columns: Optional[Dict[str, Dict[str, List[str]]]] = None,
+    ):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
         lf_tags = lf_tags or conn.credentials.lf_tags
-        if not lf_tags:
+
+        if not lf_tags and not lf_tags_columns:
             logger.debug("No LF tags configured")
-            return
-
-        resource = {
-            "Database": {"Name": database},
-        }
-
-        if table:
-            resource = {
-                "Table": {
-                    "DatabaseName": database,
-                    "Name": table,
-                }
-            }
-
-        with boto3_client_lock:
-            lf_client = client.session.client(
-                "lakeformation", region_name=client.region_name, config=get_boto3_config()
-            )
-
-        response = lf_client.add_lf_tags_to_resource(
-            Resource=resource,
-            LFTags=[
-                {
-                    "TagKey": key,
-                    "TagValues": [
-                        value,
-                    ],
-                }
-                for key, value in lf_tags.items()
-            ],
-        )
-
-        failures = response.get("Failures", [])
-        tbl_appendix = f".{table}" if table else ""
-        if failures:
-            base_msg = f"Failed to add LF tags: {lf_tags} to {database}" + tbl_appendix
-            for failure in failures:
-                tag = failure.get("LFTag", {}).get("TagKey")
-                error = failure.get("Error", {}).get("ErrorMessage")
-                logger.error(f"Failed to set {tag} for {database}" + tbl_appendix + f" - {error}")
-            raise DbtRuntimeError(base_msg)
         else:
-            logger.debug(f"Added LF tags: {lf_tags} to {database}" + tbl_appendix)
+            with boto3_client_lock:
+                lf_client = client.session.client(
+                    "lakeformation", region_name=client.region_name, config=get_boto3_config()
+                )
+
+            if lf_tags:
+                resource = {"Database": {"Name": database}}
+                if table:
+                    resource = {"Table": {"DatabaseName": database, "Name": table}}
+
+                response = lf_client.add_lf_tags_to_resource(
+                    Resource=resource, LFTags=[{"TagKey": key, "TagValues": [value]} for key, value in lf_tags.items()]
+                )
+                self.parse_lf_client_response(response, database, table, None, lf_tags)
+
+            if lf_tags_columns:
+                for tag_key, tag_config in lf_tags_columns.items():
+                    for tag_value, columns in tag_config.items():
+                        response = lf_client.add_lf_tags_to_resource(
+                            Resource={
+                                "TableWithColumns": {"DatabaseName": database, "Name": table, "ColumnNames": columns}
+                            },
+                            LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}],
+                        )
+                        self.parse_lf_client_response(response, database, table, columns, lf_tags_columns)
 
     @available
     def get_work_group_output_location(self) -> Optional[str]:
