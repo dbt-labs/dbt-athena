@@ -78,6 +78,19 @@ class AthenaAdapter(SQLAdapter):
             raise DbtRuntimeError(base_msg)
         return f"Added LF tags: {lf_tags} to {database}" + msg_appendix
 
+    @classmethod
+    def lf_tags_columns_is_valid(cls, lf_tags_columns: Dict[str, Dict[str, List[str]]]) -> Optional[bool]:
+        if not lf_tags_columns:
+            return False
+        for tag_key, tag_config in lf_tags_columns.items():
+            if isinstance(tag_config, Dict):
+                for tag_value, columns in tag_config.items():
+                    if not isinstance(columns, List):
+                        raise DbtRuntimeError(f"Not a list: {columns}. " + "Expected format: ['c1', 'c2']")
+            else:
+                raise DbtRuntimeError(f"Not a dict: {tag_config}. " + "Expected format: {'tag_value': ['c1', 'c2']}")
+        return True
+
     # TODO: Add more lf-tag unit tests when moto supports lakeformation
     # moto issue: https://github.com/getmoto/moto/issues/5964
     @available
@@ -111,16 +124,7 @@ class AthenaAdapter(SQLAdapter):
                 )
                 logger.debug(self.parse_lf_response(response, database, table, None, lf_tags))
 
-            if lf_tags_columns:
-                # Validate lf_tags_columns before start to interact with AWS API to apply tags
-                for tag_key, tag_config in lf_tags_columns.items():
-                    if isinstance(tag_config, Dict):
-                        for tag_value, columns in tag_config.items():
-                            if not isinstance(columns, List):
-                                raise DbtRuntimeError(f"Not a list: {columns}." + "Expected: ['c1', 'c2']")
-                    else:
-                        raise DbtRuntimeError(f"Not a dict: {tag_config}." + "Expected: {'tag_value': ['c1', 'c2']}")
-
+            if self.lf_tags_columns_is_valid(lf_tags_columns):
                 for tag_key, tag_config in lf_tags_columns.items():
                     for tag_value, columns in tag_config.items():
                         response = lf_client.add_lf_tags_to_resource(

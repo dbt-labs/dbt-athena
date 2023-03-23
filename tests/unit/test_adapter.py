@@ -845,6 +845,28 @@ class TestAthenaAdapter:
     def test_parse_lf_response(self, response, database, table, columns, lf_tags, expected):
         assert self.adapter.parse_lf_response(response, database, table, columns, lf_tags) == expected
 
+    @pytest.mark.parametrize(
+        "lf_tags_columns,expected",
+        [
+            pytest.param({"tag_key": {"tag_value": ["col1, col2"]}}, True, id="valid lf_tags_columns"),
+            pytest.param(None, False, id="empty lf_tags_columns"),
+            pytest.param(
+                {"tag_key": "tag_value"},
+                None,
+                id="lf_tags_columns tag config is not a dict",
+                marks=pytest.mark.xfail(raises=DbtRuntimeError),
+            ),
+            pytest.param(
+                {"tag_key": {"tag_value": "col1"}},
+                None,
+                id="lf_tags_columns columns config is not a list",
+                marks=pytest.mark.xfail(raises=DbtRuntimeError),
+            ),
+        ],
+    )
+    def test_lf_tags_columns_is_valid(self, lf_tags_columns, expected):
+        assert self.adapter.lf_tags_columns_is_valid(lf_tags_columns) == expected
+
 
 class TestAthenaFilterCatalog:
     def test__catalog_filter_table(self):
