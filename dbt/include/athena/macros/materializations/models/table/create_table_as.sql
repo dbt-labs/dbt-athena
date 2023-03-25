@@ -13,16 +13,10 @@
     {%- set s3_data_naming = config.get('s3_data_naming', default=target.s3_data_naming) -%}
     {%- set extra_table_properties = config.get('table_properties', default=none) -%}
 
-<<<<<<< HEAD
-  {%- set location_property = 'external_location' -%}
-  {%- set partition_property = 'partitioned_by' -%}
-  {%- set work_group_output_location = adapter.get_work_group_output_location() -%}
-  {%- set location = adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier, external_location, temporary) -%}
-=======
     {%- set location_property = 'external_location' -%}
     {%- set partition_property = 'partitioned_by' -%}
+    {%- set work_group_output_location = adapter.get_work_group_output_location() -%}
     {%- set location = adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier, external_location, temporary) -%}
->>>>>>> 10dd892 (Submitted python model successfully)
 
     {%- if materialized == 'table_hive_ha' -%}
       {%- set location = location.replace('__ha', '') -%}
@@ -51,41 +45,6 @@
 
     {% do adapter.delete_from_s3(location) %}
 
-<<<<<<< HEAD
-  create table {{ relation }}
-  with (
-    table_type='{{ table_type }}',
-    is_external={%- if table_type == 'iceberg' -%}false{%- else -%}true{%- endif %},
-  {%- if work_group_output_location is none -%}
-    {{ location_property }}='{{ location }}',
-  {%- endif %}
-  {%- if partitioned_by is not none %}
-    {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', '\'') }},
-  {%- endif %}
-  {%- if bucketed_by is not none %}
-    bucketed_by=ARRAY{{ bucketed_by | tojson | replace('\"', '\'') }},
-  {%- endif %}
-  {%- if bucket_count is not none %}
-    bucket_count={{ bucket_count }},
-  {%- endif %}
-  {%- if field_delimiter is not none %}
-    field_delimiter='{{ field_delimiter }}',
-  {%- endif %}
-  {%- if write_compression is not none %}
-    write_compression='{{ write_compression }}',
-  {%- endif %}
-    format='{{ format }}'
-  {%- if extra_table_properties is not none -%}
-    {%- for prop_name, prop_value in extra_table_properties.items() -%}
-    ,
-    {{ prop_name }}={{ prop_value }}
-    {%- endfor -%}
-  {% endif %}
-  )
-  as
-    {{ sql }}
-{% endmacro %}
-=======
     create table {{ relation }}
     with (
       table_type='{{ table_type }}',
@@ -142,4 +101,3 @@ def main(session):
     materialize(session, df, dbt.this)
     return "OK"
 {%- endmacro -%}
->>>>>>> 10dd892 (Submitted python model successfully)
