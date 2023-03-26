@@ -51,10 +51,10 @@
       is_external={%- if table_type == 'iceberg' -%}false{%- else -%}true{%- endif %},
       {{ location_property }}='{{ location }}',
     {%- if partitioned_by is not none %}
-      {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', '\'') }},
+      {{ partition_property }}=ARRAY{{ partitioned_by | join("', '") | replace('"', "'") | prepend("'") | append("'") }},
     {%- endif %}
     {%- if bucketed_by is not none %}
-      bucketed_by=ARRAY{{ bucketed_by | tojson | replace('\"', '\'') }},
+      bucketed_by=ARRAY{{ bucketed_by | join("', '") | replace('"', "'") | prepend("'") | append("'") }},
     {%- endif %}
     {%- if bucket_count is not none %}
       bucket_count={{ bucket_count }},
@@ -76,24 +76,26 @@
     as
       {{ compiled_code }}
   {%- elif language == 'python' -%}
-    {{ athena__py_create_table_as(compiled_code=compiled_code, target_relation=relation, temporary=temporary) }}
+    {{ athena__py_create_table_as(compiled_code=compiled_code, target_relation=relation, temporary=temporary) | trim }}
   {%- else -%}
     {% do exceptions.raise_compiler_error("athena__create_table_as macro doesn't support the provided language, it got %s" % language) %}
   {%- endif -%}
 {%- endmacro -%}
 
 {%- macro athena__py_create_table_as(compiled_code, target_relation, temporary) -%}
-{{ compiled_code }}
+{{ compiled_code | trim }}
 def materialize(session, df, target_relation):
-    # make sure pandas exists
-    import importlib.util
-    package_name = 'pandas'
-    if importlib.util.find_spec(package_name):
-        import pandas
+    import pandas
+    try:
         if isinstance(df, pandas.core.frame.DataFrame):
-          # session.write_pandas does not have overwrite function
-          df = session.createDataFrame(df)
-    df.write.mode("overwrite").save_as_table('{{ target_relation.identifier }}', create_temp_table={{temporary}})
+            df = spark.createDataFrame(df)
+        df.write.saveAsTable(
+            name="{{ target_relation.schema}}.{{ target_relation.identifier }}",
+            format="parquet",
+            mode="overwrite"
+        )
+    except Exception:
+        raise
 
 def main(session):
     dbt = dbtObj(session.table)

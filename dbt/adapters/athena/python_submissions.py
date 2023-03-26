@@ -1,3 +1,4 @@
+import time
 from functools import cached_property
 from typing import Any, Dict
 
@@ -5,10 +6,14 @@ import boto3
 
 from dbt.adapters.athena.connections import AthenaCredentials
 from dbt.adapters.base import PythonJobHelper
+from dbt.events import AdapterLogger
+from dbt.exceptions import DbtRuntimeError
 
-DEFAULT_POLLING_INTERVAL = 10
+DEFAULT_POLLING_INTERVAL = 2
 SUBMISSION_LANGUAGE = "python"
 DEFAULT_TIMEOUT = 60 * 60 * 24
+
+logger = AdapterLogger("Athena")
 
 
 class AthenaPythonJobHelper(PythonJobHelper):
@@ -43,32 +48,76 @@ class AthenaPythonJobHelper(PythonJobHelper):
             response = self.athena_client.list_sessions(
                 WorkGroup=self.spark_work_group, MaxResults=1, StateFilter="IDLE"
             )
+            if len(response.get("Sessions")) == 0 or response.get("Sessions") is None:
+                return None
             return response.get("Sessions")[0]
         except Exception:
-            return None
+            raise
 
     def _start_session(self) -> dict:
         try:
             response = self.athena_client.start_session(
                 WorkGroup=self.spark_work_group,
-                EngineConfiguration={"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 1, "DefaultExecutorDpuSize": 18},
+                EngineConfiguration={"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1},
             )
+            if response["State"] != "IDLE":
+                self._poll_until_session_creation(response["SessionId"])
             return response
         except Exception:
-            return None
+            raise
 
     def submit(self, compiled_code: str) -> dict:
         try:
-            response = self.athena_client.start_calculation_execution(
-                SessionId=self.session_id, CodeBlock=compiled_code.strip()
-            )
-            return response
+            calculation_execution_id = self.athena_client.start_calculation_execution(
+                SessionId=self.session_id, CodeBlock=compiled_code.lstrip()
+            )["CalculationExecutionId"]
+            logger.debug(f"Submitted calculation execution id {calculation_execution_id}")
+            execution_status = self._poll_until_execution_completion(calculation_execution_id)
+            logger.debug(f"Received execution status {execution_status}")
+            if execution_status == "COMPLETED":
+                result_s3_uri = self.athena_client.get_calculation_execution(
+                    CalculationExecutionId=calculation_execution_id
+                )["Result"]["ResultS3Uri"]
+                return result_s3_uri
+            else:
+                raise DbtRuntimeError(f"python model run ended in state {execution_status}")
         except Exception:
-            return None
+            raise
 
     def _terminate_session(self) -> dict:
         try:
-            response = self.athena_client.terminate_session(SessionId=self.session_id)
-            return response
+            self.athena_client.terminate_session(SessionId=self.session_id)
         except Exception:
-            return None
+            raise
+
+    def _poll_until_execution_completion(self, calculation_execution_id):
+        polling_interval = self.polling_interval
+        while True:
+            execution_status = self.athena_client.get_calculation_execution_status(
+                CalculationExecutionId=calculation_execution_id
+            )["Status"]["State"]
+            if execution_status in ["COMPLETED", "FAILED", "CANCELLED"]:
+                return execution_status
+            time.sleep(polling_interval)
+            polling_interval *= 2
+            if polling_interval > self.timeout:
+                raise DbtRuntimeError(
+                    f"Execution {calculation_execution_id} did not complete within {self.timeout} seconds."
+                )
+
+    def _poll_until_session_creation(self, session_id):
+        polling_interval = self.polling_interval
+        while True:
+            creation_status = self.athena_client.get_session_status(SessionId=session_id)["Status"]["State"]
+            if creation_status in ["FAILED", "TERMINATED", "DEGRADED"]:
+                raise DbtRuntimeError(f"Unable to create session: {session_id}. Got status: {creation_status}.")
+            elif creation_status == "IDLE":
+                return creation_status
+            time.sleep(polling_interval)
+            polling_interval *= 2
+            if polling_interval > self.timeout:
+                raise DbtRuntimeError(f"Session {session_id} did not create within {self.timeout} seconds.")
+
+    def __del__(self) -> None:
+        logger.debug(f"Terminating session: {self.session_id}")
+        self._terminate_session()

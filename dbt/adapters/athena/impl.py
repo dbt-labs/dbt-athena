@@ -1,7 +1,7 @@
 import posixpath as path
 from itertools import chain
 from threading import Lock
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union, Type
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Type, Union
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -13,7 +13,7 @@ from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.python_submissions import AthenaPythonJobHelper
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
 from dbt.adapters.athena.utils import clean_sql_comment
-from dbt.adapters.base import PythonJobHelper, Column, available
+from dbt.adapters.base import Column, PythonJobHelper, available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.connection import AdapterResponse
@@ -620,9 +620,9 @@ class AthenaAdapter(SQLAdapter):
         glue_client.update_table(DatabaseName=relation.schema, TableInput=updated_table)
 
     def generate_python_submission_response(self, submission_result: Any) -> AdapterResponse:
-        if submission_result is not None:
-            return AdapterResponse(_message="OK")
-        return AdapterResponse(_message="ERROR")
+        if submission_result is None:
+            return AdapterResponse(_message="ERROR")
+        return AdapterResponse(_message="OK")
 
     @property
     def default_python_submission_method(self) -> str:

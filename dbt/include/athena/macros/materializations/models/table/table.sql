@@ -23,7 +23,7 @@
     {{ create_table_as(False, target_relation, compiled_code, language) }}
   {%- endcall %}
 
-  {% if table_type != 'iceberg' %}
+  {% if table_type != 'iceberg' and language != 'python' %}
     {{ set_table_classification(target_relation) }}
   {% endif %}
 
