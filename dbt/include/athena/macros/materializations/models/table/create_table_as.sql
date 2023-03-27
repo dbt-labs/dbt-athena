@@ -76,30 +76,29 @@
     as
       {{ compiled_code }}
   {%- elif language == 'python' -%}
-    {{ athena__py_create_table_as(compiled_code=compiled_code, target_relation=relation, temporary=temporary) | trim }}
+    {{ athena__py_create_table_as(compiled_code=compiled_code, target_relation=relation, temporary=temporary) }}
   {%- else -%}
     {% do exceptions.raise_compiler_error("athena__create_table_as macro doesn't support the provided language, it got %s" % language) %}
   {%- endif -%}
 {%- endmacro -%}
 
 {%- macro athena__py_create_table_as(compiled_code, target_relation, temporary) -%}
-{{ compiled_code | trim }}
-def materialize(session, df, target_relation):
+{{ compiled_code }}
+def materialize(spark_session, df, target_relation):
     import pandas
     try:
         if isinstance(df, pandas.core.frame.DataFrame):
-            df = spark.createDataFrame(df)
+            df = spark_session.createDataFrame(df)
         df.write.saveAsTable(
             name="{{ target_relation.schema}}.{{ target_relation.identifier }}",
             format="parquet",
-            mode="overwrite"
+            mode="overwrite",
         )
+        return "OK"
     except Exception:
         raise
 
-def main(session):
-    dbt = dbtObj(session.table)
-    df = model(dbt, session)
-    materialize(session, df, dbt.this)
-    return "OK"
+dbt = dbtObj(spark.table)
+df = model(dbt, spark)
+materialize(spark, df, dbt.this)
 {%- endmacro -%}
