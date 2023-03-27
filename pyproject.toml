@@ -12,7 +12,7 @@ include = '\.pyi?$'
 [tool.flake8]
 files = '.*\.py'
 max-line-length = 120
-exclude = ['.git', '.eggs', '__pycache__', 'venv']
+exclude = ['.git', '.eggs', '__pycache__', 'venv', '.venv']
 ignore = [
     # space before : (needed for how black formats slicing)
     'E203',
