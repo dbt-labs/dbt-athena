@@ -72,8 +72,6 @@
     {{ set_table_classification(target_relation) }}
   {% endif %}
 
-  {% do persist_docs(target_relation, model) %}
-
   {{ run_hooks(post_hooks, inside_transaction=True) }}
 
   -- `COMMIT` happens here
@@ -88,6 +86,8 @@
   {% if lf_tags is not none or lf_tags_columns is not none %}
     {{ adapter.add_lf_tags(target_relation.schema, target_relation.identifier, lf_tags, lf_tags_columns) }}
   {% endif %}
+
+  {% do persist_docs(target_relation, model) %}
 
   {{ return({'relations': [target_relation]}) }}
 
