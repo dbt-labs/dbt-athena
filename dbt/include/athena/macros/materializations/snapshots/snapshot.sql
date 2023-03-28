@@ -22,22 +22,22 @@
         {%- set insert_cols_csv = insert_cols | join(', ') -%}
         {%- set src_columns = [] -%}
         {%- for col in insert_cols -%}
-          {%- do src_columns.append('DBT_INTERNAL_SOURCE.' + col) -%}
+          {%- do src_columns.append('dbt_internal_source.' + col) -%}
         {%- endfor -%}
         {%- set src_cols_csv = src_columns | join(', ') -%}
 
-        merge into {{ target }} as DBT_INTERNAL_DEST
-        using {{ source }} as DBT_INTERNAL_SOURCE
-        on DBT_INTERNAL_SOURCE.dbt_scd_id = DBT_INTERNAL_DEST.dbt_scd_id
+        merge into {{ target }} as dbt_internal_dest
+        using {{ source }} as dbt_internal_source
+        on dbt_internal_source.dbt_scd_id = dbt_internal_dest.dbt_scd_id
 
         when matched
-         and DBT_INTERNAL_DEST.dbt_valid_to is null
-         and DBT_INTERNAL_SOURCE.dbt_change_type in ('update', 'delete')
+         and dbt_internal_dest.dbt_valid_to is null
+         and dbt_internal_source.dbt_change_type in ('update', 'delete')
             then update
-            set dbt_valid_to = DBT_INTERNAL_SOURCE.dbt_valid_to
+            set dbt_valid_to = dbt_internal_source.dbt_valid_to
 
         when not matched
-         and DBT_INTERNAL_SOURCE.dbt_change_type = 'insert'
+         and dbt_internal_source.dbt_change_type = 'insert'
             then insert ({{ insert_cols_csv }})
             values ({{ src_cols_csv }})
     {%else%}
@@ -406,7 +406,7 @@
   {%- set strategy_name = config.get('strategy') -%}
   {%- set unique_key = config.get('unique_key') -%}
   {%- set file_format = config.get('file_format', 'parquet') -%}
-  {%- set table_type = config.get('table_type') -%}
+  {%- set table_type = config.get('table_type', 'iceberg') -%}
 
 
   {{ log('Checking if target table exists') }}
@@ -479,7 +479,7 @@
                 table_type = table_type
              )
           %}
-      {%else%}
+      {% else %}
           {% set new_snapshot_table = athena__create_new_snapshot_table(strategy, strategy_name, target_relation, staging_table) %}
           {% set final_sql = athena__snapshot_merge_sql(
                 target = target_relation,
@@ -494,11 +494,7 @@
       {{ final_sql }}
   {% endcall %}
 
-  {% do persist_docs(target_relation, model) %}
-
   {{ run_hooks(post_hooks, inside_transaction=True) }}
-
-  {{ adapter.commit() }}
 
   {% if staging_table is defined %}
       {% do adapter.drop_relation(staging_table) %}
@@ -509,6 +505,8 @@
   {% endif %}
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
+  
+  {% do persist_docs(target_relation, model) %}
 
   {{ return({'relations': [target_relation]}) }}
 
