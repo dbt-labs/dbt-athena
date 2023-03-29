@@ -215,6 +215,8 @@ class AthenaParameterFormatter(Formatter):
 
         if operation.upper().startswith(("SELECT", "WITH", "INSERT")):
             escaper = _escape_presto
+        elif operation.upper().startswith("VACUUM"):
+            operation = operation.replace('"', "")
         else:
             # Fixes ParseException that comes with newer version of PyAthena
             operation = operation.replace("\n\n    ", "\n")
