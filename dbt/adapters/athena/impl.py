@@ -656,4 +656,6 @@ class AthenaAdapter(SQLAdapter):
         columns = [c for c in table["StorageDescriptor"]["Columns"] if self._is_current_column(c) is True]
         partition_keys = table.get("PartitionKeys", [])
 
+        logger.debug(f"Columns in relation {relation.identifier}: {columns + partition_keys}")
+
         return [Column(c["Name"], c["Type"]) for c in columns + partition_keys]
