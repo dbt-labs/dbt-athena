@@ -922,6 +922,17 @@ class TestAthenaAdapter:
     def test_lf_tags_columns_is_valid(self, lf_tags_columns, expected):
         assert self.adapter.lf_tags_columns_is_valid(lf_tags_columns) == expected
 
+    @pytest.mark.parametrize(
+        "column,expected",
+        [
+            pytest.param({"Name": "user_id", "Type": "int", "Parameters": {"iceberg.field.current": "true"}}, True),
+            pytest.param({"Name": "user_id", "Type": "int", "Parameters": {"iceberg.field.current": "false"}}, False),
+            pytest.param({"Name": "user_id", "Type": "int"}, True),
+        ],
+    )
+    def test__is_current_column(self, column, expected):
+        assert self.adapter._is_current_column(column) == expected
+
 
 class TestAthenaFilterCatalog:
     def test__catalog_filter_table(self):

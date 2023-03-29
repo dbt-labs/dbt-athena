@@ -563,7 +563,7 @@ class AthenaAdapter(SQLAdapter):
 
     def _get_glue_table_versions_to_expire(self, database_name: str, table_name: str, to_keep: int):
         """
-        Given a table an the amount of its version to keep, it returns the versions to delete
+        Given a table and the amount of its version to keep, it returns the versions to delete
         """
         conn = self.connections.get_thread_connection()
         client = conn.handle
@@ -664,6 +664,15 @@ class AthenaAdapter(SQLAdapter):
             result.extend([schema["Name"] for schema in page["DatabaseList"]])
         return result
 
+    @staticmethod
+    def _is_current_column(col: dict) -> bool:
+        """
+        Check if a column is explicit set as not current. If not, it is considered as current.
+        """
+        if col.get("Parameters", {}).get("iceberg.field.current") == "false":
+            return False
+        return True
+
     @available
     def get_columns_in_relation(self, relation: AthenaRelation) -> List[Column]:
         conn = self.connections.get_thread_connection()
@@ -673,6 +682,10 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)["Table"]
-        return [
-            Column(c["Name"], c["Type"]) for c in table["StorageDescriptor"]["Columns"] + table.get("PartitionKeys", [])
-        ]
+
+        columns = [c for c in table["StorageDescriptor"]["Columns"] if self._is_current_column(c)]
+        partition_keys = table.get("PartitionKeys", [])
+
+        logger.debug(f"Columns in relation {relation.identifier}: {columns + partition_keys}")
+
+        return [Column(c["Name"], c["Type"]) for c in columns + partition_keys]
