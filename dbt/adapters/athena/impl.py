@@ -634,14 +634,11 @@ class AthenaAdapter(SQLAdapter):
     @staticmethod
     def _is_current_column(col: dict) -> bool:
         """
-        Check if a column is current, it always fallback to True if the parameter is not property is not available
+        Check if a column is explicit set as not current. If not, it is considered as current.
         """
-        if col.get("Parameters", {}).get("iceberg.field.current") == "true":
-            return True
-        elif col.get("Parameters", {}).get("iceberg.field.current") == "false":
+        if col.get("Parameters", {}).get("iceberg.field.current") == "false":
             return False
-        else:
-            return True
+        return True
 
     @available
     def get_columns_in_relation(self, relation: AthenaRelation) -> List[Column]:
@@ -653,7 +650,7 @@ class AthenaAdapter(SQLAdapter):
 
         table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)["Table"]
 
-        columns = [c for c in table["StorageDescriptor"]["Columns"] if self._is_current_column(c) is True]
+        columns = [c for c in table["StorageDescriptor"]["Columns"] if self._is_current_column(c)]
         partition_keys = table.get("PartitionKeys", [])
 
         logger.debug(f"Columns in relation {relation.identifier}: {columns + partition_keys}")
