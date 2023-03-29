@@ -300,31 +300,6 @@
 {% endmacro %}
 
 {#
-    Add new columns to the table if applicable
-#}
-
-{% macro athena__create_columns(relation, columns) -%}
-  {% set query -%}
-  alter table {{ relation }} add columns (
-  {%- for column in columns -%}
-    {% if column.data_type|lower == 'boolean' %}
-       {{ column.name }} boolean {%- if not loop.last -%},{%- endif -%}
-    {% elif column.data_type|lower == 'character varying(256)' %}
-      {{ column.name }} string {%- if not loop.last -%},{%- endif -%}
-    {% elif column.data_type|lower == 'integer' %}
-      {{ column.name }} bigint {%- if not loop.last -%},{%- endif -%}
-    {% elif column.data_type|lower == 'float' %}
-      {{ column.name }} float {%- if not loop.last -%},{%- endif -%}
-    {% else %}
-      {{ column.name }} {{ column.data_type }} {%- if not loop.last -%},{%- endif -%}
-    {% endif %}
-  {%- endfor %}
-  )
-  {%- endset -%}
-  {% do run_query(query) %}
-{% endmacro %}
-
-{#
     Update the dbt_valid_to and is_current_record for
     snapshot rows being updated and create a new temporary table to hold them
 #}
@@ -453,7 +428,7 @@
 
 
       {% if missing_columns %}
-        {% do create_columns(target_relation, missing_columns) %}
+        {% do alter_relation_add_columns(target_relation, missing_columns) %}
       {% endif %}
 
 
