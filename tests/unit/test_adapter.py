@@ -875,7 +875,7 @@ class TestAthenaAdapter:
             pytest.param({"Name": "user_id", "Type": "int"}, True),
         ],
     )
-    def test___is_current_column(self, column, expected):
+    def test__is_current_column(self, column, expected):
         assert self.adapter._is_current_column(column) == expected
 
 
