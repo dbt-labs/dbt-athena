@@ -7,6 +7,30 @@
     {{ return(sql) }}
 {% endmacro %}
 
+{% macro try_cast_timestamp(col) %}
+    {% set date_formats = [
+      '%Y-%m-%d %H:%i:%s',
+      '%Y/%m/%d %H:%i:%s',
+      '%d %M %Y %H:%i:%s',
+      '%d/%m/%Y %H:%i:%s',
+      '%d-%m-%Y %H:%i:%s',
+      '%Y-%m-%d %H:%i:%s.%f',
+      '%Y/%m/%d %H:%i:%s.%f',
+      '%d %M %Y %H:%i:%s.%f',
+      '%d/%m/%Y %H:%i:%s.%f',
+      '%Y-%m-%dT%H:%i:%s.%fZ',
+      '%Y-%m-%dT%H:%i:%sZ',
+      '%Y-%m-%dT%H:%i:%s',
+    ]%}
+
+    coalesce(
+      {% for date_format in date_formats %}
+        try(date_parse({{ col }}, '{{ date_format }}'))
+        {%- if not loop.last -%}, {% endif -%}
+      {% endfor %}
+    ) as {{ col }}
+{% endmacro %}
+
 {% macro athena__create_csv_table(model, agate_table) %}
   {%- set identifier = model['alias'] -%}
 
@@ -61,21 +85,6 @@
   {% endset %}
 
   -- casting to type string is not allowed needs to be varchar
-  {% set date_formats = [
-    '%Y-%m-%d %H:%i:%s',
-    '%Y/%m/%d %H:%i:%s',
-    '%d %M %Y %H:%i:%s',
-    '%d/%m/%Y %H:%i:%s',
-    '%d-%m-%Y %H:%i:%s',
-    '%Y-%m-%d %H:%i:%s.%f',
-    '%Y/%m/%d %H:%i:%s.%f',
-    '%d %M %Y %H:%i:%s.%f',
-    '%d/%m/%Y %H:%i:%s.%f',
-    '%Y-%m-%dT%H:%i:%s.%fZ',
-    '%Y-%m-%dT%H:%i:%sZ',
-    '%Y-%m-%dT%H:%i:%s',
-  ]%}
-
   {% set sql %}
     select
         {% for col_name in agate_table.column_names -%}
@@ -85,12 +94,7 @@
             {%- set column_name = (col_name | string) -%}
             {%- set quoted_column_name = adapter.quote_seed_column(column_name, quote_seed_column) -%}
             {% if type == 'timestamp' %}
-            coalesce(
-              {% for date_format in date_formats %}
-                try(date_parse({{ quoted_column_name }}, '{{ date_format }}'))
-                {%- if not loop.last -%}, {% endif -%}
-              {% endfor %}
-            ) as {{quoted_column_name}}
+              {{ try_cast_timestamp(quoted_column_name) }}
             {% else %}
               cast(nullif({{quoted_column_name}}, '') as {{ type }}) as {{quoted_column_name}}
             {% endif %}
