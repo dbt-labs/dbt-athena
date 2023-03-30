@@ -60,19 +60,19 @@ stored login info. You can configure the AWS profile name to use via `aws_profil
 
 A dbt profile can be configured to run against AWS Athena using the following configuration:
 
-| Option           | Description                                                                    | Required?   | Example               |
-|------------------|--------------------------------------------------------------------------------|-------------|-----------------------|
-| s3_staging_dir   | S3 location to store Athena query results and metadata                         | Required    | `s3://bucket/dbt/`    |
-| s3_data_dir      | Prefix for storing tables, if different from the connection's `s3_staging_dir` | Optional    | `s3://bucket2/dbt/`   |
-| s3_data_naming   | How to generate table paths in `s3_data_dir`                                   | Optional    | `schema_table_unique` |
-| region_name      | AWS region of your Athena instance                                             | Required    | `eu-west-1`           |
-| schema           | Specify the schema (Athena database) to build models into (lowercase **only**) | Required    | `dbt`                 |
-| database         | Specify the database (Data catalog) to build models into (lowercase **only**)  | Required    | `awsdatacatalog`      |
-| poll_interval    | Interval in seconds to use for polling the status of query results in Athena   | Optional    | `5`                   |
-| aws_profile_name | Profile to use from your AWS shared credentials file.                          | Optional    | `my-profile`          |
-| work_group       | Identifier of Athena workgroup                                                 | Optional    | `my-custom-workgroup` |
-| num_retries      | Number of times to retry a failing query                                       | Optional    | `3`                   |
-
+| Option           | Description                                                                    | Required? | Example                                  |
+|------------------|--------------------------------------------------------------------------------|-----------|------------------------------------------|
+| s3_staging_dir   | S3 location to store Athena query results and metadata                         | Required  | `s3://bucket/dbt/`                       |
+| s3_data_dir      | Prefix for storing tables, if different from the connection's `s3_staging_dir` | Optional  | `s3://bucket2/dbt/`                      |
+| s3_data_naming   | How to generate table paths in `s3_data_dir`                                   | Optional  | `schema_table_unique`                    |
+| region_name      | AWS region of your Athena instance                                             | Required  | `eu-west-1`                              |
+| schema           | Specify the schema (Athena database) to build models into (lowercase **only**) | Required  | `dbt`                                    |
+| database         | Specify the database (Data catalog) to build models into (lowercase **only**)  | Required  | `awsdatacatalog`                         |
+| poll_interval    | Interval in seconds to use for polling the status of query results in Athena   | Optional  | `5`                                      |
+| aws_profile_name | Profile to use from your AWS shared credentials file.                          | Optional  | `my-profile`                             |
+| work_group       | Identifier of Athena workgroup                                                 | Optional  | `my-custom-workgroup`                    |
+| num_retries      | Number of times to retry a failing query                                       | Optional  | `3`                                      |
+| lf_tags          | Default lf tags to apply to any database created by dbt                        | Optional  | `{"origin": "dbt", "team": "analytics"}` |
 
 **Example profiles.yml entry:**
 ```yaml
@@ -89,6 +89,9 @@ athena:
       database: awsdatacatalog
       aws_profile_name: my-profile
       work_group: my-workgroup
+      lf_tags:
+        origin: dbt
+        team: analytics
 ```
 
 _Additional information_
@@ -119,6 +122,12 @@ _Additional information_
 * `field_delimiter` (`default=none`)
   * Custom field delimiter, for when format is set to `TEXTFILE`
 * `table_properties`: table properties to add to the table, valid for Iceberg only
+* `lf_tags` (`default=none`)
+  * lf tags to associate with the table
+  * format: `{"tag1": "value1", "tag2": "value2"}`
+* `lf_tags_columns` (`default=none`)
+  * lf tags to associate with the table columns
+  * format: `{"tag1": {"value1": ["column1": "column2"]}}`
 
 #### Table location
 
@@ -136,7 +145,9 @@ Here all the options available for `s3_data_naming`:
 * `s3_data_naming=schema_table_unique`: `{s3_data_dir}/{schema}/{table}/{uuid4()}/`
 
 It's possible to set the `s3_data_naming` globally in the target profile, or overwrite the value in the table config,
-or setting up the value for groups of model in dbt_project.yml
+or setting up the value for groups of model in dbt_project.yml.
+
+> Note: when using a work group with a default output location configured, `s3_data_naming` and any configured buckets are ignored and the location configured in the work group is used.
 
 
 #### Incremental models
