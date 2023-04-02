@@ -3,7 +3,7 @@
 %}
 
 {% macro athena__current_timestamp() -%}
-    cast(now() as timestamp)
+    cast(now() as timestamp(6))
 {%- endmacro %}
 
 {%

@@ -264,6 +264,102 @@ To use the check strategy refer to the [dbt docs](https://docs.getdbt.com/docs/b
 
 The materialization also supports invalidating hard deletes. Check the [docs](https://docs.getdbt.com/docs/build/snapshots#hard-deletes-opt-in) to understand usage.
 
+### Working example
+
+seed file - employent_indicators_november_2022_csv_tables.csv
+```
+Series_reference,Period,Data_value,Suppressed
+MEIM.S1WA,1999.04,80267,
+MEIM.S1WA,1999.05,70803,
+MEIM.S1WA,1999.06,65792,
+MEIM.S1WA,1999.07,66194,
+MEIM.S1WA,1999.08,67259,
+MEIM.S1WA,1999.09,69691,
+MEIM.S1WA,1999.1,72475,
+MEIM.S1WA,1999.11,79263,
+MEIM.S1WA,1999.12,86540,
+MEIM.S1WA,2000.01,82552,
+MEIM.S1WA,2000.02,81709,
+MEIM.S1WA,2000.03,84126,
+MEIM.S1WA,2000.04,77089,
+MEIM.S1WA,2000.05,73811,
+MEIM.S1WA,2000.06,70070,
+MEIM.S1WA,2000.07,69873,
+MEIM.S1WA,2000.08,71468,
+MEIM.S1WA,2000.09,72462,
+MEIM.S1WA,2000.1,74897,
+```
+
+model.sql
+```
+{{ config(
+    materialized='table'
+) }}
+
+
+SELECT
+    ROW_NUMBER() OVER () AS id
+    , *
+    , cast(from_unixtime(to_unixtime(now())) as timestamp(6)) AS refresh_timestamp
+FROM {{ ref('employment_indicators_november_2022_csv_tables') }}
+```
+
+timestamp strategy - model_snapshot_1
+
+```
+{% snapshot model_snapshot_1 %}
+
+{{
+    config(
+      strategy='timestamp',
+      updated_at='refresh_timestamp',
+      unique_key='id'
+    )
+}}
+
+
+
+SELECT *
+
+from {{ ref('model') }}
+
+{% endsnapshot %}
+```
+
+invalidate hard deletes - model_snapshot_2
+```
+{% snapshot model_snapshot_2 %}
+
+{{
+    config
+    (
+        unique_key='id',
+        strategy='timestamp',
+        updated_at='refresh_timestamp',
+        invalidate_hard_deletes=True,
+    )
+}}
+SELECT * from {{ ref('model') }}
+
+{% endsnapshot %}
+```
+
+check strategy - model_snapshot_3
+```
+{% snapshot model_snapshot_3 %}
+
+{{
+    config
+    (
+        unique_key='id',
+        strategy='check',
+        check_cols=['series_reference','data_value']
+    )
+}}
+SELECT * from {{ ref('model') }}
+
+{% endsnapshot %}
+```
 
 ### Known issues
 

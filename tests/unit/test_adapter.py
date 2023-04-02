@@ -28,6 +28,7 @@ from .constants import (
     DATABASE_NAME,
     S3_STAGING_DIR,
 )
+from .fixtures import seed_data
 from .utils import (
     MockAWSService,
     TestAdapterConversions,
@@ -665,6 +666,60 @@ class TestAthenaAdapter:
         # TODO moto issue https://github.com/getmoto/moto/issues/5952
         # assert len(result) == 3
 
+    @mock_s3
+    def test_upload_seed_to_s3(self, aws_credentials):
+        seed_table = agate.Table.from_object(seed_data)
+        self.adapter.acquire_connection("dummy")
+
+        database = "db_seeds"
+        table = "data"
+
+        s3_client = boto3.client("s3", region_name=AWS_REGION)
+        s3_client.create_bucket(Bucket=BUCKET, CreateBucketConfiguration={"LocationConstraint": AWS_REGION})
+
+        location = self.adapter.upload_seed_to_s3(
+            s3_data_dir=f"s3://{BUCKET}",
+            s3_data_naming="schema_table",
+            external_location=None,
+            database_name=database,
+            table_name=table,
+            table=seed_table,
+        )
+
+        prefix = "db_seeds/data"
+        objects = s3_client.list_objects(Bucket=BUCKET, Prefix=prefix).get("Contents")
+
+        assert location == f"s3://{BUCKET}/{prefix}"
+        assert len(objects) == 1
+        assert objects[0].get("Key").endswith(".csv")
+
+    @mock_s3
+    def test_upload_seed_to_s3_external_location(self, aws_credentials):
+        seed_table = agate.Table.from_object(seed_data)
+        self.adapter.acquire_connection("dummy")
+
+        bucket = "my-external-location"
+        prefix = "seeds/one"
+        external_location = f"s3://{bucket}/{prefix}"
+
+        s3_client = boto3.client("s3", region_name=AWS_REGION)
+        s3_client.create_bucket(Bucket=bucket, CreateBucketConfiguration={"LocationConstraint": AWS_REGION})
+
+        location = self.adapter.upload_seed_to_s3(
+            s3_data_dir=None,
+            s3_data_naming="schema_table",
+            external_location=external_location,
+            database_name="db_seeds",
+            table_name="data",
+            table=seed_table,
+        )
+
+        objects = s3_client.list_objects(Bucket=bucket, Prefix=prefix).get("Contents")
+
+        assert location == f"s3://{bucket}/{prefix}"
+        assert len(objects) == 1
+        assert objects[0].get("Key").endswith(".csv")
+
     @mock_athena
     def test_get_work_group_output_location(self, aws_credentials):
         self.adapter.acquire_connection("dummy")
@@ -866,6 +921,17 @@ class TestAthenaAdapter:
     )
     def test_lf_tags_columns_is_valid(self, lf_tags_columns, expected):
         assert self.adapter.lf_tags_columns_is_valid(lf_tags_columns) == expected
+
+    @pytest.mark.parametrize(
+        "column,expected",
+        [
+            pytest.param({"Name": "user_id", "Type": "int", "Parameters": {"iceberg.field.current": "true"}}, True),
+            pytest.param({"Name": "user_id", "Type": "int", "Parameters": {"iceberg.field.current": "false"}}, False),
+            pytest.param({"Name": "user_id", "Type": "int"}, True),
+        ],
+    )
+    def test__is_current_column(self, column, expected):
+        assert self.adapter._is_current_column(column) == expected
 
 
 class TestAthenaFilterCatalog:

@@ -1,4 +1,7 @@
+import csv
+import os
 import posixpath as path
+import tempfile
 from itertools import chain
 from threading import Lock
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Type, Union
@@ -250,6 +253,36 @@ class AthenaAdapter(SQLAdapter):
     @available
     def quote_seed_column(self, column: str, quote_config: Optional[bool]) -> str:
         return super().quote_seed_column(column, False)
+
+    @available
+    def upload_seed_to_s3(
+        self,
+        s3_data_dir: Optional[str],
+        s3_data_naming: Optional[str],
+        external_location: Optional[str],
+        database_name: str,
+        table_name: str,
+        table: agate.Table,
+    ) -> str:
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        # TODO: consider using the workgroup default location when configured
+        s3_location = self.s3_table_location(s3_data_dir, s3_data_naming, database_name, table_name, external_location)
+        bucket, prefix = self._parse_s3_path(s3_location)
+
+        file_name = f"{table_name}.csv"
+        object_name = path.join(prefix, file_name)
+
+        with boto3_client_lock:
+            s3_client = client.session.client("s3", region_name=client.region_name, config=get_boto3_config())
+            # This ensures cross-platform support, tempfile.NamedTemporaryFile does not
+            tmpfile = os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
+            table.to_csv(tmpfile, quoting=csv.QUOTE_NONNUMERIC)
+            s3_client.upload_file(tmpfile, bucket, object_name)
+            os.remove(tmpfile)
+
+        return s3_location
 
     @available
     def delete_from_s3(self, s3_path: str):
@@ -532,7 +565,7 @@ class AthenaAdapter(SQLAdapter):
 
     def _get_glue_table_versions_to_expire(self, database_name: str, table_name: str, to_keep: int):
         """
-        Given a table an the amount of its version to keep, it returns the versions to delete
+        Given a table and the amount of its version to keep, it returns the versions to delete
         """
         conn = self.connections.get_thread_connection()
         client = conn.handle
@@ -646,6 +679,15 @@ class AthenaAdapter(SQLAdapter):
             result.extend([schema["Name"] for schema in page["DatabaseList"]])
         return result
 
+    @staticmethod
+    def _is_current_column(col: dict) -> bool:
+        """
+        Check if a column is explicit set as not current. If not, it is considered as current.
+        """
+        if col.get("Parameters", {}).get("iceberg.field.current") == "false":
+            return False
+        return True
+
     @available
     def get_columns_in_relation(self, relation: AthenaRelation) -> List[Column]:
         conn = self.connections.get_thread_connection()
@@ -655,6 +697,10 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)["Table"]
-        return [
-            Column(c["Name"], c["Type"]) for c in table["StorageDescriptor"]["Columns"] + table.get("PartitionKeys", [])
-        ]
+
+        columns = [c for c in table["StorageDescriptor"]["Columns"] if self._is_current_column(c)]
+        partition_keys = table.get("PartitionKeys", [])
+
+        logger.debug(f"Columns in relation {relation.identifier}: {columns + partition_keys}")
+
+        return [Column(c["Name"], c["Type"]) for c in columns + partition_keys]
