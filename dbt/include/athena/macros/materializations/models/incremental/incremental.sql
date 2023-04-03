@@ -13,6 +13,8 @@
   {% set existing_relation = load_relation(this) %}
   {% set tmp_relation = make_temp_relation(this) %}
 
+  {{ log("temporary relation is" ~ tmp_relation.schema ~ tmp_relation.identifier)}}
+
   -- If no partitions are used with insert_overwrite, we fall back to append mode.
   {% if partitioned_by is none and strategy == 'insert_overwrite' %}
     {% set strategy = 'append' %}
@@ -25,16 +27,28 @@
 
   {% set to_drop = [] %}
   {% if existing_relation is none %}
-    {% set build_sql = create_table_as(False, target_relation, compiled_code, language) -%}
+    {% call statement('save_table', language=language) -%}
+        {{ create_table_as(False, target_relation, compiled_code, language) }}
+    {%- endcall %}
+    {% set build_sql = None %}
   {% elif existing_relation.is_view or should_full_refresh() %}
     {% do drop_relation(existing_relation) %}
-    {% set build_sql = create_table_as(False, target_relation, compiled_code, language) -%}
+    {% call statement('save_table', language=language) -%}
+        {{ create_table_as(False, target_relation, compiled_code, language) }}
+    {%- endcall %}
+    {% set build_sql = None %}
   {% elif partitioned_by is not none and strategy == 'insert_overwrite' %}
     {% set tmp_relation = make_temp_relation(target_relation) %}
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% do run_query(create_table_as(True, tmp_relation, compiled_code, language)) %}
+    {% if language == 'sql' %}
+      {% do run_query(create_table_as(True, tmp_relation, compiled_code, language)) %}
+    {% else %}
+      {% call statement('save_table', language=language) -%}
+          {{ create_table_as(True, tmp_relation, compiled_code, language) }}
+      {%- endcall %}
+    {% endif %}
     {% do delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by) %}
     {% set build_sql = incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation) %}
     {% do to_drop.append(tmp_relation) %}
@@ -43,7 +57,13 @@
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% do run_query(create_table_as(True, tmp_relation, compiled_code, language)) %}
+    {% if language == 'sql' %}
+      {% do run_query(create_table_as(True, tmp_relation, compiled_code, language)) %}
+    {% else %}
+      {% call statement('save_table', language=language) -%}
+          {{ create_table_as(True, tmp_relation, compiled_code, language) }}
+      {%- endcall %}
+    {% endif %}
     {% set build_sql = incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation) %}
     {% do to_drop.append(tmp_relation) %}
   {% elif strategy == 'merge' and table_type == 'iceberg' %}
@@ -59,13 +79,26 @@
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% do run_query(create_table_as(True, tmp_relation, compiled_code, language)) %}
+    {% if language == 'sql' %}
+      {% do run_query(create_table_as(True, tmp_relation, compiled_code, language)) %}
+    {% else %}
+      {% call statement('save_table', language=language) -%}
+          {{ create_table_as(True, tmp_relation, compiled_code, language) }}
+      {%- endcall %}
+    {% endif %}
     {% set build_sql = iceberg_merge(on_schema_change, tmp_relation, target_relation, unique_key, existing_relation) %}
     {% do to_drop.append(tmp_relation) %}
   {% endif %}
 
   {% call statement("main", language=language) %}
-    {{ build_sql }}
+    {% if language == 'sql' %}
+      {{ build_sql }}
+    {% else %}
+      {% if build_sql %}
+          {{ log(build_sql) }}
+          {% do athena__py_execute_query(query=build_sql) %}
+      {% endif %}
+    {% endif %}
   {% endcall %}
 
   -- set table properties

@@ -74,15 +74,6 @@ class AthenaCredentials(Credentials):
             "spark_work_group",
         )
 
-    def get_region_name(self) -> str:
-        return self.region_name
-
-    def get_profile_name(self) -> str:
-        return self.aws_profile_name
-
-    def get_spark_work_group(self) -> str:
-        return self.spark_work_group
-
 
 class AthenaCursor(Cursor):
     def __init__(self, **kwargs):

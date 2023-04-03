@@ -1,5 +1,6 @@
 import time
-from functools import cached_property
+from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from typing import Any, Dict
 
 import boto3
@@ -11,7 +12,7 @@ from dbt.exceptions import DbtRuntimeError
 
 DEFAULT_POLLING_INTERVAL = 2
 SUBMISSION_LANGUAGE = "python"
-DEFAULT_TIMEOUT = 60 * 60 * 24
+DEFAULT_TIMEOUT = 60 * 60 * 2
 
 logger = AdapterLogger("Athena")
 
@@ -23,17 +24,20 @@ class AthenaPythonJobHelper(PythonJobHelper):
         self.parsed_model = parsed_model
         self.timeout = self.get_timeout()
         self.polling_interval = DEFAULT_POLLING_INTERVAL
-        self.region_name = credentials.get_region_name()
-        self.profile_name = credentials.get_profile_name()
-        self.spark_work_group = credentials.get_spark_work_group()
+        self.region_name = credentials.region_name
+        self.profile_name = credentials.aws_profile_name
+        self.spark_work_group = credentials.spark_work_group
 
-    @cached_property
+    @property
+    @lru_cache()
     def session_id(self) -> str:
-        if self._list_sessions() is None:
+        session_info = self._list_sessions()
+        if session_info is None:
             return self._start_session().get("SessionId")
-        return self._list_sessions().get("SessionId")
+        return session_info.get("SessionId")
 
-    @cached_property
+    @property
+    @lru_cache()
     def athena_client(self) -> Any:
         return boto3.client("athena")
 
@@ -86,7 +90,12 @@ class AthenaPythonJobHelper(PythonJobHelper):
 
     def _terminate_session(self) -> dict:
         try:
-            self.athena_client.terminate_session(SessionId=self.session_id)
+            session_status = self.athena_client.get_session_status(SessionId=self.session_id)["Status"]
+            if session_status["State"] in ["IDLE", "BUSY"] and (
+                session_status["StartDateTime"] - datetime.now(tz=timezone.utc) > timedelta(seconds=self.timeout)
+            ):
+                logger.debug(f"Terminating session: {self.session_id}")
+                self.athena_client.terminate_session(SessionId=self.session_id)
         except Exception:
             raise
 
@@ -119,5 +128,4 @@ class AthenaPythonJobHelper(PythonJobHelper):
                 raise DbtRuntimeError(f"Session {session_id} did not create within {self.timeout} seconds.")
 
     def __del__(self) -> None:
-        logger.debug(f"Terminating session: {self.session_id}")
         self._terminate_session()

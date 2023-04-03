@@ -26,6 +26,7 @@ def dbt_profile_target():
         "num_retries": 0,
         "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUND"),
         "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME") or None,
+        "spark_work_group": os.getenv("DBT_TEST_ATHENA_SPARK_WORK_GROUP"),
     }
 
 
