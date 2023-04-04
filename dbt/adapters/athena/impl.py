@@ -12,10 +12,11 @@ import agate
 from botocore.exceptions import ClientError
 
 from dbt.adapters.athena import AthenaConnectionManager
+from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
 from dbt.adapters.athena.utils import clean_sql_comment
-from dbt.adapters.base import Column, available
+from dbt.adapters.base import available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
@@ -673,8 +674,15 @@ class AthenaAdapter(SQLAdapter):
             return False
         return True
 
+    @staticmethod
+    def _is_iceberg_table(table: dict) -> bool:
+        """Check if table type is iceberg."""
+        if table.get("Parameters", {}).get("table_type") == "ICEBERG":
+            return True
+        return False
+
     @available
-    def get_columns_in_relation(self, relation: AthenaRelation) -> List[Column]:
+    def get_columns_in_relation(self, relation: AthenaRelation) -> List[AthenaColumn]:
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
@@ -688,4 +696,7 @@ class AthenaAdapter(SQLAdapter):
 
         logger.debug(f"Columns in relation {relation.identifier}: {columns + partition_keys}")
 
-        return [Column(c["Name"], c["Type"]) for c in columns + partition_keys]
+        return [
+            AthenaColumn(column=c["Name"], dtype=c["Type"], is_iceberg=self._is_iceberg_table(table))
+            for c in columns + partition_keys
+        ]
