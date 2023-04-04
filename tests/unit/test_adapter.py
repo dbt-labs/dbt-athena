@@ -10,9 +10,9 @@ from moto import mock_athena, mock_glue, mock_s3
 
 from dbt.adapters.athena import AthenaAdapter
 from dbt.adapters.athena import Plugin as AthenaPlugin
+from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.connections import AthenaCursor, AthenaParameterFormatter
 from dbt.adapters.athena.relation import AthenaRelation
-from dbt.adapters.base import Column
 from dbt.clients import agate_helper
 from dbt.contracts.connection import ConnectionState
 from dbt.contracts.files import FileHash
@@ -843,9 +843,9 @@ class TestAthenaAdapter:
             )
         )
         assert columns == [
-            Column("id", "string"),
-            Column("country", "string"),
-            Column("dt", "date"),
+            AthenaColumn(column="id", dtype="string", is_iceberg=False),
+            AthenaColumn(column="country", dtype="string", is_iceberg=False),
+            AthenaColumn(column="dt", dtype="date", is_iceberg=False),
         ]
 
     @pytest.mark.parametrize(
@@ -932,6 +932,24 @@ class TestAthenaAdapter:
     )
     def test__is_current_column(self, column, expected):
         assert self.adapter._is_current_column(column) == expected
+
+    @pytest.mark.parametrize(
+        "table,expected",
+        [
+            pytest.param({"Name": "test", "Parameters": {"table_type": "EXTERNAL"}}, False, id="external table"),
+            pytest.param({"Name": "test", "Parameters": {"table_type": "ICEBERG"}}, True, id="iceberg table"),
+            pytest.param({"Name": "test", "Parameters": {}}, False, id="no table_type in parameters"),
+            pytest.param(
+                {
+                    "Name": "test",
+                },
+                False,
+                id="no parameters for table",
+            ),
+        ],
+    )
+    def test__is_iceberg_table(self, table, expected):
+        assert self.adapter._is_iceberg_table(table) == expected
 
 
 class TestAthenaFilterCatalog:

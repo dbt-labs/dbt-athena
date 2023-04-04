@@ -6,7 +6,7 @@ from dbt.exceptions import DbtRuntimeError
 
 @dataclass
 class AthenaColumn(Column):
-    is_iceberg: bool = True
+    is_iceberg: bool = False
 
     def is_string(self) -> bool:
         return self.dtype.lower() in {"varchar", "string"}
@@ -27,13 +27,14 @@ class AthenaColumn(Column):
 
     @classmethod
     def timestamp_type(cls, is_iceberg: bool) -> str:
+        # Iceberg does not support timestamp with precision 3, that's why use timestamp(6)
         return "timestamp(6)" if is_iceberg else "timestamp"
 
     def string_size(self) -> int:
         if not self.is_string():
             raise DbtRuntimeError("Called string_size() on non-string field!")
         if not self.char_size:
-            # Handle error '>' not supported between instances of 'NoneType' and 'NoneType' for union relations macro
+            # Handle error: '>' not supported between instances of 'NoneType' and 'NoneType' for union relations macro
             return 0
         return self.char_size
 
