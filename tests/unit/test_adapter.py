@@ -848,6 +848,21 @@ class TestAthenaAdapter:
             Column("dt", "date"),
         ]
 
+    @mock_athena
+    @mock_glue
+    def test_get_columns_in_relation_not_found_table(self):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.adapter.acquire_connection("dummy")
+        columns = self.adapter.get_columns_in_relation(
+            self.adapter.Relation.create(
+                database=DATA_CATALOG_NAME,
+                schema=DATABASE_NAME,
+                identifier="tbl_name",
+            )
+        )
+        assert columns == []
+
     @pytest.mark.parametrize(
         "response,database,table,columns,lf_tags,expected",
         [

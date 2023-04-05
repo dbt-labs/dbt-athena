@@ -682,7 +682,15 @@ class AthenaAdapter(SQLAdapter):
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
-        table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)["Table"]
+        try:
+            table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)["Table"]
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "EntityNotFoundException":
+                logger.debug("table not exist, catching the error")
+                return []
+            else:
+                logger.error(e)
+                raise e
 
         columns = [c for c in table["StorageDescriptor"]["Columns"] if self._is_current_column(c)]
         partition_keys = table.get("PartitionKeys", [])
