@@ -420,3 +420,7 @@ make test
 * [Athena CREATE TABLE AS](https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html)
 * [dbt-labs/dbt-core](https://github.com/dbt-labs/dbt-core)
 * [laughingman7743/PyAthena](https://github.com/laughingman7743/PyAthena)
+
+### Credits
+
+TODO: add credits to Tomme https://github.com/Tomme/dbt-athena
