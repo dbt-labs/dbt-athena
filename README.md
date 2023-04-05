@@ -20,7 +20,7 @@
     * Support two incremental update strategies: `insert_overwrite` and `append`
     * Does **not** support the use of `unique_key`
 * Supports [snapshots][snapshots]
-* Does not support [Python models][python-models]
+* Supports [Python models][python-models]
 * Does not support [persist docs][persist-docs] for views
 
 [seeds]: https://docs.getdbt.com/docs/building-a-dbt-project/seeds
@@ -73,6 +73,7 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | work_group       | Identifier of Athena workgroup                                                 | Optional  | `my-custom-workgroup`                    |
 | num_retries      | Number of times to retry a failing query                                       | Optional  | `3`                                      |
 | lf_tags          | Default lf tags to apply to any database created by dbt                        | Optional  | `{"origin": "dbt", "team": "analytics"}` |
+| spark_work_group | Identifier of athena spark workgroup                                           | Optional  | `my-spark-workgroup`                     |
 
 **Example profiles.yml entry:**
 ```yaml
@@ -89,6 +90,7 @@ athena:
       database: awsdatacatalog
       aws_profile_name: my-profile
       work_group: my-workgroup
+      spark_work_group: my-spark-workgroup
       lf_tags:
         origin: dbt
         team: analytics
@@ -372,6 +374,35 @@ The only way, from a dbt perspective, is to do a full-refresh of the incremental
   See https://github.com/dbt-athena/dbt-athena/issues/103 for more details.
 
 * Snapshot does not support dropping columns from the source table. If you drop a column make sure to drop the column from the snapshot as well. Another workaround is to NULL the column in the snapshot definition to preserve history
+
+### Python Models
+
+The adapter supports python models using [`spark`](https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark.html).
+
+#### Prerequisites
+
+* A spark enabled work group created in athena
+* Spark execution role granted access to Athena, Glue and S3
+* The spark work group is added to the ~/.dbt/profiles.yml file and the profile is referenced in dbt_project.yml
+
+#### Example model
+
+```python
+import pandas as pd
+
+
+def model(dbt, session):
+    dbt.config(materialized="table")
+
+    model_df = pd.DataFrame({"A": [1, 2, 3, 4]})
+
+    return model_df
+```
+
+#### Known issues in python models
+
+* Incremental models do not fully utilize spark capabilities. They depend on existing sql based logic.
+* Snapshots materializations are not supported.
 
 ### Contributing
 
