@@ -12,7 +12,7 @@ from dbt.adapters.athena import AthenaAdapter
 from dbt.adapters.athena import Plugin as AthenaPlugin
 from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.connections import AthenaCursor, AthenaParameterFormatter
-from dbt.adapters.athena.relation import AthenaRelation
+from dbt.adapters.athena.relation import AthenaRelation, TableType
 from dbt.clients import agate_helper
 from dbt.contracts.connection import ConnectionState
 from dbt.contracts.files import FileHash
@@ -436,7 +436,7 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_table("test_table")
         self.adapter.acquire_connection("dummy")
         table_type = self.adapter.get_table_type(DATABASE_NAME, "test_table")
-        assert table_type == "table"
+        assert table_type == TableType.TABLE
 
     @mock_glue
     @mock_s3
@@ -459,7 +459,7 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_view("test_view")
         self.adapter.acquire_connection("dummy")
         table_type = self.adapter.get_table_type(DATABASE_NAME, "test_view")
-        assert table_type == "view"
+        assert table_type == TableType.VIEW
 
     @mock_glue
     @mock_s3
@@ -470,7 +470,7 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_iceberg_table("test_iceberg")
         self.adapter.acquire_connection("dummy")
         table_type = self.adapter.get_table_type(DATABASE_NAME, "test_iceberg")
-        assert table_type == "iceberg_table"
+        assert table_type == TableType.ICEBERG
 
     def _test_list_relations_without_caching(self, schema_relation):
         self.adapter.acquire_connection("dummy")
@@ -843,9 +843,9 @@ class TestAthenaAdapter:
             )
         )
         assert columns == [
-            AthenaColumn(column="id", dtype="string", is_iceberg=False),
-            AthenaColumn(column="country", dtype="string", is_iceberg=False),
-            AthenaColumn(column="dt", dtype="date", is_iceberg=False),
+            AthenaColumn(column="id", dtype="string", table_type=TableType.TABLE),
+            AthenaColumn(column="country", dtype="string", table_type=TableType.TABLE),
+            AthenaColumn(column="dt", dtype="date", table_type=TableType.TABLE),
         ]
 
     @pytest.mark.parametrize(
@@ -932,24 +932,6 @@ class TestAthenaAdapter:
     )
     def test__is_current_column(self, column, expected):
         assert self.adapter._is_current_column(column) == expected
-
-    @pytest.mark.parametrize(
-        "table,expected",
-        [
-            pytest.param({"Name": "test", "Parameters": {"table_type": "EXTERNAL"}}, False, id="external table"),
-            pytest.param({"Name": "test", "Parameters": {"table_type": "ICEBERG"}}, True, id="iceberg table"),
-            pytest.param({"Name": "test", "Parameters": {}}, False, id="no table_type in parameters"),
-            pytest.param(
-                {
-                    "Name": "test",
-                },
-                False,
-                id="no parameters for table",
-            ),
-        ],
-    )
-    def test__is_iceberg_table(self, table, expected):
-        assert self.adapter._is_iceberg_table(table) == expected
 
 
 class TestAthenaFilterCatalog:

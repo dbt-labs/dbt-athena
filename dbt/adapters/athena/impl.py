@@ -14,7 +14,11 @@ from botocore.exceptions import ClientError
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.config import get_boto3_config
-from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
+from dbt.adapters.athena.relation import (
+    AthenaRelation,
+    AthenaSchemaSearchMap,
+    TableType,
+)
 from dbt.adapters.athena.utils import clean_sql_comment
 from dbt.adapters.base import available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
@@ -34,13 +38,13 @@ class AthenaAdapter(SQLAdapter):
     Relation = AthenaRelation
 
     relation_type_map = {
-        "EXTERNAL_TABLE": "table",
-        "MANAGED_TABLE": "table",
-        "VIRTUAL_VIEW": "view",
-        "table": "table",
-        "view": "view",
-        "cte": "cte",
-        "materializedview": "materializedview",
+        "EXTERNAL_TABLE": TableType.TABLE,
+        "MANAGED_TABLE": TableType.TABLE,
+        "VIRTUAL_VIEW": TableType.VIEW,
+        "table": TableType.TABLE,
+        "view": TableType.VIEW,
+        "cte": TableType.CTE,
+        "materializedview": TableType.MATERIALIZED_VIEW,
     }
 
     @classmethod
@@ -364,7 +368,7 @@ class AthenaAdapter(SQLAdapter):
             "table_database": database,
             "table_schema": table["DatabaseName"],
             "table_name": table["Name"],
-            "table_type": self.relation_type_map[table["TableType"]],
+            "table_type": self.relation_type_map[table["TableType"]].value,
             "table_comment": table.get("Parameters", {}).get("comment", table.get("Description", "")),
         }
         return [
@@ -484,7 +488,7 @@ class AthenaAdapter(SQLAdapter):
         return relations
 
     @available
-    def get_table_type(self, db_name, table_name):
+    def get_table_type(self, db_name, table_name) -> TableType:
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
@@ -493,17 +497,17 @@ class AthenaAdapter(SQLAdapter):
 
         try:
             response = glue_client.get_table(DatabaseName=db_name, Name=table_name)
-            _type = self.relation_type_map.get(response.get("Table", {}).get("TableType", "Table"))
+            _type = self.relation_type_map.get(response.get("Table", {}).get("TableType"))
             _specific_type = response.get("Table", {}).get("Parameters", {}).get("table_type", "")
 
             if _specific_type.lower() == "iceberg":
-                _type = "iceberg_table"
+                _type = TableType.ICEBERG
 
             if _type is None:
                 raise ValueError("Table type cannot be None")
 
-            logger.debug("table_name : " + table_name)
-            logger.debug("table type : " + _type)
+            logger.debug(f"table_name : {table_name}")
+            logger.debug(f"table type : {_type}")
 
             return _type
 
@@ -674,13 +678,6 @@ class AthenaAdapter(SQLAdapter):
             return False
         return True
 
-    @staticmethod
-    def _is_iceberg_table(table: dict) -> bool:
-        """Check if table type is iceberg."""
-        if table.get("Parameters", {}).get("table_type") == "ICEBERG":
-            return True
-        return False
-
     @available
     def get_columns_in_relation(self, relation: AthenaRelation) -> List[AthenaColumn]:
         conn = self.connections.get_thread_connection()
@@ -690,6 +687,7 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)["Table"]
+        table_type = self.get_table_type(relation.schema, relation.identifier)
 
         columns = [c for c in table["StorageDescriptor"]["Columns"] if self._is_current_column(c)]
         partition_keys = table.get("PartitionKeys", [])
@@ -697,6 +695,5 @@ class AthenaAdapter(SQLAdapter):
         logger.debug(f"Columns in relation {relation.identifier}: {columns + partition_keys}")
 
         return [
-            AthenaColumn(column=c["Name"], dtype=c["Type"], is_iceberg=self._is_iceberg_table(table))
-            for c in columns + partition_keys
+            AthenaColumn(column=c["Name"], dtype=c["Type"], table_type=table_type) for c in columns + partition_keys
         ]

@@ -1,12 +1,16 @@
 from dataclasses import dataclass
 
+from dbt.adapters.athena.relation import TableType
 from dbt.adapters.base.column import Column
 from dbt.exceptions import DbtRuntimeError
 
 
 @dataclass
 class AthenaColumn(Column):
-    is_iceberg: bool = False
+    table_type: TableType = TableType.TABLE
+
+    def is_iceberg(self) -> bool:
+        return self.table_type == TableType.ICEBERG
 
     def is_string(self) -> bool:
         return self.dtype.lower() in {"varchar", "string"}
@@ -25,10 +29,10 @@ class AthenaColumn(Column):
     def binary_type(cls) -> str:
         return "varbinary"
 
-    @classmethod
-    def timestamp_type(cls, is_iceberg: bool) -> str:
-        # Iceberg does not support timestamp with precision 3, that's why use timestamp(6)
-        return "timestamp(6)" if is_iceberg else "timestamp"
+    def timestamp_type(self) -> str:
+        if self.is_iceberg():
+            return "timestamp(6)"
+        return "timestamp"
 
     def string_size(self) -> int:
         if not self.is_string():
@@ -47,5 +51,5 @@ class AthenaColumn(Column):
         elif self.is_binary():
             return self.binary_type()
         elif self.is_timestamp():
-            return self.timestamp_type(self.is_iceberg)
+            return self.timestamp_type(self.table_type)
         return self.dtype
