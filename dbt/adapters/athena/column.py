@@ -51,5 +51,5 @@ class AthenaColumn(Column):
         elif self.is_binary():
             return self.binary_type()
         elif self.is_timestamp():
-            return self.timestamp_type(self.table_type)
+            return self.timestamp_type()
         return self.dtype
