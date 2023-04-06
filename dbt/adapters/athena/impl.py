@@ -152,13 +152,14 @@ class AthenaAdapter(SQLAdapter):
         with boto3_client_lock:
             athena_client = client.session.client("athena", region_name=client.region_name, config=get_boto3_config())
 
-        work_group = athena_client.get_work_group(WorkGroup=creds.work_group)
-        return (
-            work_group.get("WorkGroup", {})
-            .get("Configuration", {})
-            .get("ResultConfiguration", {})
-            .get("OutputLocation")
-        )
+        if creds.work_group:
+            work_group = athena_client.get_work_group(WorkGroup=creds.work_group)
+            return (
+                work_group.get("WorkGroup", {})
+                .get("Configuration", {})
+                .get("ResultConfiguration", {})
+                .get("OutputLocation")
+            )
 
     @available
     def s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
