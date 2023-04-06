@@ -431,7 +431,7 @@ The following individuals are responsible for curating the list of issues, respo
 Thank you to all the people who have already contributed to this repository via bug reports, code, design, ideas, project management, translation, testing, etc.
 
 * [Tomme](https://github.com/Tomme) - Wrote the initial version.
-* [Lemiffe] https://github.com/lemiffe - Logo design
+* [Lemiffe](https://github.com/lemiffe) - Logo design
 
 ## Resources
 * [Athena CREATE TABLE AS](https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html)
