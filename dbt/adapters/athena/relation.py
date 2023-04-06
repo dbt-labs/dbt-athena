@@ -15,7 +15,7 @@ class TableType(Enum):
 
 @dataclass
 class AthenaIncludePolicy(Policy):
-    database: bool = False
+    database: bool = True
     schema: bool = True
     identifier: bool = True
 
