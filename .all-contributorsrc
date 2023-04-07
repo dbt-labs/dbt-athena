@@ -1,0 +1,26 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "commitConvention": "angular",
+  "contributors": [
+    {
+      "login": "nicor88",
+      "name": "nicor88",
+      "avatar_url": "https://avatars.githubusercontent.com/u/6278547?v=4",
+      "profile": "https://github.com/nicor88",
+      "contributions": [
+        "code",
+        "maintenance"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "skipCi": true,
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "projectName": "dbt-athena",
+  "projectOwner": "dbt-athena"
+}
