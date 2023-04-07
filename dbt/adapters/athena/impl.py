@@ -144,7 +144,7 @@ class AthenaAdapter(SQLAdapter):
                         logger.debug(self.parse_lf_response(response, database, table, columns, {tag_key: tag_value}))
 
     @available
-    def get_work_group_output_location(self) -> Optional[str]:
+    def get_work_group_output_location(self) -> bool:
         conn = self.connections.get_thread_connection()
         creds = conn.credentials
         client = conn.handle
@@ -157,9 +157,10 @@ class AthenaAdapter(SQLAdapter):
             return (
                 work_group.get("WorkGroup", {})
                 .get("Configuration", {})
-                .get("ResultConfiguration", {})
-                .get("OutputLocation")
+                .get("EnforceWorkGroupConfiguration", False)
             )
+        else:
+            return False
 
     @available
     def s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
