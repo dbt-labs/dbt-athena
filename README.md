@@ -415,7 +415,7 @@ make test
   [conventionalcommits](https://www.conventionalcommits.org).
 * Pull request body should describe _motivation_.
 
-## Credits
+<!-- ## Credits
 The following acknowledges the Maintainers for this repository, those who have Contributed to this repository (via bug reports, code, design, ideas, project management, translation, testing, etc.), and any other References utilized.
 
 ### Maintainers
@@ -431,7 +431,18 @@ The following individuals are responsible for curating the list of issues, respo
 Thank you to all the people who have already contributed to this repository via bug reports, code, design, ideas, project management, translation, testing, etc.
 
 * [Tomme](https://github.com/Tomme) - Wrote the initial version.
-* [Lemiffe](https://github.com/lemiffe) - Logo design.
+* [Lemiffe](https://github.com/lemiffe) - Logo design. -->
+
+## Contributors
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
 
 ## Resources
 * [Athena CREATE TABLE AS](https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html)
