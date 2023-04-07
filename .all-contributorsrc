@@ -7,12 +7,22 @@
   "commitConvention": "angular",
   "contributors": [
     {
-      "login": "lemiffe",
-      "name": "Lemiffe",
-      "avatar_url": "https://avatars.githubusercontent.com/u/7487772?v=4",
-      "profile": "https://github.com/lemiffe",
+      "login": "nicor88",
+      "name": "nicor88",
+      "avatar_url": "https://avatars.githubusercontent.com/u/6278547?v=4",
+      "profile": "https://github.com/nicor88",
       "contributions": [
-        "design"
+        "code",
+        "maintenance"
+      ]
+    },
+    {
+      "login": "jessedobbelaere",
+      "name": "Jesse Dobbelaere",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1352979?v=4",
+      "profile": "https://jessedobbelae.re",
+      "contributions": [
+        "bug"
       ]
     }
   ],
