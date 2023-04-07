@@ -415,8 +415,25 @@ make test
   [conventionalcommits](https://www.conventionalcommits.org).
 * Pull request body should describe _motivation_.
 
-### Helpful Resources
+## Credits
+The following acknowledges the Maintainers for this repository, those who have Contributed to this repository (via bug reports, code, design, ideas, project management, translation, testing, etc.), and any other References utilized.
 
+### Maintainers
+The following individuals are responsible for curating the list of issues, responding to pull requests, and ensuring regular releases happen.
+
+* [nicor88](https://github.com/nicor88)
+* [Jrmyy](https://github.com/Jrmyy)
+* [jessedobbelaere](https://github.com/jessedobbelaere)
+* [mattiamatrix](https://github.com/mattiamatrix)
+* [thenaturalist](https://github.com/thenaturalist)
+
+### Contributors
+Thank you to all the people who have already contributed to this repository via bug reports, code, design, ideas, project management, translation, testing, etc.
+
+* [Tomme](https://github.com/Tomme) - Wrote the initial version.
+* [Lemiffe](https://github.com/lemiffe) - Logo design.
+
+## Resources
 * [Athena CREATE TABLE AS](https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html)
 * [dbt-labs/dbt-core](https://github.com/dbt-labs/dbt-core)
 * [laughingman7743/PyAthena](https://github.com/laughingman7743/PyAthena)
