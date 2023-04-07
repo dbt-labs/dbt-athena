@@ -1,7 +1,16 @@
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Dict, Optional, Set
 
 from dbt.adapters.base.relation import BaseRelation, InformationSchema, Policy
+
+
+class TableType(Enum):
+    TABLE = "table"
+    VIEW = "view"
+    CTE = "cte"
+    MATERIALIZED_VIEW = "materializedview"
+    ICEBERG = "iceberg_table"
 
 
 @dataclass
