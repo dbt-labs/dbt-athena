@@ -419,11 +419,6 @@ make test
 * Pull request body should describe _motivation_.
 
 
-## Resources
-* [Athena CREATE TABLE AS](https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html)
-* [dbt-labs/dbt-core](https://github.com/dbt-labs/dbt-core)
-* [laughingman7743/PyAthena](https://github.com/laughingman7743/PyAthena)
-
 ## Contributors ✨
 
 Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
@@ -448,3 +443,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
+
+
+## Resources
+* [Athena CREATE TABLE AS](https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html)
+* [dbt-labs/dbt-core](https://github.com/dbt-labs/dbt-core)
+* [laughingman7743/PyAthena](https://github.com/laughingman7743/PyAthena)
