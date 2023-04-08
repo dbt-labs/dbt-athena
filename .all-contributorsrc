@@ -53,6 +53,15 @@
         "maintenance",
         "code"
       ]
+    },
+    {
+      "login": "mattiamatrix",
+      "name": "Mattia",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5013654?v=4",
+      "profile": "https://github.com/mattiamatrix",
+      "contributions": [
+        "maintenance"
+      ]
     }
   ],
   "contributorsPerLine": 7,
