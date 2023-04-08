@@ -43,6 +43,16 @@
       "contributions": [
         "maintenance"
       ]
+    },
+    {
+      "login": "Tomme",
+      "name": "Tom",
+      "avatar_url": "https://avatars.githubusercontent.com/u/932895?v=4",
+      "profile": "https://github.com/Tomme",
+      "contributions": [
+        "maintenance",
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
