@@ -1,12 +1,12 @@
-[![pypi](https://badge.fury.io/py/dbt-athena-community.svg)](https://pypi.org/project/dbt-athena-community/)
-<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-4-orange.svg?style=flat-square)](#contributors-)
-<!-- ALL-CONTRIBUTORS-BADGE:END -->
-[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Stats: pepy](https://pepy.tech/badge/dbt-athena-community/month)](https://pepy.tech/project/dbt-athena-community)
+<p align="center">
+    <img src="https://raw.githubusercontent.com/dbt-athena/dbt-athena/main/static/images/dbt-athena-long.png" />
+    <a href="https://pypi.org/project/dbt-athena-community/"><img src="https://badge.fury.io/py/dbt-athena-community.svg" /></a>
+    <a href="https://pycqa.github.io/isort/"><img src="https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336" /></a>
+    <a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" /></a>
+    <a href="https://pepy.tech/project/dbt-athena-community"><img src="https://pepy.tech/badge/dbt-athena-community/month" /></a>
+</p>
 
-# dbt-athena
+## Features
 
 * Supports dbt version `1.4.*`
 * Supports [Seeds][seeds]
@@ -33,6 +33,9 @@
 [athena-iceberg]: https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg.html
 [snapshots]: https://docs.getdbt.com/docs/build/snapshots
 [persist-docs]: https://docs.getdbt.com/reference/resource-configs/persist_docs
+
+
+## Quick Start
 
 ### Installation
 
@@ -101,9 +104,10 @@ _Additional information_
 * `threads` is supported
 * `database` and `catalog` can be used interchangeably
 
-### Models
 
-#### Table Configuration
+## Models
+
+### Table Configuration
 
 * `external_location` (`default=none`)
   * If set, the full S3 path in which the table will be saved. (Does not work with Iceberg table).
@@ -132,7 +136,7 @@ _Additional information_
   * lf tags to associate with the table columns
   * format: `{"tag1": {"value1": ["column1": "column2"]}}`
 
-#### Table location
+### Table location
 
 The location in which a table is saved is determined by:
 
@@ -152,8 +156,7 @@ or setting up the value for groups of model in dbt_project.yml.
 
 > Note: when using a work group with a default output location configured, `s3_data_naming` and any configured buckets are ignored and the location configured in the work group is used.
 
-
-#### Incremental models
+### Incremental models
 
 Support for [incremental models](https://docs.getdbt.com/docs/build/incremental-models).
 
@@ -167,7 +170,7 @@ data (e.g. great for log or historical data).
 * `merge`: Conditionally updates, deletes, or inserts rows into an Iceberg table. Used in combination with `unique_key`.
 Only available when using Iceberg.
 
-#### On schema change
+### On schema change
 
 `on_schema_change` is an option to reflect changes of schema in incremental models.
 The following options are supported:
@@ -178,8 +181,7 @@ The following options are supported:
 
 In detail, please refer to [dbt docs](https://docs.getdbt.com/docs/build/incremental-models#what-if-the-columns-of-my-incremental-model-change).
 
-
-#### Iceberg
+### Iceberg
 
 The adapter supports table materialization for Iceberg.
 
@@ -214,7 +216,7 @@ It is possible to use iceberg in an incremental fashion, specifically 2 strategi
 * `merge`: must be used in combination with `unique_key` and it's only available with Engine version 3.
    It performs an upsert, new record are added, and record already existing are updated
 
-#### High available table materialization
+### High available table materialization
 The current implementation of the table materialization can lead to downtime, as target table is dropped and re-created.
 To have the less destructive behavior it's possible to use `table='table_hive_ha'` materialization.
 **table_hive_ha** leverage the table versions feature of glue catalog, creating a tmp table and swapping
@@ -229,7 +231,6 @@ This materialization is only available for `table_type=hive` and requires using 
     s3_data_naming='table_unique'
 ) }}
 
-
 select
   'a' as user_id,
   'pi' as user_name,
@@ -243,7 +244,7 @@ select
 
 By default, the materialization keeps the last 4 table versions, you can change it that setting `versions_to_keep`.
 
-##### Known issues
+#### Known issues
 * When swapping from a table with partitions to a table without (and the other way around), there could be a little downtime.
   In case high performances are needed consider bucketing instead of partitions
 * By default, Glue "duplicate" the versions internally, so the last 2 versions of a table point to the same location
@@ -251,19 +252,19 @@ By default, the materialization keeps the last 4 table versions, you can change 
 * The macro athena__end_of_time needs to be overwritten by the user if using Athena v3 since it requires a precision parameter for timestamps
 
 
-### Snapshots
+## Snapshots
 
 The adapter supports snapshot materialization. It supports both timestamp and check strategy. To create a snapshot create a snapshot file in the snapshots directory. If directory does not exist create one.
 
-#### Timestamp strategy
+### Timestamp strategy
 
 To use the timestamp strategy refer to the [dbt docs](https://docs.getdbt.com/docs/build/snapshots#timestamp-strategy-recommended)
 
-#### Check strategy
+### Check strategy
 
 To use the check strategy refer to the [dbt docs](https://docs.getdbt.com/docs/build/snapshots#check-strategy)
 
-#### Hard-deletes
+### Hard-deletes
 
 The materialization also supports invalidating hard deletes. Check the [docs](https://docs.getdbt.com/docs/build/snapshots#hard-deletes-opt-in) to understand usage.
 
@@ -299,7 +300,6 @@ model.sql
     materialized='table'
 ) }}
 
-
 SELECT
     ROW_NUMBER() OVER () AS id
     , *
@@ -319,8 +319,6 @@ timestamp strategy - model_snapshot_1
       unique_key='id'
     )
 }}
-
-
 
 SELECT *
 
@@ -376,11 +374,12 @@ The only way, from a dbt perspective, is to do a full-refresh of the incremental
 
 * Snapshot does not support dropping columns from the source table. If you drop a column make sure to drop the column from the snapshot as well. Another workaround is to NULL the column in the snapshot definition to preserve history
 
-### Contributing
+
+## Contributing
 
 This connector works with Python from 3.7 to 3.11.
 
-#### Getting started
+### Getting started
 
 In order to start developing on this adapter clone the repo and run this make command (see [Makefile](Makefile)) :
 
@@ -395,20 +394,19 @@ It will :
 
 Next, adjust `.env` file by configuring the environment variables to match your Athena development environment.
 
-#### Running tests
+### Running tests
 
 We have 2 different types of testing:
 * **unit testing**: you can run this type of tests running `make unit_test`
 * **functional testing**: you must have an AWS account with Athena setup in order to launch this type of tests and have a `.env` file in place with the right values.
   You can run this type of tests running `make functional_test`
 
-
 All type of tests can be run using `make`:
 ```bash
 make test
 ```
 
-#### Pull Request
+### Pull Request
 
 * Create a commit with your changes and push them to a
   [fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo).
@@ -418,28 +416,12 @@ make test
   [conventionalcommits](https://www.conventionalcommits.org).
 * Pull request body should describe _motivation_.
 
-## Credits
-The following acknowledges the Maintainers for this repository, those who have Contributed to this repository (via bug reports, code, design, ideas, project management, translation, testing, etc.), and any other References utilized.
-
-### Maintainers
-The following individuals are responsible for curating the list of issues, responding to pull requests, and ensuring regular releases happen.
-
-* [nicor88](https://github.com/nicor88)
-* [Jrmyy](https://github.com/Jrmyy)
-* [jessedobbelaere](https://github.com/jessedobbelaere)
-* [mattiamatrix](https://github.com/mattiamatrix)
-* [thenaturalist](https://github.com/thenaturalist)
-
-### Contributors
-Thank you to all the people who have already contributed to this repository via bug reports, code, design, ideas, project management, translation, testing, etc.
-
-* [Tomme](https://github.com/Tomme) - Wrote the initial version.
-* [Lemiffe](https://github.com/lemiffe) - Logo design.
 
 ## Resources
 * [Athena CREATE TABLE AS](https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html)
 * [dbt-labs/dbt-core](https://github.com/dbt-labs/dbt-core)
 * [laughingman7743/PyAthena](https://github.com/laughingman7743/PyAthena)
+
 
 ## Contributors ✨
 
