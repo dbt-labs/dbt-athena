@@ -724,14 +724,14 @@ class TestAthenaAdapter:
     def test_get_work_group_output_location(self, aws_credentials):
         self.adapter.acquire_connection("dummy")
         self.mock_aws_service.create_work_group_with_output_location(ATHENA_WORKGROUP)
-        work_group_location = self.adapter.get_work_group_output_location()
+        work_group_location = self.adapter.is_work_group_output_location_enforced()
         assert work_group_location is not None
 
     @mock_athena
     def test_get_work_group_output_location_no_location(self, aws_credentials):
         self.adapter.acquire_connection("dummy")
         self.mock_aws_service.create_work_group_no_output_location(ATHENA_WORKGROUP)
-        work_group_location = self.adapter.get_work_group_output_location()
+        work_group_location = self.adapter.is_work_group_output_location_enforced()
         assert work_group_location is None
 
     @mock_athena
