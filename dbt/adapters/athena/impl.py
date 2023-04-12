@@ -158,8 +158,7 @@ class AthenaAdapter(SQLAdapter):
                 work_group.get("WorkGroup", {})
                 .get("Configuration", {})
                 .get("ResultConfiguration", {})
-                .get("OutputLocation"),
-                None,
+                .get("OutputLocation", None)
             )
 
             return output_location is not None and work_group.get("WorkGroup", {}).get("Configuration", {}).get(

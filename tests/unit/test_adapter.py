@@ -723,16 +723,23 @@ class TestAthenaAdapter:
     @mock_athena
     def test_get_work_group_output_location(self, aws_credentials):
         self.adapter.acquire_connection("dummy")
-        self.mock_aws_service.create_work_group_with_output_location(ATHENA_WORKGROUP)
-        work_group_location = self.adapter.is_work_group_output_location_enforced()
-        assert work_group_location is not None
+        self.mock_aws_service.create_work_group_with_output_location_enforced(ATHENA_WORKGROUP)
+        work_group_location_enforced = self.adapter.is_work_group_output_location_enforced()
+        assert work_group_location_enforced
 
     @mock_athena
     def test_get_work_group_output_location_no_location(self, aws_credentials):
         self.adapter.acquire_connection("dummy")
         self.mock_aws_service.create_work_group_no_output_location(ATHENA_WORKGROUP)
-        work_group_location = self.adapter.is_work_group_output_location_enforced()
-        assert work_group_location is None
+        work_group_location_enforced = self.adapter.is_work_group_output_location_enforced()
+        assert not work_group_location_enforced
+
+    @mock_athena
+    def test_get_work_group_output_location_not_enforced(self, aws_credentials):
+        self.adapter.acquire_connection("dummy")
+        self.mock_aws_service.create_work_group_with_output_location_not_enforced(ATHENA_WORKGROUP)
+        work_group_location_enforced = self.adapter.is_work_group_output_location_enforced()
+        assert not work_group_location_enforced
 
     @mock_athena
     @mock_glue
