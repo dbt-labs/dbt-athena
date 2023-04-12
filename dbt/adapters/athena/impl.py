@@ -161,9 +161,11 @@ class AthenaAdapter(SQLAdapter):
                 .get("OutputLocation", None)
             )
 
-            return output_location is not None and work_group.get("WorkGroup", {}).get("Configuration", {}).get(
-                "EnforceWorkGroupConfiguration", False
+            output_location_enforced = (
+                work_group.get("WorkGroup", {}).get("Configuration", {}).get("EnforceWorkGroupConfiguration", False)
             )
+
+            return output_location is not None and output_location_enforced
         else:
             return False
 
