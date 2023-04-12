@@ -22,7 +22,45 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/1352979?v=4",
       "profile": "https://jessedobbelae.re",
       "contributions": [
-        "bug"
+        "bug",
+        "maintenance"
+      ]
+    },
+    {
+      "login": "lemiffe",
+      "name": "Lemiffe",
+      "avatar_url": "https://avatars.githubusercontent.com/u/7487772?v=4",
+      "profile": "https://github.com/lemiffe",
+      "contributions": [
+        "design"
+      ]
+    },
+    {
+      "login": "Jrmyy",
+      "name": "Jérémy Guiselin",
+      "avatar_url": "https://avatars.githubusercontent.com/u/9251353?v=4",
+      "profile": "https://github.com/Jrmyy",
+      "contributions": [
+        "maintenance"
+      ]
+    },
+    {
+      "login": "Tomme",
+      "name": "Tom",
+      "avatar_url": "https://avatars.githubusercontent.com/u/932895?v=4",
+      "profile": "https://github.com/Tomme",
+      "contributions": [
+        "maintenance",
+        "code"
+      ]
+    },
+    {
+      "login": "mattiamatrix",
+      "name": "Mattia",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5013654?v=4",
+      "profile": "https://github.com/mattiamatrix",
+      "contributions": [
+        "maintenance"
       ]
     }
   ],

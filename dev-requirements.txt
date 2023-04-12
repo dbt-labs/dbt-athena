@@ -7,6 +7,6 @@ isort~=5.11
 moto~=4.1.6
 pre-commit~=2.21
 pyparsing~=3.0.9
-pytest~=7.2
+pytest~=7.3
 pytest-cov~=4.0
 pyupgrade~=3.3
