@@ -14,7 +14,7 @@
 
   {%- set location_property = 'external_location' -%}
   {%- set partition_property = 'partitioned_by' -%}
-  {%- set work_group_output_location = adapter.get_work_group_output_location() -%}
+  {%- set work_group_output_location_enforced = adapter.is_work_group_output_location_enforced() -%}
   {%- set location = adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier, external_location, temporary) -%}
 
   {%- if materialized == 'table_hive_ha' -%}
@@ -48,7 +48,7 @@
   with (
     table_type='{{ table_type }}',
     is_external={%- if table_type == 'iceberg' -%}false{%- else -%}true{%- endif %},
-  {%- if work_group_output_location is none -%}
+  {%- if not work_group_output_location_enforced -%}
     {{ location_property }}='{{ location }}',
   {%- endif %}
   {%- if partitioned_by is not none %}
