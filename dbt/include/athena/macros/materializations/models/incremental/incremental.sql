@@ -47,6 +47,7 @@
     {% do to_drop.append(tmp_relation) %}
   {% elif strategy == 'merge' and table_type == 'iceberg' %}
     {% set unique_key = config.get('unique_key') %}
+    {% set delete_condition = config.get('delete_condition') %}
     {% set empty_unique_key -%}
       Merge strategy must implement unique_key as a single column or a list of columns.
     {%- endset %}
@@ -59,7 +60,7 @@
       {% do drop_relation(tmp_relation) %}
     {% endif %}
     {% do run_query(create_table_as(True, tmp_relation, sql)) %}
-    {% set build_sql = iceberg_merge(on_schema_change, tmp_relation, target_relation, unique_key, existing_relation) %}
+    {% set build_sql = iceberg_merge(on_schema_change, tmp_relation, target_relation, unique_key, existing_relation, delete_condition) %}
     {% do to_drop.append(tmp_relation) %}
   {% endif %}
 
