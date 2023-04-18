@@ -62,6 +62,15 @@
       "contributions": [
         "maintenance"
       ]
+    },
+    {
+      "login": "Gatsby-Lee",
+      "name": "Gatsby Lee",
+      "avatar_url": "https://avatars.githubusercontent.com/u/22950880?v=4",
+      "profile": "https://github.com/Gatsby-Lee",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
