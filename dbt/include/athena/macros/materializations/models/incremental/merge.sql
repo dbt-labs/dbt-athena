@@ -1,4 +1,4 @@
-{% macro iceberg_merge(on_schema_change, tmp_relation, target_relation, unique_key, existing_relation, statement_name="main") %}
+{% macro iceberg_merge(on_schema_change, tmp_relation, target_relation, unique_key, existing_relation, delete_condition, statement_name="main") %}
     {% set dest_columns = process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
     {% if not dest_columns %}
       {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
@@ -20,12 +20,16 @@
     {%- set src_cols_csv = src_columns | join(', ') -%}
 
     merge into {{ target_relation }} as target using {{ tmp_relation }} as src
-    ON (
+    on (
       {% for key in unique_key_cols %}
         target.{{ key }} = src.{{ key }}
         {{ "and " if not loop.last }}
       {% endfor %}
     )
+    {% if delete_condition is not none %}
+    when matched and ({{ delete_condition}})
+      then delete
+    {% endif %}
     when matched
       then update set
         {% for col in update_columns %}
