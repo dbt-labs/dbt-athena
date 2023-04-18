@@ -3,7 +3,18 @@
 %}
 
 {% macro athena__current_timestamp() -%}
-    cast(now() as timestamp(6))
+  {{ cast_timestamp('now()') }}
+{%- endmacro %}
+
+
+{% macro cast_timestamp(timestamp_col) -%}
+  {%- set config = model['config'] -%}
+  {%- set table_type = config.get('table_type', 'glue') -%}
+  {%- if table_type == 'iceberg' -%}
+    cast({{ timestamp_col }} as timestamp(6))
+  {%- else -%}
+    cast({{ timestamp_col }} as timestamp)
+  {%- endif -%}
 {%- endmacro %}
 
 {%
