@@ -55,7 +55,7 @@ iceberg_model_ephemeral = """
 """
 
 
-def replace_single_model(model):
+def configure_single_model_to_use_iceberg(model):
     """Adjust a given model configuration to use iceberg instead of hive."""
     replacements = [
         (config_materialized_table, iceberg_config_materialized_table),
@@ -69,9 +69,9 @@ def replace_single_model(model):
     return model
 
 
-def set_iceberg_models(models):
+def configure_models_to_use_iceberg(models):
     """Loop over all the dbt models and set the table configuration to iceberg."""
-    return {key: replace_single_model(val) for key, val in models.items()}
+    return {key: configure_single_model_to_use_iceberg(val) for key, val in models.items()}
 
 
 @pytest.mark.skip(
@@ -81,7 +81,7 @@ def set_iceberg_models(models):
 class TestSimpleMaterializationsIceberg(BaseSimpleMaterializations):
     @pytest.fixture(scope="class")
     def models(self):
-        return set_iceberg_models(
+        return configure_models_to_use_iceberg(
             {
                 "view_model.sql": base_view_sql,
                 "table_model.sql": base_table_sql,
@@ -94,7 +94,7 @@ class TestSimpleMaterializationsIceberg(BaseSimpleMaterializations):
 class TestEphemeralIceberg(BaseEphemeral):
     @pytest.fixture(scope="class")
     def models(self):
-        return set_iceberg_models(
+        return configure_models_to_use_iceberg(
             {
                 "ephemeral.sql": base_ephemeral_sql,
                 "view_model.sql": ephemeral_view_sql,
@@ -107,7 +107,7 @@ class TestEphemeralIceberg(BaseEphemeral):
 class TestIncrementalIceberg(BaseIncremental):
     @pytest.fixture(scope="class")
     def models(self):
-        return set_iceberg_models(
+        return configure_models_to_use_iceberg(
             {
                 "incremental.sql": incremental_sql,
                 "schema.yml": schema_base_yml,
@@ -118,7 +118,7 @@ class TestIncrementalIceberg(BaseIncremental):
 class TestGenericTestsIceberg(BaseGenericTests):
     @pytest.fixture(scope="class")
     def models(self):
-        return set_iceberg_models(
+        return configure_models_to_use_iceberg(
             {
                 "view_model.sql": base_view_sql,
                 "table_model.sql": base_table_sql,
