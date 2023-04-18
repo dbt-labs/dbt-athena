@@ -214,7 +214,31 @@ Iceberg supports several table formats for data : `PARQUET`, `AVRO` and `ORC`.
 It is possible to use iceberg in an incremental fashion, specifically 2 strategies are supported:
 * `append`: new records are appended to the table, this can lead to duplicates
 * `merge`: must be used in combination with `unique_key` and it's only available with Engine version 3.
-   It performs an upsert, new record are added, and record already existing are updated
+   It performs an upsert, new record are added, and record already existing are updated. If
+   `delete_condition` is provided in the model config, it can also delete records based on the
+   provided condition (SQL condition). You can use any column of the incremental table (`src`) or
+   the final table (`target`). You must prefix the column by the name of the table to prevent
+   `Column is ambiguous` error.
+
+```sql
+{{ config(
+    materialized='incremental',
+    table_type='iceberg',
+    incremental_strategy='merge',
+    unique_key='user_id',
+    delete_condition="src.status != 'active' and target.my_date < now() - interval '2' year"
+    format='parquet',
+) }}
+
+SELECT
+	'A' AS user_id,
+	'pi' AS name,
+	'active' AS status,
+	17.89 AS cost,
+	1 AS quantity,
+	100000000 AS quantity_big,
+	current_date AS my_date
+```
 
 ### High available table materialization
 The current implementation of the table materialization can lead to downtime, as target table is dropped and re-created.
