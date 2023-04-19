@@ -65,7 +65,11 @@ class TestAthenaAdapter:
         self.config = config_from_parts_or_dicts(project_cfg, profile_cfg)
         self._adapter = None
         self.mock_manifest = mock.MagicMock()
-        self.mock_manifest.get_used_schemas.return_value = {("awsdatacatalog", "foo"), ("awsdatacatalog", "quux")}
+        self.mock_manifest.get_used_schemas.return_value = {
+            ("awsdatacatalog", "foo"),
+            ("awsdatacatalog", "quux"),
+            ("awsdatacatalog", "baz"),
+        }
         self.mock_manifest.nodes = {
             "model.root.model1": CompiledNode(
                 name="model1",
@@ -132,6 +136,42 @@ class TestAthenaAdapter:
                 tags=[],
                 path="model2.sql",
                 original_file_path="model2.sql",
+                compiled=True,
+                extra_ctes_injected=False,
+                extra_ctes=[],
+                checksum=FileHash.from_contents(""),
+                raw_code="select * from source_table",
+                language="",
+            ),
+            "model.root.model3": CompiledNode(
+                name="model2",
+                database="awsdatacatalog",
+                schema="baz",
+                resource_type=NodeType.Model,
+                unique_id="model.root.model3",
+                alias="qux",
+                fqn=["root", "model2"],
+                package_name="root",
+                refs=[],
+                sources=[],
+                depends_on=DependsOn(),
+                config=NodeConfig.from_dict(
+                    {
+                        "enabled": True,
+                        "materialized": "table",
+                        "persist_docs": {},
+                        "post-hook": [],
+                        "pre-hook": [],
+                        "vars": {},
+                        "meta": {"owner": "data-engineers"},
+                        "quoting": {},
+                        "column_types": {},
+                        "tags": [],
+                    }
+                ),
+                tags=[],
+                path="model3.sql",
+                original_file_path="model3.sql",
                 compiled=True,
                 extra_ctes_injected=False,
                 extra_ctes=[],
@@ -370,8 +410,10 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database("foo")
         self.mock_aws_service.create_database("quux")
+        self.mock_aws_service.create_database("baz")
         self.mock_aws_service.create_table(table_name="bar", database_name="foo")
         self.mock_aws_service.create_table(table_name="bar", database_name="quux")
+        self.mock_aws_service.create_table_without_type(table_name="qux", database_name="baz")
 
         self.adapter.acquire_connection("dummy")
         actual = self.adapter._get_one_catalog(
@@ -379,6 +421,7 @@ class TestAthenaAdapter:
             {
                 "foo": {"bar"},
                 "quux": {"bar"},
+                "baz": {"qux"},
             },
             self.mock_manifest,
         )
@@ -402,6 +445,8 @@ class TestAthenaAdapter:
             ("awsdatacatalog", "quux", "bar", "table", None, "id", 0, "string", None, "data-analysts"),
             ("awsdatacatalog", "quux", "bar", "table", None, "country", 1, "string", None, "data-analysts"),
             ("awsdatacatalog", "quux", "bar", "table", None, "dt", 2, "date", None, "data-analysts"),
+            ("awsdatacatalog", "baz", "qux", "table", None, "id", 0, "string", None, "data-engineers"),
+            ("awsdatacatalog", "baz", "qux", "table", None, "country", 1, "string", None, "data-engineers"),
         ]
 
         assert actual.column_names == expected_column_names
@@ -417,8 +462,8 @@ class TestAthenaAdapter:
         assert information_schema.schema is None
         assert information_schema.database == "awsdatacatalog"
         relations = list(res.values())[0]
-        assert set(relations.keys()) == {"foo", "quux"}
-        assert list(relations.values()) == [{"bar"}, {"bar"}]
+        assert set(relations.keys()) == {"foo", "quux", "baz"}
+        assert list(relations.values()) == [{"bar"}, {"bar"}, {"qux"}]
 
     @mock_athena
     def test__get_data_catalog(self, aws_credentials):
