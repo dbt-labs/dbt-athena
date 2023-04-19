@@ -53,7 +53,7 @@
 
   -- create tmp relation
   {%- set tmp_relation = api.Relation.create(
-    identifier=model.name + "__dbt_tmp",
+    identifier=identifier + "__dbt_tmp",
     schema=model.schema,
     database=model.database,
     type='table'
@@ -61,7 +61,7 @@
 
   -- create target relation
   {%- set relation = api.Relation.create(
-    identifier=model.name,
+    identifier=identifier,
     schema=model.schema,
     database=model.database,
     type='table'
