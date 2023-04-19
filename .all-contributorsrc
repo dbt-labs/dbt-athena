@@ -83,6 +83,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "aartaria",
+      "name": "Andrea Artaria",
+      "avatar_url": "https://avatars.githubusercontent.com/u/10273710?v=4",
+      "profile": "https://github.com/aartaria",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
