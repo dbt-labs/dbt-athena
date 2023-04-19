@@ -15,20 +15,17 @@
     If hive table then Recreate the snapshot table from the new_snapshot_table
     If iceberg table then Update the standard snapshot merge to include the DBT_INTERNAL_SOURCE prefix in the src_cols_csv
 #}
-{% macro athena_snapshot_merge_sql(target, source, insert_cols, table_type) -%}
-    {% if table_type=='iceberg' %}
-    {% else %}
-        {%- set target_relation = adapter.get_relation(database=target.database, schema=target.schema, identifier=target.identifier) -%}
-        {%- if target_relation is not none -%}
-          {% do adapter.drop_relation(target_relation) %}
-        {%- endif -%}
+{% macro hive_snapshot_merge_sql(target, source, insert_cols, table_type) -%}
+    {%- set target_relation = adapter.get_relation(database=target.database, schema=target.schema, identifier=target.identifier) -%}
+    {%- if target_relation is not none -%}
+      {% do adapter.drop_relation(target_relation) %}
+    {%- endif -%}
 
-        {% set sql -%}
-          select * from {{ source }};
-        {%- endset -%}
+    {% set sql -%}
+      select * from {{ source }};
+    {%- endset -%}
 
-        {{ create_table_as(False, target_relation, sql) }}
-    {% endif %}
+    {{ create_table_as(False, target_relation, sql) }}
 {% endmacro %}
 
 {% macro iceberg_snapshot_merge_sql(target, source, insert_cols) %}
@@ -57,12 +54,11 @@
 
 
 {#
-    Update the dbt_valid_to and is_current_record for
-    snapshot rows being updated and create a new temporary table to hold them
+    Create a new temporary table that will hold the new snapshot results.
+    This table will then be used to overwrite the target snapshot table.
 #}
-
-{% macro athena__create_new_snapshot_table(target, source, insert_cols) %}
-    {%- set temp_relation = make_temp_relation(target, '__dbt_tmp_1') -%}
+{% macro hive_create_new_snapshot_table(target, source, insert_cols) %}
+    {%- set temp_relation = make_temp_relation(target, '__dbt_tmp_snapshot') -%}
     {%- set preexisting_tmp_relation = load_cached_relation(temp_relation) -%}
     {%- if preexisting_tmp_relation is not none -%}
       {%- do adapter.drop_relation(preexisting_tmp_relation) -%}
@@ -129,7 +125,6 @@
   {%- set target_table = model.get('alias', model.get('name')) -%}
 
   {%- set strategy_name = config.get('strategy') -%}
-  {%- set unique_key = config.get('unique_key') -%}
   {%- set file_format = config.get('file_format', 'parquet') -%}
   {%- set table_type = config.get('table_type', 'hive') -%}
 
@@ -207,13 +202,13 @@
              )
           %}
       {% else %}
-          {% set new_snapshot_table = athena__create_new_snapshot_table(
+          {% set new_snapshot_table = hive_create_new_snapshot_table(
                 target = target_relation,
                 source = staging_table,
                 insert_cols = quoted_source_columns,
              )
           %}
-          {% set final_sql = athena_snapshot_merge_sql(
+          {% set final_sql = hive_snapshot_merge_sql(
                 target = target_relation,
                 source = new_snapshot_table
              )
