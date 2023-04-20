@@ -767,7 +767,9 @@ class AthenaAdapter(SQLAdapter):
                 dbt_valid_from,
                 if(dbt_valid_to > cast('9000-01-01' as timestamp), null, dbt_valid_to) as dbt_valid_to,
                 dbt_scd_id
-            from {relation};
+            from {relation}
+            where dbt_change_type != 'delete'
+            ;
             """
         )
         staging_sql = self.execute_macro(
