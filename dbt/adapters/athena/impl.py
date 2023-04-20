@@ -14,20 +14,14 @@ from botocore.exceptions import ClientError
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.config import get_boto3_config
-<<<<<<< HEAD
 from dbt.adapters.athena.python_submissions import AthenaPythonJobHelper
-from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
-from dbt.adapters.athena.utils import clean_sql_comment
-from dbt.adapters.base import Column, PythonJobHelper, available
-=======
 from dbt.adapters.athena.relation import (
     AthenaRelation,
     AthenaSchemaSearchMap,
     TableType,
 )
 from dbt.adapters.athena.utils import clean_sql_comment
-from dbt.adapters.base import available
->>>>>>> 6f41803 (fix: glue column types (#196))
+from dbt.adapters.base import PythonJobHelper, available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.connection import AdapterResponse
