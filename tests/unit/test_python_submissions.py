@@ -1,5 +1,5 @@
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 import pytest
 import pytz
@@ -46,10 +46,13 @@ class TestPythonSubmission:
         ],
     )
     def test_start_session(self, session_status_response, expected_response, athena_job_helper, athena_client):
-        with (
-            patch.object(athena_job_helper, "_poll_until_session_creation", return_value=session_status_response),
-            patch.object(athena_client, "get_session_status", return_value=session_status_response),
-            patch.object(athena_client, "start_session", return_value=session_status_response.get("Status")),
+        with patch.multiple(
+            athena_job_helper,
+            _poll_until_session_creation=Mock(return_value=session_status_response),
+        ), patch.multiple(
+            athena_client,
+            get_session_status=Mock(return_value=session_status_response),
+            start_session=Mock(return_value=session_status_response.get("Status")),
         ):
             response = athena_job_helper._start_session()
             assert response == expected_response
@@ -102,7 +105,7 @@ class TestPythonSubmission:
         ],
     )
     def test_list_sessions(self, session_status_response, expected_response, athena_job_helper, athena_client):
-        with (patch.object(athena_client, "list_sessions", return_value=session_status_response),):
+        with patch.object(athena_client, "list_sessions", return_value=session_status_response):
             response = athena_job_helper._list_sessions()
             assert response == expected_response
 
@@ -215,11 +218,14 @@ class TestPythonSubmission:
     def test_terminate_session(
         self, session_status_response, test_session_id, expected_response, athena_job_helper, athena_client, monkeypatch
     ):
-        with (
-            patch.object(athena_client, "get_session_status", return_value=session_status_response),
-            patch.object(athena_client, "terminate_session", return_value=expected_response),
-            patch.object(athena_job_helper, "_set_session_id", return_value=test_session_id),
-            patch.object(athena_job_helper, "_set_timeout", return_value=10),
+        with patch.multiple(
+            athena_client,
+            get_session_status=Mock(return_value=session_status_response),
+            terminate_session=Mock(return_value=expected_response),
+        ), patch.multiple(
+            athena_job_helper,
+            _set_session_id=Mock(return_value=test_session_id),
+            _set_timeout=Mock(return_value=10),
         ):
             terminate_session_response = athena_job_helper._terminate_session()
             assert terminate_session_response == expected_response
