@@ -47,7 +47,7 @@ class TestPythonSubmission:
     )
     def test_start_session(self, session_status_response, expected_response, athena_job_helper, athena_client):
         with (
-            patch.object(athena_job_helper, "_poll_until_execution_completion", return_value=session_status_response),
+            patch.object(athena_job_helper, "_poll_until_session_creation", return_value=session_status_response),
             patch.object(athena_client, "get_session_status", return_value=session_status_response),
             patch.object(athena_client, "start_session", return_value=session_status_response.get("Status")),
         ):
@@ -116,17 +116,73 @@ class TestPythonSubmission:
             ({"alias": "test_model", "schema": DATABASE_NAME}, 7200),
         ],
     )
-    def test_get_timeout(self, parsed_models, expected_timeout, athena_job_helper, monkeypatch):
+    def test_set_timeout(self, parsed_models, expected_timeout, athena_job_helper, monkeypatch):
         monkeypatch.setattr(athena_job_helper, "parsed_model", parsed_models)
-        response = athena_job_helper.get_timeout()
+        response = athena_job_helper._set_timeout()
         assert response == expected_timeout
 
     @pytest.mark.parametrize(
-        "session_status_response, expected_response",
+        "parsed_models, expected_polling_interval",
+        [
+            ({"alias": "test_model", "schema": DATABASE_NAME, "config": {"polling_interval": 10}}, 10),
+            pytest.param(
+                {"alias": "test_model", "schema": "test_database", "config": {"timeout": 0}}, 0, marks=pytest.mark.xfail
+            ),
+            ({"alias": "test_model", "schema": DATABASE_NAME}, 5),
+        ],
+    )
+    def test_set_polling_interval(self, parsed_models, expected_polling_interval, athena_job_helper, monkeypatch):
+        monkeypatch.setattr(athena_job_helper, "parsed_model", parsed_models)
+        response = athena_job_helper._set_polling_interval()
+        assert response == expected_polling_interval
+
+    @pytest.mark.parametrize(
+        "parsed_models, expected_engine_config",
         [
             (
                 {
-                    "SessionId": "string",
+                    "alias": "test_model",
+                    "schema": DATABASE_NAME,
+                    "config": {
+                        "engine_config": {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 44, "DefaultExecutorDpuSize": 1}
+                    },
+                },
+                {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 44, "DefaultExecutorDpuSize": 1},
+            ),
+            pytest.param(
+                {"alias": "test_model", "schema": "test_database", "config": {"engine_config": 0}},
+                0,
+                marks=pytest.mark.xfail,
+            ),
+            pytest.param(
+                {
+                    "alias": "test_wrong_model",
+                    "schema": "test_database",
+                    "config": {"engine_config": {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2}},
+                },
+                (),
+                marks=pytest.mark.xfail,
+            ),
+            (
+                {"alias": "test_model", "schema": DATABASE_NAME},
+                {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1},
+            ),
+        ],
+    )
+    def test_set_engine_config(self, parsed_models, expected_engine_config, athena_job_helper, monkeypatch):
+        monkeypatch.setattr(athena_job_helper, "parsed_model", parsed_models)
+        if parsed_models.get("alias") == "test_wrong_model":
+            with pytest.raises(KeyError):
+                athena_job_helper._set_engine_config()
+        response = athena_job_helper._set_engine_config()
+        assert response == expected_engine_config
+
+    @pytest.mark.parametrize(
+        "session_status_response, test_session_id, expected_response",
+        [
+            (
+                {
+                    "SessionId": "test_session_id",
                     "Status": {
                         "EndDateTime": "number",
                         "IdleSinceDateTime": "number",
@@ -136,11 +192,12 @@ class TestPythonSubmission:
                         "StateChangeReason": "string",
                     },
                 },
-                {"State": "TERMINATED"},
+                "test_session_id",
+                None,
             ),
             (
                 {
-                    "SessionId": "string",
+                    "SessionId": "test_session_id_2",
                     "Status": {
                         "EndDateTime": "number",
                         "IdleSinceDateTime": "number",
@@ -150,17 +207,19 @@ class TestPythonSubmission:
                         "StateChangeReason": "string",
                     },
                 },
+                "test_session_id_2",
                 None,
             ),
         ],
     )
     def test_terminate_session(
-        self, session_status_response, expected_response, athena_job_helper, athena_client, monkeypatch
+        self, session_status_response, test_session_id, expected_response, athena_job_helper, athena_client, monkeypatch
     ):
-        monkeypatch.setattr(athena_job_helper, "timeout", 10)
         with (
             patch.object(athena_client, "get_session_status", return_value=session_status_response),
             patch.object(athena_client, "terminate_session", return_value=expected_response),
+            patch.object(athena_job_helper, "_set_session_id", return_value=test_session_id),
+            patch.object(athena_job_helper, "_set_timeout", return_value=10),
         ):
             terminate_session_response = athena_job_helper._terminate_session()
             assert terminate_session_response == expected_response

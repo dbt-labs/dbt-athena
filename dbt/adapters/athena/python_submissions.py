@@ -10,7 +10,8 @@ from dbt.adapters.base import PythonJobHelper
 from dbt.events import AdapterLogger
 from dbt.exceptions import DbtRuntimeError
 
-DEFAULT_POLLING_INTERVAL = 2
+DEFAULT_POLLING_INTERVAL = 5
+DEFAULT_ENGINE_CONFIG = {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1}
 SUBMISSION_LANGUAGE = "python"
 DEFAULT_TIMEOUT = 60 * 60 * 2
 
@@ -48,14 +49,23 @@ class AthenaPythonJobHelper(PythonJobHelper):
 
     def __init__(self, parsed_model: Dict, credentials: AthenaCredentials) -> None:
         self.parsed_model = parsed_model
-        self.timeout = self.get_timeout()
-        self.polling_interval = DEFAULT_POLLING_INTERVAL
         self.credentials = credentials
         self.athena_client = self.athena_client()
 
     @property
+    def identifier(self) -> str:
+        return self.parsed_model["alias"]
+
+    @property
+    def schema(self) -> str:
+        return self.parsed_model["schema"]
+
+    @property
     @lru_cache()
     def session_id(self) -> str:
+        return self._set_session_id()
+
+    def _set_session_id(self) -> str:
         """
         Get the session ID.
 
@@ -70,14 +80,6 @@ class AthenaPythonJobHelper(PythonJobHelper):
         if session_info is None:
             return self._start_session().get("SessionId")
         return session_info.get("SessionId")
-
-    @property
-    def identifier(self) -> str:
-        return self.parsed_model["alias"]
-
-    @property
-    def schema(self) -> str:
-        return self.parsed_model["schema"]
 
     @property
     def spark_work_group(self) -> str:
@@ -98,7 +100,11 @@ class AthenaPythonJobHelper(PythonJobHelper):
             region_name=self.credentials.region_name, profile_name=self.credentials.aws_profile_name
         ).client("athena")
 
-    def get_timeout(self) -> int:
+    @property
+    def timeout(self) -> int:
+        return self._set_timeout()
+
+    def _set_timeout(self) -> int:
         """
         Get the timeout value.
 
@@ -115,11 +121,41 @@ class AthenaPythonJobHelper(PythonJobHelper):
         """
         if self.parsed_model.get("config") is not None:
             timeout = self.parsed_model["config"].get("timeout", DEFAULT_TIMEOUT)
+            if not isinstance(timeout, int):
+                raise TypeError("Timeout must be an integer")
+            if timeout <= 0:
+                raise ValueError("Timeout must be a positive integer")
+            logger.info(f"Setting timeout: {timeout}")
         else:
+            logger.info(f"Using default timeout: {DEFAULT_TIMEOUT}")
             timeout = DEFAULT_TIMEOUT
-        if timeout <= 0:
-            raise ValueError("Timeout must be a positive integer")
         return timeout
+
+    @property
+    def polling_interval(self):
+        return self._set_polling_interval()
+
+    def _set_polling_interval(self) -> int:
+        polling_interval = self.parsed_model.get("config", {}).get("polling_interval", DEFAULT_POLLING_INTERVAL)
+        if not isinstance(polling_interval, int) or polling_interval <= 0:
+            raise ValueError("polling_interval must be a positive integer")
+        logger.info(f"Setting polling_interval: {polling_interval}")
+        return polling_interval
+
+    @property
+    def engine_config(self):
+        return self._set_engine_config()
+
+    def _set_engine_config(self) -> dict:
+        engine_config = self.parsed_model.get("config", {}).get("engine_config", DEFAULT_ENGINE_CONFIG)
+        if not isinstance(engine_config, dict):
+            raise TypeError("engine configuration has to be of type dict")
+
+        expected_keys = {"CoordinatorDpuSize", "MaxConcurrentDpus", "DefaultExecutorDpuSize"}
+        if set(engine_config.keys()) != expected_keys:
+            raise KeyError(f"The keys of the dictionary entered do not match the expected format: {expected_keys}")
+
+        return engine_config
 
     def _list_sessions(self) -> dict:
         """
@@ -152,7 +188,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         """
         response = self.athena_client.start_session(
             WorkGroup=self.spark_work_group,
-            EngineConfiguration={"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1},
+            EngineConfiguration=self.engine_config,
         )
         if response["State"] != "IDLE":
             self._poll_until_session_creation(response["SessionId"])
@@ -195,7 +231,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         finally:
             self._terminate_session()
 
-    def _terminate_session(self) -> dict:
+    def _terminate_session(self) -> None:
         """
         Terminate the current Athena session.
 
@@ -213,7 +249,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
             session_status["StartDateTime"] - datetime.now(tz=timezone.utc) > timedelta(seconds=self.timeout)
         ):
             logger.debug(f"Terminating session: {self.session_id}")
-            return self.athena_client.terminate_session(SessionId=self.session_id)
+            self.athena_client.terminate_session(SessionId=self.session_id)
 
     def _poll_until_execution_completion(self, calculation_execution_id):
         """
