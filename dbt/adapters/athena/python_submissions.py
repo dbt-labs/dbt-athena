@@ -47,14 +47,11 @@ class AthenaPythonJobHelper(PythonJobHelper):
     """
 
     def __init__(self, parsed_model: Dict, credentials: AthenaCredentials) -> None:
-        self.identifier = parsed_model["alias"]
-        self.schema = parsed_model["schema"]
         self.parsed_model = parsed_model
         self.timeout = self.get_timeout()
         self.polling_interval = DEFAULT_POLLING_INTERVAL
-        self.region_name = credentials.region_name
-        self.profile_name = credentials.aws_profile_name
-        self.spark_work_group = credentials.spark_work_group
+        self.credentials = credentials
+        self.athena_client = self.athena_client()
 
     @property
     @lru_cache()
@@ -75,7 +72,17 @@ class AthenaPythonJobHelper(PythonJobHelper):
         return session_info.get("SessionId")
 
     @property
-    @lru_cache()
+    def identifier(self) -> str:
+        return self.parsed_model["alias"]
+
+    @property
+    def schema(self) -> str:
+        return self.parsed_model["schema"]
+
+    @property
+    def spark_work_group(self) -> str:
+        return self.credentials.spark_work_group
+
     def athena_client(self) -> Any:
         """
         Get the AWS Athena client.
@@ -87,7 +94,9 @@ class AthenaPythonJobHelper(PythonJobHelper):
             Any: The Athena client object.
 
         """
-        return boto3.session.Session(region_name=self.region_name, profile_name=self.profile_name).client("athena")
+        return boto3.session.Session(
+            region_name=self.credentials.region_name, profile_name=self.credentials.aws_profile_name
+        ).client("athena")
 
     def get_timeout(self) -> int:
         """
@@ -104,7 +113,10 @@ class AthenaPythonJobHelper(PythonJobHelper):
             ValueError: If the timeout value is not a positive integer.
 
         """
-        timeout = self.parsed_model["config"].get("timeout", DEFAULT_TIMEOUT)
+        if self.parsed_model.get("config") is not None:
+            timeout = self.parsed_model["config"].get("timeout", DEFAULT_TIMEOUT)
+        else:
+            timeout = DEFAULT_TIMEOUT
         if timeout <= 0:
             raise ValueError("Timeout must be a positive integer")
         return timeout
@@ -166,19 +178,22 @@ class AthenaPythonJobHelper(PythonJobHelper):
             DbtRuntimeError: If the execution ends in a state other than "COMPLETED".
 
         """
-        calculation_execution_id = self.athena_client.start_calculation_execution(
-            SessionId=self.session_id, CodeBlock=compiled_code.lstrip()
-        )["CalculationExecutionId"]
-        logger.debug(f"Submitted calculation execution id {calculation_execution_id}")
-        execution_status = self._poll_until_execution_completion(calculation_execution_id)
-        logger.debug(f"Received execution status {execution_status}")
-        if execution_status == "COMPLETED":
-            result_s3_uri = self.athena_client.get_calculation_execution(
-                CalculationExecutionId=calculation_execution_id
-            )["Result"]["ResultS3Uri"]
-            return result_s3_uri
-        else:
-            raise DbtRuntimeError(f"python model run ended in state {execution_status}")
+        try:
+            calculation_execution_id = self.athena_client.start_calculation_execution(
+                SessionId=self.session_id, CodeBlock=compiled_code.lstrip()
+            )["CalculationExecutionId"]
+            logger.debug(f"Submitted calculation execution id {calculation_execution_id}")
+            execution_status = self._poll_until_execution_completion(calculation_execution_id)
+            logger.debug(f"Received execution status {execution_status}")
+            if execution_status == "COMPLETED":
+                result_s3_uri = self.athena_client.get_calculation_execution(
+                    CalculationExecutionId=calculation_execution_id
+                )["Result"]["ResultS3Uri"]
+                return result_s3_uri
+            else:
+                raise DbtRuntimeError(f"python model run ended in state {execution_status}")
+        finally:
+            self._terminate_session()
 
     def _terminate_session(self) -> dict:
         """
@@ -198,7 +213,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
             session_status["StartDateTime"] - datetime.now(tz=timezone.utc) > timedelta(seconds=self.timeout)
         ):
             logger.debug(f"Terminating session: {self.session_id}")
-            self.athena_client.terminate_session(SessionId=self.session_id)
+            return self.athena_client.terminate_session(SessionId=self.session_id)
 
     def _poll_until_execution_completion(self, calculation_execution_id):
         """
@@ -261,7 +276,3 @@ class AthenaPythonJobHelper(PythonJobHelper):
             polling_interval *= 2
             if polling_interval > self.timeout:
                 raise DbtRuntimeError(f"Session {session_id} did not create within {self.timeout} seconds.")
-
-    def __del__(self) -> None:
-        """Teardown for the class."""
-        self._terminate_session()
