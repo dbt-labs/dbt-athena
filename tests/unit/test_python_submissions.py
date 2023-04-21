@@ -1,5 +1,5 @@
 from datetime import datetime
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 import pytest
 import pytz
