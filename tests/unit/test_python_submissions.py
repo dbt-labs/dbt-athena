@@ -97,7 +97,7 @@ class TestPythonSubmission:
                     "NextToken": "string",
                     "Sessions": [],
                 },
-                None,
+                {},
             ),
         ],
     )
@@ -223,3 +223,12 @@ class TestPythonSubmission:
         ):
             terminate_session_response = athena_job_helper._terminate_session()
             assert terminate_session_response == expected_response
+
+    def test_poll_session_creation(self):
+        pass
+
+    def test_poll_execution(self):
+        pass
+
+    def test_submission(self):
+        pass

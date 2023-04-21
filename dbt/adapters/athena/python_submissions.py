@@ -50,7 +50,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
     def __init__(self, parsed_model: Dict, credentials: AthenaCredentials) -> None:
         self.parsed_model = parsed_model
         self.credentials = credentials
-        self.athena_client = self.athena_client()
+        self.athena_client = self.get_athena_client()
 
     @property
     def identifier(self) -> str:
@@ -77,15 +77,15 @@ class AthenaPythonJobHelper(PythonJobHelper):
 
         """
         session_info = self._list_sessions()
-        if session_info is None:
-            return self._start_session().get("SessionId")
-        return session_info.get("SessionId")
+        if session_info.get("SessionId") is None:
+            return self._start_session()["SessionId"]
+        return session_info["SessionId"]
 
     @property
     def spark_work_group(self) -> str:
-        return self.credentials.spark_work_group
+        return self.credentials.spark_work_group or "spark"
 
-    def athena_client(self) -> Any:
+    def get_athena_client(self) -> Any:
         """
         Get the AWS Athena client.
 
@@ -171,7 +171,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         """
         response = self.athena_client.list_sessions(WorkGroup=self.spark_work_group, MaxResults=1, StateFilter="IDLE")
         if len(response.get("Sessions")) == 0 or response.get("Sessions") is None:
-            return None
+            return {}
         return response.get("Sessions")[0]
 
     def _start_session(self) -> dict:
