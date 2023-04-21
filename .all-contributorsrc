@@ -13,7 +13,8 @@
       "profile": "https://github.com/nicor88",
       "contributions": [
         "code",
-        "maintenance"
+        "maintenance",
+        "bug"
       ]
     },
     {
@@ -41,7 +42,9 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/9251353?v=4",
       "profile": "https://github.com/Jrmyy",
       "contributions": [
-        "maintenance"
+        "maintenance",
+        "code",
+        "bug"
       ]
     },
     {
@@ -61,6 +64,33 @@
       "profile": "https://github.com/mattiamatrix",
       "contributions": [
         "maintenance"
+      ]
+    },
+    {
+      "login": "Gatsby-Lee",
+      "name": "Gatsby Lee",
+      "avatar_url": "https://avatars.githubusercontent.com/u/22950880?v=4",
+      "profile": "https://github.com/Gatsby-Lee",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "BrechtDeVlieger",
+      "name": "BrechtDeVlieger",
+      "avatar_url": "https://avatars.githubusercontent.com/u/12074972?v=4",
+      "profile": "https://github.com/BrechtDeVlieger",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "aartaria",
+      "name": "Andrea Artaria",
+      "avatar_url": "https://avatars.githubusercontent.com/u/10273710?v=4",
+      "profile": "https://github.com/aartaria",
+      "contributions": [
+        "bug"
       ]
     }
   ],

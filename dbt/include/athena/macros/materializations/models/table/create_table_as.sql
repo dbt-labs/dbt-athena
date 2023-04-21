@@ -48,7 +48,7 @@
     with (
       table_type='{{ table_type }}',
       is_external={%- if table_type == 'iceberg' -%}false{%- else -%}true{%- endif %},
-      {%- if not work_group_output_location_enforced -%}
+      {%- if not work_group_output_location_enforced or table_type == 'iceberg' -%}
         {{ location_property }}='{{ location }}',
       {%- endif %}
     {%- if partitioned_by is not none %}

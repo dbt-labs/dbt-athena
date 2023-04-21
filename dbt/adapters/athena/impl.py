@@ -379,7 +379,7 @@ class AthenaAdapter(SQLAdapter):
             "table_database": database,
             "table_schema": table["DatabaseName"],
             "table_name": table["Name"],
-            "table_type": self.relation_type_map[table["TableType"]].value,
+            "table_type": self.relation_type_map[table.get("TableType", "EXTERNAL_TABLE")].value,
             "table_comment": table.get("Parameters", {}).get("comment", table.get("Description", "")),
         }
         return [
