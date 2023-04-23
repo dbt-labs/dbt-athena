@@ -1,5 +1,5 @@
 {%- macro athena__py_save_table_as(compiled_code, target_relation , **kwargs) -%}
-    {% set location = kwargs.get("location") %} 
+    {% set location = kwargs.get("location") %}
     {% set format = kwargs.get("format", "parquet") %}
     {% set mode = kwargs.get("mode", "overwrite") %}
     {% set write_compression = kwargs.get("write_compression", "snappy") %}
