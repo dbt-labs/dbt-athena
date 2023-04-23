@@ -43,12 +43,16 @@ def materialize(spark_session, df, target_relation):
     except Exception:
         raise
 
-dbt = dbtObj(spark.table)
-df = model(dbt, spark)
-materialize(spark, df, dbt.this)
+{{ athena__py_get_spark_dbt_object() }}
+
+dbt = SparkdbtObj(spark)
+df = model(dbt, dbt.spark_session)
+materialize(dbt.spark_session, df, dbt.this)
 {%- endmacro -%}
 
 {%- macro athena__py_execute_query(query) -%}
+{{ athena__py_get_spark_dbt_object() }}
+
 def execute_query(spark_session):
     import pandas
     try:
@@ -57,6 +61,46 @@ def execute_query(spark_session):
     except Exception:
         raise
 
-dbt = dbtObj(spark.table)
-execute_query(spark)
+dbt = SparkdbtObj(spark)
+execute_query(dbt, dbt.spark_session)
+{%- endmacro -%}
+
+{%- macro athena__py_get_spark_dbt_object() -%}
+class SparkdbtObj(dbtObj, spark_session):
+    def __init__(self) -> None:
+        super().__init__(load_df_function=spark.table)
+        self.spark_session = spark_session
+        
+    @property
+    def source(self, *args):
+        """
+        Override the source attribute dynamically
+
+        spark.table('awsdatacatalog.analytics_dev.model')
+        Raises pyspark.sql.utils.AnalysisException:
+        spark_catalog requires a single-part namespace,
+        but got [awsdatacatalog, analytics_dev]
+
+        So the override removes the catalog component and only
+        provides the schema and identifer to spark.table()
+        """
+        args = [arg[arg.index('.')+1:] for arg in args]
+        return lambda *args: source(*args, dbt_load_df_function=spark.table)
+    
+    @property
+    def ref(self, *args):
+        """
+        Override the ref attribute dynamically
+
+        spark.table('awsdatacatalog.analytics_dev.model')
+        Raises pyspark.sql.utils.AnalysisException:
+        spark_catalog requires a single-part namespace,
+        but got [awsdatacatalog, analytics_dev]
+
+        So the override removes the catalog component and only
+        provides the schema and identifer to spark.table()
+        """
+        args = [arg[arg.index('.')+1:] for arg in args]
+        return lambda *args: ref(*args, dbt_load_df_function=spark.table)
+
 {%- endmacro -%}
