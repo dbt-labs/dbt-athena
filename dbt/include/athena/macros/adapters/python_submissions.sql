@@ -1,5 +1,4 @@
 {%- macro athena__py_save_table_as(compiled_code, target_relation , **kwargs) -%}
-
     {% set location = kwargs.get("location") %} 
     {% set format = kwargs.get("format", "parquet") %}
     {% set mode = kwargs.get("mode", "overwrite") %}
@@ -18,7 +17,7 @@ def materialize(spark_session, df, target_relation):
     import pandas
     try:
         if isinstance(df, pyspark.sql.dataframe.DataFrame):
-            pass 
+            pass
         elif isinstance(df, pandas.core.frame.DataFrame):
             df = spark_session.createDataFrame(df)
         else:
