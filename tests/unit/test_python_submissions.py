@@ -45,7 +45,20 @@ class TestPythonSubmission:
             ),
         ],
     )
-    def test_start_session(self, session_status_response, expected_response, athena_job_helper, athena_client):
+    def test_start_session(self, session_status_response, expected_response, athena_job_helper, athena_client) -> None:
+        """
+        Test the _start_session method of the AthenaJobHelper class.
+
+        Args:
+            session_status_response (dict): A dictionary containing the response from the Athena session
+            creation status.
+            expected_response (Union[dict, DbtRuntimeError]): The expected response from the _start_session method.
+            athena_job_helper (AthenaPythonJobHelper): An instance of the AthenaPythonJobHelper class.
+            athena_client (botocore.client.BaseClient): An instance of the botocore Athena client.
+
+        Returns:
+            None
+        """
         with patch.multiple(
             athena_job_helper,
             _poll_until_session_creation=Mock(return_value=session_status_response),
@@ -104,7 +117,22 @@ class TestPythonSubmission:
             ),
         ],
     )
-    def test_list_sessions(self, session_status_response, expected_response, athena_job_helper, athena_client):
+    def test_list_sessions(self, session_status_response, expected_response, athena_job_helper, athena_client) -> None:
+        """
+        Test the _list_sessions method of the AthenaJobHelper class.
+
+        Args:
+            session_status_response (dict): The response object to be returned by the mock Athena client.
+            expected_response (dict): The expected output of the _list_sessions method.
+            athena_job_helper (AthenaPythonJobHelper): An instance of the AthenaPythonJobHelper class.
+            athena_client (Mock): A mock instance of the Athena client.
+
+        Returns:
+            None: This function only asserts the output of the _list_sessions method.
+
+        Raises:
+            AssertionError: If the output of the _list_sessions method does not match the expected output.
+        """
         with patch.object(athena_client, "list_sessions", return_value=session_status_response):
             response = athena_job_helper._list_sessions()
             assert response == expected_response
@@ -119,7 +147,20 @@ class TestPythonSubmission:
             ({"alias": "test_model", "schema": DATABASE_NAME}, 7200),
         ],
     )
-    def test_set_timeout(self, parsed_models, expected_timeout, athena_job_helper, monkeypatch):
+    def test_set_timeout(self, parsed_models, expected_timeout, athena_job_helper, monkeypatch) -> None:
+        """
+        Test case to verify that the `_set_timeout` method of the `AthenaPythonJobHelper` class
+        returns the expected timeout value.
+
+        Args:
+            parsed_models (dict): A dictionary containing the parsed model configuration.
+            expected_timeout (int): The expected timeout value.
+            athena_job_helper (AthenaPythonJobHelper): An instance of the `AthenaPythonJobHelper` class.
+            monkeypatch: A pytest fixture used to mock and patch objects in the test environment.
+
+        Returns:
+            None
+        """
         monkeypatch.setattr(athena_job_helper, "parsed_model", parsed_models)
         response = athena_job_helper._set_timeout()
         assert response == expected_timeout
@@ -129,12 +170,31 @@ class TestPythonSubmission:
         [
             ({"alias": "test_model", "schema": DATABASE_NAME, "config": {"polling_interval": 10}}, 10),
             pytest.param(
-                {"alias": "test_model", "schema": "test_database", "config": {"timeout": 0}}, 0, marks=pytest.mark.xfail
+                {"alias": "test_model", "schema": "test_database", "config": {"polling_interval": 0}},
+                0,
+                marks=pytest.mark.xfail,
             ),
             ({"alias": "test_model", "schema": DATABASE_NAME}, 5),
         ],
     )
-    def test_set_polling_interval(self, parsed_models, expected_polling_interval, athena_job_helper, monkeypatch):
+    def test_set_polling_interval(
+        self, parsed_models, expected_polling_interval, athena_job_helper, monkeypatch
+    ) -> None:
+        """
+        Test method to verify that _set_polling_interval() method of AthenaPythonJobHelper
+        sets the correct polling interval value based on the parsed model configuration.
+
+        Args:
+            parsed_models (dict): Dictionary containing the parsed configuration model for the Athena job.
+            expected_polling_interval (int): The expected polling interval value based on the
+            parsed model configuration.
+            athena_job_helper (AthenaPythonJobHelper): The instance of AthenaPythonJobHelper to be tested.
+            monkeypatch: A pytest monkeypatch fixture used to override the parsed model configuration
+            in AthenaPythonJobHelper.
+
+        Returns:
+            None
+        """
         monkeypatch.setattr(athena_job_helper, "parsed_model", parsed_models)
         response = athena_job_helper._set_polling_interval()
         assert response == expected_polling_interval
@@ -172,7 +232,22 @@ class TestPythonSubmission:
             ),
         ],
     )
-    def test_set_engine_config(self, parsed_models, expected_engine_config, athena_job_helper, monkeypatch):
+    def test_set_engine_config(self, parsed_models, expected_engine_config, athena_job_helper, monkeypatch) -> None:
+        """
+        Test method to verify the `_set_engine_config()` method of the AthenaPythonJobHelper class.
+
+        Args:
+            parsed_models: A dictionary containing the parsed model configuration data.
+            expected_engine_config: The expected engine configuration that is set.
+            athena_job_helper: An instance of the AthenaPythonJobHelper class.
+            monkeypatch: A fixture from the pytest library that allows modifying attributes at runtime for testing.
+
+        Raises:
+            KeyError: If the parsed model configuration dictionary does not contain the required key.
+
+        Returns:
+            None. The method asserts that the actual engine configuration set matches the expected engine configuration.
+        """
         monkeypatch.setattr(athena_job_helper, "parsed_model", parsed_models)
         if parsed_models.get("alias") == "test_wrong_model":
             with pytest.raises(KeyError):
@@ -217,7 +292,23 @@ class TestPythonSubmission:
     )
     def test_terminate_session(
         self, session_status_response, test_session_id, expected_response, athena_job_helper, athena_client, monkeypatch
-    ):
+    ) -> None:
+        """
+        Test function to check if _terminate_session() method of AthenaPythonJobHelper class correctly
+        terminates an Athena session.
+
+        Args:
+            session_status_response: A mock response object containing the current status of the Athena session.
+            test_session_id: The session ID of the test Athena session.
+            expected_response: The expected response object after the Athena session is terminated.
+            athena_job_helper: An instance of the AthenaPythonJobHelper class.
+            athena_client: The mocked Athena client object.
+            monkeypatch: Pytest monkeypatch object for patching objects and values during testing.
+
+        Returns:
+            None
+        """
+
         with patch.multiple(
             athena_client,
             get_session_status=Mock(return_value=session_status_response),

@@ -77,7 +77,22 @@
     as
       {{ compiled_code }}
   {%- elif language == 'python' -%}
-    {{ athena__py_save_table_as(compiled_code=compiled_code, target_relation=relation, format=format, location=location, mode="overwrite") }}
+    {{ 
+      athena__py_save_table_as(
+        compiled_code,
+        target_relation,
+        location=location,
+        format=format,
+        mode="overwrite",
+        partitioned_by=partitioned_by,
+        bucketed_by=bucketed_by,
+        write_compression=write_compression,
+        bucket_count=bucket_count,
+        field_delimiter=field_delimiter,
+        table_type=table_type,
+        extra_table_properties=extra_table_properties
+        ) 
+    }}
   {%- else -%}
     {% do exceptions.raise_compiler_error("athena__create_table_as macro doesn't support the provided language, it got %s" % language) %}
   {%- endif -%}
