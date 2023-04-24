@@ -193,6 +193,25 @@ class AthenaPythonJobHelper(PythonJobHelper):
         if response["State"] != "IDLE":
             self._poll_until_session_creation(response["SessionId"])
         return response
+    
+    def _get_current_session_status(self) -> str:
+        """
+        Get the current session status.
+
+        Returns:
+            str: The status of the session
+        """
+        return self.athena_client.get_session_status(SessionId=self.session_id)["Status"]
+    
+    def _poll_until_session_idle(self):
+        polling_interval = self.polling_interval
+        while True:
+            session_status = self.athena_client.get_session_status(SessionId=self.session_id)["Status"]
+            if session_status == "IDLE":
+                return session_status
+            if session_status in ["FAILED", "TERMINATED", "DEGRADED"]:
+                return DbtRuntimeError(f"The session chosen was not available. Got status: {session_status}")
+
 
     def submit(self, compiled_code: str) -> dict:
         """
@@ -214,22 +233,29 @@ class AthenaPythonJobHelper(PythonJobHelper):
             DbtRuntimeError: If the execution ends in a state other than "COMPLETED".
 
         """
+        if self._get_current_session_status() == "BUSY":
+            self._poll_until_session_idle()
         try:
             calculation_execution_id = self.athena_client.start_calculation_execution(
                 SessionId=self.session_id, CodeBlock=compiled_code.lstrip()
             )["CalculationExecutionId"]
-            logger.debug(f"Submitted calculation execution id {calculation_execution_id}")
+        except Exception as e:
+            raise DbtRuntimeError(f"Unable to complete python execution. Got: {e}")
+        try:
             execution_status = self._poll_until_execution_completion(calculation_execution_id)
-            logger.debug(f"Received execution status {execution_status}")
-            if execution_status == "COMPLETED":
-                result_s3_uri = self.athena_client.get_calculation_execution(
-                    CalculationExecutionId=calculation_execution_id
-                )["Result"]["ResultS3Uri"]
-                return result_s3_uri
-            else:
-                raise DbtRuntimeError(f"python model run ended in state {execution_status}")
+        except Exception as e:
+            logger.error(f"Unable to poll execution status: Got: {e}")
         finally:
             self._terminate_session()
+        logger.debug(f"Received execution status {execution_status}")
+        if execution_status == "COMPLETED":
+            result_s3_uri = self.athena_client.get_calculation_execution(
+                CalculationExecutionId=calculation_execution_id
+            )["Result"]["ResultS3Uri"]
+            return result_s3_uri
+        else:
+            raise DbtRuntimeError(f"python model run ended in state {execution_status}")
+
 
     def _terminate_session(self) -> None:
         """
