@@ -191,6 +191,7 @@ class AthenaAdapter(SQLAdapter):
         s3_data_naming: str,
         schema_name: str,
         table_name: str,
+        s3_path_table_part: Optional[str] = None,
         external_location: Optional[str] = None,
         is_temporary_table: bool = False,
     ) -> str:
@@ -201,12 +202,17 @@ class AthenaAdapter(SQLAdapter):
         if external_location and not is_temporary_table:
             return external_location.rstrip("/")
 
+        if not s3_path_table_part:
+            s3_path_table_part = table_name
+
         mapping = {
             "uuid": path.join(self.s3_table_prefix(s3_data_dir), str(uuid4())),
-            "table": path.join(self.s3_table_prefix(s3_data_dir), table_name),
-            "table_unique": path.join(self.s3_table_prefix(s3_data_dir), table_name, str(uuid4())),
-            "schema_table": path.join(self.s3_table_prefix(s3_data_dir), schema_name, table_name),
-            "schema_table_unique": path.join(self.s3_table_prefix(s3_data_dir), schema_name, table_name, str(uuid4())),
+            "table": path.join(self.s3_table_prefix(s3_data_dir), s3_path_table_part),
+            "table_unique": path.join(self.s3_table_prefix(s3_data_dir), s3_path_table_part, str(uuid4())),
+            "schema_table": path.join(self.s3_table_prefix(s3_data_dir), schema_name, s3_path_table_part),
+            "schema_table_unique": path.join(
+                self.s3_table_prefix(s3_data_dir), schema_name, s3_path_table_part, str(uuid4())
+            ),
         }
         table_location = mapping.get(s3_data_naming)
 
@@ -280,7 +286,9 @@ class AthenaAdapter(SQLAdapter):
         client = conn.handle
 
         # TODO: consider using the workgroup default location when configured
-        s3_location = self.s3_table_location(s3_data_dir, s3_data_naming, database_name, table_name, external_location)
+        s3_location = self.s3_table_location(
+            s3_data_dir, s3_data_naming, database_name, table_name, external_location=external_location
+        )
         bucket, prefix = self._parse_s3_path(s3_location)
 
         file_name = f"{table_name}.csv"

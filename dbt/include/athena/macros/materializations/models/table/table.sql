@@ -12,19 +12,46 @@
 
   {{ run_hooks(pre_hooks) }}
 
-  -- cleanup
-  {%- if old_relation is not none -%}
-    {{ drop_relation(old_relation) }}
+  {%- if old_relation is none or table_type != 'iceberg' -%}
+    {%- if old_relation is not none -%}
+      {{ drop_relation(old_relation) }}
+    {%- endif -%}
+
+    {%- call statement('main') -%}
+      {{ create_table_as(False, target_relation, sql) }}
+    {%- endcall %}
+
+    {%- if table_type != 'iceberg' -%}
+      {{ set_table_classification(target_relation) }}
+    {%- endif -%}
+  {%- else -%}
+    {%- set tmp_relation = api.Relation.create(identifier=target_relation.identifier ~ '__ha',
+                                               schema=schema,
+                                               database=database,
+                                               s3_path_table_part=target_relation.identifier,
+                                               type='table') -%}
+    {%- if tmp_relation is not none -%}
+      {%- do drop_relation(tmp_relation) -%}
+    {%- endif -%}
+
+    {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
+    -- If we have this, it means that at least the first renaming occurred but there was an issue
+    -- afterwards, therefore we are in weird state. The easiest and cleanest should be to remove
+    -- the backup relation. It won't have an impact because since we are in the else condition, that
+    -- means that old relation exists therefore no downtime yet.
+    {%- if old_relation_bkp is not none -%}
+      {%- do drop_relation(old_relation_bkp) -%}
+    {%- endif -%}
+
+    {%- call statement('main') -%}
+      {{ create_table_as(False, tmp_relation, sql) }}
+    {%- endcall -%}
+
+    {{ rename_relation(old_relation, old_relation_bkp) }}
+    {{ rename_relation(tmp_relation, target_relation) }}
+
+    {{ drop_relation(old_relation_bkp) }}
   {%- endif -%}
-
-  -- build model
-  {% call statement('main') -%}
-    {{ create_table_as(False, target_relation, sql) }}
-  {%- endcall %}
-
-  {% if table_type != 'iceberg' %}
-    {{ set_table_classification(target_relation) }}
-  {% endif %}
 
   {{ run_hooks(post_hooks) }}
 
