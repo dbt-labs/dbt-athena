@@ -10,7 +10,7 @@ from dbt.adapters.base import PythonJobHelper
 from dbt.events import AdapterLogger
 from dbt.exceptions import DbtRuntimeError
 
-DEFAULT_POLLING_INTERVAL = 5
+DEFAULTpollING_INTERVAL = 5
 DEFAULT_ENGINE_CONFIG = {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1}
 SUBMISSION_LANGUAGE = "python"
 DEFAULT_TIMEOUT = 60 * 60 * 2
@@ -63,9 +63,9 @@ class AthenaPythonJobHelper(PythonJobHelper):
     @property
     @lru_cache()
     def session_id(self) -> str:
-        return self._set_session_id()
+        return self.set_session_id()
 
-    def _set_session_id(self) -> str:
+    def set_session_id(self) -> str:
         """
         Get the session ID.
 
@@ -78,12 +78,14 @@ class AthenaPythonJobHelper(PythonJobHelper):
         """
         session_info = self._list_sessions()
         if session_info.get("SessionId") is None:
-            return self._start_session()["SessionId"]
+            return self.start_session()["SessionId"]
         return session_info["SessionId"]
 
     @property
     def spark_work_group(self) -> str:
-        return self.credentials.spark_work_group or "spark"
+        if self.credentials.spark_work_group is None:
+            raise ValueError("Need spark group for executing python functions. Add it to your dbt profile")
+        return self.credentials.spark_work_group
 
     def get_athena_client(self) -> Any:
         """
@@ -102,9 +104,9 @@ class AthenaPythonJobHelper(PythonJobHelper):
 
     @property
     def timeout(self) -> int:
-        return self._set_timeout()
+        return self.set_timeout()
 
-    def _set_timeout(self) -> int:
+    def set_timeout(self) -> int:
         """
         Get the timeout value.
 
@@ -133,10 +135,10 @@ class AthenaPythonJobHelper(PythonJobHelper):
 
     @property
     def polling_interval(self):
-        return self._set_polling_interval()
+        return self.set_polling_interval()
 
-    def _set_polling_interval(self) -> int:
-        polling_interval = self.parsed_model.get("config", {}).get("polling_interval", DEFAULT_POLLING_INTERVAL)
+    def set_polling_interval(self) -> int:
+        polling_interval = self.parsed_model.get("config", {}).get("polling_interval", DEFAULTpollING_INTERVAL)
         if not isinstance(polling_interval, int) or polling_interval <= 0:
             raise ValueError("polling_interval must be a positive integer")
         logger.info(f"Setting polling_interval: {polling_interval}")
@@ -144,9 +146,9 @@ class AthenaPythonJobHelper(PythonJobHelper):
 
     @property
     def engine_config(self):
-        return self._set_engine_config()
+        return self.set_engine_config()
 
-    def _set_engine_config(self) -> dict:
+    def set_engine_config(self) -> dict:
         engine_config = self.parsed_model.get("config", {}).get("engine_config", DEFAULT_ENGINE_CONFIG)
         if not isinstance(engine_config, dict):
             raise TypeError("engine configuration has to be of type dict")
@@ -174,7 +176,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
             return {}
         return response.get("Sessions")[0]
 
-    def _start_session(self) -> dict:
+    def start_session(self) -> dict:
         """
         Start an Athena session.
 
@@ -191,27 +193,30 @@ class AthenaPythonJobHelper(PythonJobHelper):
             EngineConfiguration=self.engine_config,
         )
         if response["State"] != "IDLE":
-            self._poll_until_session_creation(response["SessionId"])
+            self.poll_until_session_creation(response["SessionId"])
         return response
-    
-    def _get_current_session_status(self) -> str:
+
+    def get_current_session_status(self) -> str:
         """
         Get the current session status.
 
         Returns:
             str: The status of the session
         """
-        return self.athena_client.get_session_status(SessionId=self.session_id)["Status"]
-    
-    def _poll_until_session_idle(self):
+        return self.athena_client.get_session_status(SessionId=self.session_id)["Status"]["State"]
+
+    def poll_until_session_idle(self):
         polling_interval = self.polling_interval
         while True:
-            session_status = self.athena_client.get_session_status(SessionId=self.session_id)["Status"]
+            session_status = self.athena_client.get_session_status(SessionId=self.session_id)["Status"]["State"]
             if session_status == "IDLE":
                 return session_status
             if session_status in ["FAILED", "TERMINATED", "DEGRADED"]:
                 return DbtRuntimeError(f"The session chosen was not available. Got status: {session_status}")
-
+            time.sleep(polling_interval)
+            polling_interval *= 2
+            if polling_interval > self.timeout:
+                raise DbtRuntimeError(f"Session {self.session_id} did not become free within {self.timeout} seconds.")
 
     def submit(self, compiled_code: str) -> dict:
         """
@@ -233,8 +238,8 @@ class AthenaPythonJobHelper(PythonJobHelper):
             DbtRuntimeError: If the execution ends in a state other than "COMPLETED".
 
         """
-        if self._get_current_session_status() == "BUSY":
-            self._poll_until_session_idle()
+        if self.get_current_session_status() == "BUSY":
+            self.poll_until_session_idle()
         try:
             calculation_execution_id = self.athena_client.start_calculation_execution(
                 SessionId=self.session_id, CodeBlock=compiled_code.lstrip()
@@ -242,7 +247,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         except Exception as e:
             raise DbtRuntimeError(f"Unable to complete python execution. Got: {e}")
         try:
-            execution_status = self._poll_until_execution_completion(calculation_execution_id)
+            execution_status = self.poll_until_execution_completion(calculation_execution_id)
         except Exception as e:
             logger.error(f"Unable to poll execution status: Got: {e}")
         finally:
@@ -255,7 +260,6 @@ class AthenaPythonJobHelper(PythonJobHelper):
             return result_s3_uri
         else:
             raise DbtRuntimeError(f"python model run ended in state {execution_status}")
-
 
     def _terminate_session(self) -> None:
         """
@@ -277,7 +281,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
             logger.debug(f"Terminating session: {self.session_id}")
             self.athena_client.terminate_session(SessionId=self.session_id)
 
-    def _poll_until_execution_completion(self, calculation_execution_id):
+    def poll_until_execution_completion(self, calculation_execution_id):
         """
         Poll the status of a calculation execution until it is completed, failed, or cancelled.
 
@@ -312,7 +316,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
                     f"Execution {calculation_execution_id} did not complete within {self.timeout} seconds."
                 )
 
-    def _poll_until_session_creation(self, session_id):
+    def poll_until_session_creation(self, session_id):
         """
         Polls the status of an Athena session creation until it is completed or reaches the timeout.
 
