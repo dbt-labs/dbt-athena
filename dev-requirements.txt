@@ -1,4 +1,4 @@
-autoflake~=1.7
+autoflake~=2.1
 black~=23.3
 dbt-tests-adapter~=1.4.5
 flake8~=5.0
