@@ -21,7 +21,7 @@ from dbt.adapters.athena.exceptions import (
     S3LocationException,
     SnapshotMigrationRequired,
 )
-from dbt.adapters.athena.lakeformation import LfTagsConfig, LfTagsManager
+from dbt.adapters.athena.lakeformation import LfTagsConfig, LfTagsManager, LfGrantsConfig, LfPermissions
 from dbt.adapters.athena.relation import (
     RELATION_TYPE_MAP,
     AthenaRelation,
@@ -82,6 +82,20 @@ class AthenaAdapter(SQLAdapter):
             manager.process_lf_tags()
             return
         LOGGER.debug(f"Lakeformation is disabled for {relation}")
+
+    @available
+    def apply_lf_grants(self, relation: AthenaRelation, lf_grants_config: Dict[str, Any]) -> None:
+        lf_config = LfGrantsConfig(**lf_grants_config)
+        if lf_config.data_cell_filters.enabled:
+            conn = self.connections.get_thread_connection()
+            client = conn.handle
+            with boto3_client_lock:
+                lf = client.session.client("lakeformation", region_name=client.region_name, config=get_boto3_config())
+            catalog = self._get_data_catalog(relation.database)
+            catalog_id = get_catalog_id(catalog)
+            lf_permissions = LfPermissions(catalog_id, relation, lf)
+            lf_permissions.process_filters(lf_config)
+            lf_permissions.process_permissions(lf_config)
 
     @available
     def is_work_group_output_location_enforced(self) -> bool:

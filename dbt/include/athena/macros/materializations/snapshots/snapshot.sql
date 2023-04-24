@@ -128,6 +128,10 @@
   {%- set file_format = config.get('file_format', 'parquet') -%}
   {%- set table_type = config.get('table_type', 'hive') -%}
 
+  {%- set lf_tags = config.get('lf_tags', default=none) -%}
+  {%- set lf_tags_columns = config.get('lf_tags_columns', default=none) -%}
+  {%- set lf_grants = config.get('lf_grants', default=none) -%}
+
 
   {{ log('Checking if target table exists') }}
   {% set target_relation_exists, target_relation = get_or_create_relation(
@@ -236,6 +240,14 @@
   {% endif %}
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
+
+  {% if lf_tags is not none or lf_tags_columns is not none %}
+    {{ adapter.add_lf_tags(target_relation.schema, identifier, lf_tags, lf_tags_columns) }}
+  {% endif %}
+
+  {% if lf_grants is not none %}
+    {{ adapter.apply_lf_grants(target_relation, lf_grants) }}
+  {% endif %}
 
   {% do persist_docs(target_relation, model) %}
 
