@@ -45,14 +45,14 @@ class TestPythonSubmission:
             ),
         ],
     )
-    def test_start_session(self, session_status_response, expected_response, athena_job_helper, athena_client) -> None:
+    def teststart_session(self, session_status_response, expected_response, athena_job_helper, athena_client) -> None:
         """
-        Test the _start_session method of the AthenaJobHelper class.
+        Test the start_session method of the AthenaJobHelper class.
 
         Args:
             session_status_response (dict): A dictionary containing the response from the Athena session
             creation status.
-            expected_response (Union[dict, DbtRuntimeError]): The expected response from the _start_session method.
+            expected_response (Union[dict, DbtRuntimeError]): The expected response from the start_session method.
             athena_job_helper (AthenaPythonJobHelper): An instance of the AthenaPythonJobHelper class.
             athena_client (botocore.client.BaseClient): An instance of the botocore Athena client.
 
@@ -61,13 +61,13 @@ class TestPythonSubmission:
         """
         with patch.multiple(
             athena_job_helper,
-            _poll_until_session_creation=Mock(return_value=session_status_response),
+            poll_until_session_creation=Mock(return_value=session_status_response),
         ), patch.multiple(
             athena_client,
             get_session_status=Mock(return_value=session_status_response),
             start_session=Mock(return_value=session_status_response.get("Status")),
         ):
-            response = athena_job_helper._start_session()
+            response = athena_job_helper.start_session()
             assert response == expected_response
 
     @pytest.mark.parametrize(
@@ -134,7 +134,7 @@ class TestPythonSubmission:
             AssertionError: If the output of the _list_sessions method does not match the expected output.
         """
         with patch.object(athena_client, "list_sessions", return_value=session_status_response):
-            response = athena_job_helper._list_sessions()
+            response = athena_job_helper.list_sessions()
             assert response == expected_response
 
     @pytest.mark.parametrize(
@@ -162,7 +162,7 @@ class TestPythonSubmission:
             None
         """
         monkeypatch.setattr(athena_job_helper, "parsed_model", parsed_models)
-        response = athena_job_helper._set_timeout()
+        response = athena_job_helper.set_timeout()
         assert response == expected_timeout
 
     @pytest.mark.parametrize(
@@ -181,7 +181,7 @@ class TestPythonSubmission:
         self, parsed_models, expected_polling_interval, athena_job_helper, monkeypatch
     ) -> None:
         """
-        Test method to verify that _set_polling_interval() method of AthenaPythonJobHelper
+        Test method to verify that set_polling_interval() method of AthenaPythonJobHelper
         sets the correct polling interval value based on the parsed model configuration.
 
         Args:
@@ -196,7 +196,7 @@ class TestPythonSubmission:
             None
         """
         monkeypatch.setattr(athena_job_helper, "parsed_model", parsed_models)
-        response = athena_job_helper._set_polling_interval()
+        response = athena_job_helper.set_polling_interval()
         assert response == expected_polling_interval
 
     @pytest.mark.parametrize(
@@ -234,7 +234,7 @@ class TestPythonSubmission:
     )
     def test_set_engine_config(self, parsed_models, expected_engine_config, athena_job_helper, monkeypatch) -> None:
         """
-        Test method to verify the `_set_engine_config()` method of the AthenaPythonJobHelper class.
+        Test method to verify the `set_engine_config()` method of the AthenaPythonJobHelper class.
 
         Args:
             parsed_models: A dictionary containing the parsed model configuration data.
@@ -251,8 +251,8 @@ class TestPythonSubmission:
         monkeypatch.setattr(athena_job_helper, "parsed_model", parsed_models)
         if parsed_models.get("alias") == "test_wrong_model":
             with pytest.raises(KeyError):
-                athena_job_helper._set_engine_config()
-        response = athena_job_helper._set_engine_config()
+                athena_job_helper.set_engine_config()
+        response = athena_job_helper.set_engine_config()
         assert response == expected_engine_config
 
     @pytest.mark.parametrize(
@@ -315,10 +315,10 @@ class TestPythonSubmission:
             terminate_session=Mock(return_value=expected_response),
         ), patch.multiple(
             athena_job_helper,
-            _set_session_id=Mock(return_value=test_session_id),
-            _set_timeout=Mock(return_value=10),
+            set_session_id=Mock(return_value=test_session_id),
+            set_timeout=Mock(return_value=10),
         ):
-            terminate_session_response = athena_job_helper._terminate_session()
+            terminate_session_response = athena_job_helper.terminate_session()
             assert terminate_session_response == expected_response
 
     def test_poll_session_creation(self):

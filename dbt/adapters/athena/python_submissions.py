@@ -10,7 +10,7 @@ from dbt.adapters.base import PythonJobHelper
 from dbt.events import AdapterLogger
 from dbt.exceptions import DbtRuntimeError
 
-DEFAULTpollING_INTERVAL = 5
+DEFAULT_POLLING_INTERVAL = 5
 DEFAULT_ENGINE_CONFIG = {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1}
 SUBMISSION_LANGUAGE = "python"
 DEFAULT_TIMEOUT = 60 * 60 * 2
@@ -76,7 +76,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
             str: The session ID.
 
         """
-        session_info = self._list_sessions()
+        session_info = self.list_sessions()
         if session_info.get("SessionId") is None:
             return self.start_session()["SessionId"]
         return session_info["SessionId"]
@@ -138,7 +138,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         return self.set_polling_interval()
 
     def set_polling_interval(self) -> int:
-        polling_interval = self.parsed_model.get("config", {}).get("polling_interval", DEFAULTpollING_INTERVAL)
+        polling_interval = self.parsed_model.get("config", {}).get("polling_interval", DEFAULT_POLLING_INTERVAL)
         if not isinstance(polling_interval, int) or polling_interval <= 0:
             raise ValueError("polling_interval must be a positive integer")
         logger.info(f"Setting polling_interval: {polling_interval}")
@@ -159,7 +159,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
 
         return engine_config
 
-    def _list_sessions(self) -> dict:
+    def list_sessions(self) -> dict:
         """
         List Athena sessions.
 
@@ -251,7 +251,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         except Exception as e:
             logger.error(f"Unable to poll execution status: Got: {e}")
         finally:
-            self._terminate_session()
+            self.terminate_session()
         logger.debug(f"Received execution status {execution_status}")
         if execution_status == "COMPLETED":
             result_s3_uri = self.athena_client.get_calculation_execution(
@@ -261,7 +261,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         else:
             raise DbtRuntimeError(f"python model run ended in state {execution_status}")
 
-    def _terminate_session(self) -> None:
+    def terminate_session(self) -> None:
         """
         Terminate the current Athena session.
 
