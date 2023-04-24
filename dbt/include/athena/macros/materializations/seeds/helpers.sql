@@ -35,6 +35,7 @@
   {%- set identifier = model['alias'] -%}
 
   {%- set lf_tags_config = config.get('lf_tags_config', default=none) -%}
+  {%- set lf_grants = config.get('lf_grants', default=none) -%}
   {%- set column_override = config.get('column_types', {}) -%}
   {%- set quote_seed_column = config.get('quote_columns', None) -%}
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
@@ -120,6 +121,10 @@
 
   {% if lf_tags_config is not none %}
     {{ adapter.add_lf_tags(model, lf_tags_config) }}
+  {% endif %}
+
+  {% if lf_grants is not none %}
+    {{ adapter.apply_lf_grants(relation, lf_grants) }}
   {% endif %}
 
   {{ return(sql_table) }}

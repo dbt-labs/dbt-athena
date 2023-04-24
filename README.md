@@ -172,6 +172,32 @@ _Additional information_
       tag1:
         value1: [ column1, column2 ]
 ```
+* `lf_grants` (`default=none`)
+  * lakeformation grants config for data_cell filters
+  * format:
+  ```python
+  lf_grants={
+          'data_cell_filters': {
+              'enabled': True | False,
+              'filters': {
+                  'filter_name': {
+                      'row_filter': '<filter_condition>',
+                      'principals': ['principal_arn1', 'principal_arn2']
+                  }
+              }
+          }
+      }
+  ```
+
+> Notes:  
+> - `lf_tags` and `lf_tags_columns` configs support only attaching lf tags to corresponding resources.
+> We recommend managing LF Tags permissions somewhere outside dbt. For example, you may use
+> [terraform](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_permissions) or
+> [aws cdk](https://docs.aws.amazon.com/cdk/api/v1/docs/aws-lakeformation-readme.html) for such purpose.
+> - `data_cell_filters` management can't be automated outside dbt because the filter can't be attached to the table
+> which doesn't exist. Once you `enable` this config, dbt will set all filters and their permissions during every
+> dbt run. Such approach keeps the actual state of row level security configuration actual after every dbt run and
+> apply changes if they occur: drop, create, update filters and their permissions.
 
 [create-table-as]: https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html#ctas-table-properties
 
