@@ -52,7 +52,7 @@ materialize(spark, df, dbt.this)
 {%- endmacro -%}
 
 {%- macro athena__py_execute_query(query) -%}
-import pyspark 
+import pyspark
 
 
 {{ athena__py_get_spark_dbt_object() }}
