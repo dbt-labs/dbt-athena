@@ -4,6 +4,7 @@ from functools import lru_cache
 from typing import Any, Dict
 
 import boto3
+import botocore
 
 from dbt.adapters.athena.connections import AthenaCredentials
 from dbt.adapters.base import PythonJobHelper
@@ -63,7 +64,9 @@ class AthenaPythonJobHelper(PythonJobHelper):
     @property
     @lru_cache()
     def session_id(self) -> str:
-        return self.set_session_id()
+        session_id = self.set_session_id()
+        logger.info(f"Setting session id: {session_id}")
+        return session_id
 
     def set_session_id(self) -> str:
         """
@@ -84,7 +87,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
     @property
     def spark_work_group(self) -> str:
         if self.credentials.spark_work_group is None:
-            raise ValueError("Need spark group for executing python functions. Add it to your dbt profile")
+            raise ValueError("Need a spark group for executing python functions. Add it to your dbt profile.")
         return self.credentials.spark_work_group
 
     def get_athena_client(self) -> Any:
@@ -103,6 +106,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         ).client("athena")
 
     @property
+    @lru_cache()
     def timeout(self) -> int:
         return self.set_timeout()
 
@@ -134,6 +138,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         return timeout
 
     @property
+    @lru_cache()
     def polling_interval(self):
         return self.set_polling_interval()
 
@@ -145,6 +150,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         return polling_interval
 
     @property
+    @lru_cache()
     def engine_config(self):
         return self.set_engine_config()
 
@@ -203,12 +209,12 @@ class AthenaPythonJobHelper(PythonJobHelper):
         Returns:
             str: The status of the session
         """
-        return self.athena_client.get_session_status(SessionId=self.session_id)["Status"]["State"]
+        return self.athena_client.get_session_status(SessionId=self.session_id)["Status"]
 
     def poll_until_session_idle(self):
         polling_interval = self.polling_interval
         while True:
-            session_status = self.athena_client.get_session_status(SessionId=self.session_id)["Status"]["State"]
+            session_status = self.get_current_session_status()["State"]
             if session_status == "IDLE":
                 return session_status
             if session_status in ["FAILED", "TERMINATED", "DEGRADED"]:
@@ -238,14 +244,23 @@ class AthenaPythonJobHelper(PythonJobHelper):
             DbtRuntimeError: If the execution ends in a state other than "COMPLETED".
 
         """
-        if self.get_current_session_status() == "BUSY":
-            self.poll_until_session_idle()
-        try:
-            calculation_execution_id = self.athena_client.start_calculation_execution(
-                SessionId=self.session_id, CodeBlock=compiled_code.lstrip()
-            )["CalculationExecutionId"]
-        except Exception as e:
-            raise DbtRuntimeError(f"Unable to complete python execution. Got: {e}")
+        while True:
+            try:
+                calculation_execution_id = self.athena_client.start_calculation_execution(
+                    SessionId=self.session_id, CodeBlock=compiled_code.lstrip()
+                )["CalculationExecutionId"]
+                break
+            except botocore.exceptions.ClientError as ce:
+                logger.exception(f"Encountered client error: {ce}")
+                if (
+                    ce.response["Error"]["Code"] == "InvalidRequestException"
+                    and "Session is in the BUSY state; needs to be IDLE to accept Calculations."
+                    in ce.response["Error"]["Message"]
+                ):
+                    logger.exception("Going to poll until session is IDLE")
+                    self.poll_until_session_idle()
+            except Exception as e:
+                raise DbtRuntimeError(f"Unable to complete python execution. Got: {e}")
         try:
             execution_status = self.poll_until_execution_completion(calculation_execution_id)
         except Exception as e:
@@ -274,7 +289,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
             dict: The response from the Athena client after terminating the session.
 
         """
-        session_status = self.athena_client.get_session_status(SessionId=self.session_id)["Status"]
+        session_status = self.get_current_session_status()
         if session_status["State"] in ["IDLE", "BUSY"] and (
             session_status["StartDateTime"] - datetime.now(tz=timezone.utc) > timedelta(seconds=self.timeout)
         ):
