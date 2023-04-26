@@ -407,6 +407,14 @@ class AthenaAdapter(SQLAdapter):
         schemas: Dict[str, Optional[Set[str]]],
         manifest: Manifest,
     ) -> agate.Table:
+        catalog_id = None
+        if (
+            information_schema.path.database is not None
+            and information_schema.path.database.lower() != "awsdatacatalog"
+        ):
+            data_catalog = self._get_data_catalog(information_schema.path.database.lower())
+            catalog_id = data_catalog["Parameters"]["catalog-id"]
+
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
@@ -416,10 +424,18 @@ class AthenaAdapter(SQLAdapter):
         catalog = []
         paginator = glue_client.get_paginator("get_tables")
         for schema, relations in schemas.items():
-            for page in paginator.paginate(DatabaseName=schema, MaxResults=100):
+            kwargs = {
+                "DatabaseName": schema,
+                "MaxResults": 100,
+            }
+            # If the catalog is `awsdatacatalog` we don't need to pass CatalogId as boto3 infers it from the account Id.
+            if catalog_id:
+                kwargs["CatalogId"] = catalog_id
+
+            for page in paginator.paginate(**kwargs):
                 for table in page["TableList"]:
                     if table["Name"] in relations:
-                        catalog.extend(self._get_one_table_for_catalog(table, conn.credentials.database))
+                        catalog.extend(self._get_one_table_for_catalog(table, information_schema.path.database))
 
         table = agate.Table.from_object(catalog)
         filtered_table = self._catalog_filter_table(table, manifest)
