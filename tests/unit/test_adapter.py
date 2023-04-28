@@ -6,7 +6,7 @@ from unittest.mock import patch
 import agate
 import boto3
 import pytest
-from moto import mock_athena, mock_glue, mock_s3
+from moto import mock_athena, mock_glue, mock_s3, mock_sts
 
 from dbt.adapters.athena import AthenaAdapter
 from dbt.adapters.athena import Plugin as AthenaPlugin
@@ -466,6 +466,7 @@ class TestAthenaAdapter:
 
     @mock_glue
     @mock_athena
+    @mock_sts
     def test__get_one_catalog(self):
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database("foo")
@@ -578,11 +579,12 @@ class TestAthenaAdapter:
         assert list(relations.values()) == [{"bar"}]
 
     @mock_athena
+    @mock_sts
     def test__get_data_catalog(self, aws_credentials):
         self.mock_aws_service.create_data_catalog()
         self.adapter.acquire_connection("dummy")
         res = self.adapter._get_data_catalog(DATA_CATALOG_NAME)
-        assert {"Name": "awsdatacatalog", "Type": "GLUE", "Parameters": {"catalog-id": "catalog_id"}} == res
+        assert {"Name": "awsdatacatalog", "Type": "GLUE", "Parameters": {"catalog-id": "123456789012"}} == res
 
     @mock_glue
     @mock_s3
@@ -647,6 +649,7 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_glue
+    @mock_sts
     def test_list_relations_without_caching_with_awsdatacatalog(self, aws_credentials):
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database()

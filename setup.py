@@ -50,6 +50,7 @@ setup(
     install_requires=[
         # In order to control dbt-core version and package version
         "boto3~=1.26",
+        "boto3-stubs[athena,glue,lakeformation,sts]~=1.26",
         "dbt-core~=1.4.6",
         "pyathena~=2.25",
         "tenacity~=8.2",
