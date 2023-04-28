@@ -51,7 +51,7 @@ setup(
         # In order to control dbt-core version and package version
         "boto3~=1.26",
         "dbt-core~=1.4.6",
-        "pyathena~=2.24",
+        "pyathena~=2.25",
         "tenacity~=8.2",
     ],
 )
