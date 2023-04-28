@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import agate
 from botocore.exceptions import ClientError
+from mypy_boto3_athena.type_defs import DataCatalogTypeDef
 
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
@@ -357,7 +358,8 @@ class AthenaAdapter(SQLAdapter):
         response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
         return True if "Contents" in response else False
 
-    def _join_catalog_table_owners(self, table: agate.Table, manifest: Manifest) -> agate.Table:
+    @staticmethod
+    def _join_catalog_table_owners(table: agate.Table, manifest: Manifest) -> agate.Table:
         owners = []
         # Get the owner for each model from the manifest
         for node in manifest.nodes.values():
@@ -407,17 +409,10 @@ class AthenaAdapter(SQLAdapter):
         schemas: Dict[str, Optional[Set[str]]],
         manifest: Manifest,
     ) -> agate.Table:
-        catalog_id = None
-        if (
-            information_schema.path.database is not None
-            and information_schema.path.database.lower() != "awsdatacatalog"
-        ):
-            data_catalog = self._get_data_catalog(information_schema.path.database.lower())
-            catalog_id = data_catalog["Parameters"]["catalog-id"]
-
+        data_catalog = self._get_data_catalog(information_schema.path.database)
+        catalog_id = self._get_catalog_id(data_catalog)
         conn = self.connections.get_thread_connection()
         client = conn.handle
-
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
@@ -452,27 +447,34 @@ class AthenaAdapter(SQLAdapter):
             info_schema_name_map.add(relation)
         return info_schema_name_map
 
-    def _get_data_catalog(self, catalog_name):
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-        with boto3_client_lock:
-            athena_client = client.session.client("athena", region_name=client.region_name, config=get_boto3_config())
+    def _get_data_catalog(self, database: str) -> Optional[DataCatalogTypeDef]:
+        if database:
+            conn = self.connections.get_thread_connection()
+            client = conn.handle
+            if database.lower() == "awsdatacatalog":
+                with boto3_client_lock:
+                    sts = client.session.client("sts", region_name=client.region_name, config=get_boto3_config())
+                catalog_id = sts.get_caller_identity()["Account"]
+                return {"Name": database, "Type": "GLUE", "Parameters": {"catalog-id": catalog_id}}
+            else:
+                with boto3_client_lock:
+                    athena = client.session.client("athena", region_name=client.region_name, config=get_boto3_config())
+                return athena.get_data_catalog(Name=database)["DataCatalog"]
 
-        response = athena_client.get_data_catalog(Name=catalog_name)
-        return response["DataCatalog"]
+    @staticmethod
+    def _get_catalog_id(catalog: Optional[DataCatalogTypeDef]) -> Optional[str]:
+        if catalog:
+            return catalog["Parameters"]["catalog-id"]
 
     def list_relations_without_caching(
         self,
         schema_relation: AthenaRelation,
     ) -> List[BaseRelation]:
-        catalog_id = None
-        if schema_relation.database is not None and schema_relation.database.lower() != "awsdatacatalog":
-            data_catalog = self._get_data_catalog(schema_relation.database.lower())
+        data_catalog = self._get_data_catalog(schema_relation.database)
+        catalog_id = self._get_catalog_id(data_catalog)
+        if data_catalog and data_catalog["Type"] != "GLUE":
             # For non-Glue Data Catalogs, use the original Athena query against INFORMATION_SCHEMA approach
-            if data_catalog["Type"] != "GLUE":
-                return super().list_relations_without_caching(schema_relation)
-            else:
-                catalog_id = data_catalog["Parameters"]["catalog-id"]
+            return super().list_relations_without_caching(schema_relation)
 
         conn = self.connections.get_thread_connection()
         client = conn.handle
