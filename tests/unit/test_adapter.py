@@ -27,6 +27,7 @@ from .constants import (
     DATA_CATALOG_NAME,
     DATABASE_NAME,
     S3_STAGING_DIR,
+    SHARED_DATA_CATALOG_NAME,
 )
 from .fixtures import seed_data
 from .utils import (
@@ -65,7 +66,12 @@ class TestAthenaAdapter:
         self.config = config_from_parts_or_dicts(project_cfg, profile_cfg)
         self._adapter = None
         self.mock_manifest = mock.MagicMock()
-        self.mock_manifest.get_used_schemas.return_value = {("awsdatacatalog", "foo"), ("awsdatacatalog", "quux")}
+        self.mock_manifest.get_used_schemas.return_value = {
+            ("awsdatacatalog", "foo"),
+            ("awsdatacatalog", "quux"),
+            ("awsdatacatalog", "baz"),
+            (SHARED_DATA_CATALOG_NAME, "foo"),
+        }
         self.mock_manifest.nodes = {
             "model.root.model1": CompiledNode(
                 name="model1",
@@ -139,6 +145,78 @@ class TestAthenaAdapter:
                 raw_code="select * from source_table",
                 language="",
             ),
+            "model.root.model3": CompiledNode(
+                name="model2",
+                database="awsdatacatalog",
+                schema="baz",
+                resource_type=NodeType.Model,
+                unique_id="model.root.model3",
+                alias="qux",
+                fqn=["root", "model2"],
+                package_name="root",
+                refs=[],
+                sources=[],
+                depends_on=DependsOn(),
+                config=NodeConfig.from_dict(
+                    {
+                        "enabled": True,
+                        "materialized": "table",
+                        "persist_docs": {},
+                        "post-hook": [],
+                        "pre-hook": [],
+                        "vars": {},
+                        "meta": {"owner": "data-engineers"},
+                        "quoting": {},
+                        "column_types": {},
+                        "tags": [],
+                    }
+                ),
+                tags=[],
+                path="model3.sql",
+                original_file_path="model3.sql",
+                compiled=True,
+                extra_ctes_injected=False,
+                extra_ctes=[],
+                checksum=FileHash.from_contents(""),
+                raw_code="select * from source_table",
+                language="",
+            ),
+            "model.root.model4": CompiledNode(
+                name="model4",
+                database="12345678910",
+                schema="foo",
+                resource_type=NodeType.Model,
+                unique_id="model.root.model4",
+                alias="bar",
+                fqn=["root", "model4"],
+                package_name="root",
+                refs=[],
+                sources=[],
+                depends_on=DependsOn(),
+                config=NodeConfig.from_dict(
+                    {
+                        "enabled": True,
+                        "materialized": "table",
+                        "persist_docs": {},
+                        "post-hook": [],
+                        "pre-hook": [],
+                        "vars": {},
+                        "meta": {"owner": "data-engineers"},
+                        "quoting": {},
+                        "column_types": {},
+                        "tags": [],
+                    }
+                ),
+                tags=[],
+                path="model4.sql",
+                original_file_path="model4.sql",
+                compiled=True,
+                extra_ctes_injected=False,
+                extra_ctes=[],
+                checksum=FileHash.from_contents(""),
+                raw_code="select * from source_table",
+                language="",
+            ),
         }
 
     @property
@@ -199,16 +277,23 @@ class TestAthenaAdapter:
         assert "Got an error when attempting to open a Athena connection due to foobar" in dbt_error_caplog.getvalue()
 
     @pytest.mark.parametrize(
-        ("s3_data_dir", "s3_data_naming", "external_location", "is_temporary_table", "expected"),
+        ("s3_data_dir", "s3_data_naming", "s3_path_table_part", "external_location", "is_temporary_table", "expected"),
         (
-            pytest.param(None, "table", None, False, "s3://my-bucket/test-dbt/tables/table", id="table naming"),
-            pytest.param(None, "uuid", None, False, "s3://my-bucket/test-dbt/tables/uuid", id="uuid naming"),
+            pytest.param(None, "table", None, None, False, "s3://my-bucket/test-dbt/tables/table", id="table naming"),
+            pytest.param(None, "uuid", None, None, False, "s3://my-bucket/test-dbt/tables/uuid", id="uuid naming"),
             pytest.param(
-                None, "table_unique", None, False, "s3://my-bucket/test-dbt/tables/table/uuid", id="table_unique naming"
+                None,
+                "table_unique",
+                None,
+                None,
+                False,
+                "s3://my-bucket/test-dbt/tables/table/uuid",
+                id="table_unique naming",
             ),
             pytest.param(
                 None,
                 "schema_table",
+                None,
                 None,
                 False,
                 "s3://my-bucket/test-dbt/tables/schema/table",
@@ -218,6 +303,7 @@ class TestAthenaAdapter:
                 None,
                 "schema_table_unique",
                 None,
+                None,
                 False,
                 "s3://my-bucket/test-dbt/tables/schema/table/uuid",
                 id="schema_table_unique naming",
@@ -226,6 +312,7 @@ class TestAthenaAdapter:
                 "s3://my-data-bucket/",
                 "schema_table_unique",
                 None,
+                None,
                 False,
                 "s3://my-data-bucket/schema/table/uuid",
                 id="data_dir set",
@@ -233,6 +320,7 @@ class TestAthenaAdapter:
             pytest.param(
                 "s3://my-data-bucket/",
                 "schema_table_unique",
+                None,
                 "s3://path/to/external/",
                 False,
                 "s3://path/to/external",
@@ -241,18 +329,30 @@ class TestAthenaAdapter:
             pytest.param(
                 "s3://my-data-bucket/",
                 "schema_table_unique",
+                None,
                 "s3://path/to/external/",
                 True,
                 "s3://my-data-bucket/schema/table/uuid",
                 id="external_location set and temporary",
             ),
+            pytest.param(
+                None,
+                "schema_table_unique",
+                "other_table",
+                None,
+                False,
+                "s3://my-bucket/test-dbt/tables/schema/other_table/uuid",
+                id="s3_path_table_part set",
+            ),
         ),
     )
     @patch("dbt.adapters.athena.impl.uuid4", return_value="uuid")
-    def test_s3_table_location(self, _, s3_data_dir, s3_data_naming, external_location, is_temporary_table, expected):
+    def test_s3_table_location(
+        self, _, s3_data_dir, s3_data_naming, external_location, s3_path_table_part, is_temporary_table, expected
+    ):
         self.adapter.acquire_connection("dummy")
         assert expected == self.adapter.s3_table_location(
-            s3_data_dir, s3_data_naming, "schema", "table", external_location, is_temporary_table
+            s3_data_dir, s3_data_naming, "schema", "table", s3_path_table_part, external_location, is_temporary_table
         )
 
     def test_s3_table_location_exc(self):
@@ -370,15 +470,20 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database("foo")
         self.mock_aws_service.create_database("quux")
+        self.mock_aws_service.create_database("baz")
         self.mock_aws_service.create_table(table_name="bar", database_name="foo")
         self.mock_aws_service.create_table(table_name="bar", database_name="quux")
+        self.mock_aws_service.create_table_without_type(table_name="qux", database_name="baz")
+        mock_information_schema = mock.MagicMock()
+        mock_information_schema.path.database = "awsdatacatalog"
 
         self.adapter.acquire_connection("dummy")
         actual = self.adapter._get_one_catalog(
-            mock.MagicMock(),
+            mock_information_schema,
             {
                 "foo": {"bar"},
                 "quux": {"bar"},
+                "baz": {"qux"},
             },
             self.mock_manifest,
         )
@@ -402,6 +507,49 @@ class TestAthenaAdapter:
             ("awsdatacatalog", "quux", "bar", "table", None, "id", 0, "string", None, "data-analysts"),
             ("awsdatacatalog", "quux", "bar", "table", None, "country", 1, "string", None, "data-analysts"),
             ("awsdatacatalog", "quux", "bar", "table", None, "dt", 2, "date", None, "data-analysts"),
+            ("awsdatacatalog", "baz", "qux", "table", None, "id", 0, "string", None, "data-engineers"),
+            ("awsdatacatalog", "baz", "qux", "table", None, "country", 1, "string", None, "data-engineers"),
+        ]
+
+        assert actual.column_names == expected_column_names
+        assert len(actual.rows) == len(expected_rows)
+        for row in actual.rows.values():
+            assert row.values() in expected_rows
+
+    @mock_glue
+    @mock_athena
+    def test__get_one_catalog_shared_catalog(self):
+        self.mock_aws_service.create_data_catalog(catalog_name=SHARED_DATA_CATALOG_NAME)
+        self.mock_aws_service.create_database("foo")
+        self.mock_aws_service.create_table(table_name="bar", database_name="foo")
+        mock_information_schema = mock.MagicMock()
+        mock_information_schema.path.database = SHARED_DATA_CATALOG_NAME
+
+        self.adapter.acquire_connection("dummy")
+        actual = self.adapter._get_one_catalog(
+            mock_information_schema,
+            {
+                "foo": {"bar"},
+            },
+            self.mock_manifest,
+        )
+
+        expected_column_names = (
+            "table_database",
+            "table_schema",
+            "table_name",
+            "table_type",
+            "table_comment",
+            "column_name",
+            "column_index",
+            "column_type",
+            "column_comment",
+            "table_owner",
+        )
+        expected_rows = [
+            ("12345678910", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
+            ("12345678910", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
+            ("12345678910", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
         ]
 
         assert actual.column_names == expected_column_names
@@ -411,14 +559,23 @@ class TestAthenaAdapter:
 
     def test__get_catalog_schemas(self):
         res = self.adapter._get_catalog_schemas(self.mock_manifest)
-        assert len(res.keys()) == 1
-        information_schema = list(res.keys())[0]
-        assert information_schema.name == "INFORMATION_SCHEMA"
-        assert information_schema.schema is None
-        assert information_schema.database == "awsdatacatalog"
+        assert len(res.keys()) == 2
+
+        information_schema_0 = list(res.keys())[0]
+        assert information_schema_0.name == "INFORMATION_SCHEMA"
+        assert information_schema_0.schema is None
+        assert information_schema_0.database == "awsdatacatalog"
         relations = list(res.values())[0]
-        assert set(relations.keys()) == {"foo", "quux"}
-        assert list(relations.values()) == [{"bar"}, {"bar"}]
+        assert set(relations.keys()) == {"foo", "quux", "baz"}
+        assert list(relations.values()) == [{"bar"}, {"bar"}, {"qux"}]
+
+        information_schema_1 = list(res.keys())[1]
+        assert information_schema_1.name == "INFORMATION_SCHEMA"
+        assert information_schema_1.schema is None
+        assert information_schema_1.database == SHARED_DATA_CATALOG_NAME
+        relations = list(res.values())[1]
+        assert set(relations.keys()) == {"foo"}
+        assert list(relations.values()) == [{"bar"}]
 
     @mock_athena
     def test__get_data_catalog(self, aws_credentials):

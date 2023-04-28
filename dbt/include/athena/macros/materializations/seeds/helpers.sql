@@ -42,18 +42,18 @@
   {%- set s3_data_naming = config.get('s3_data_naming', target.s3_data_naming) -%}
   {%- set external_location = config.get('external_location', default=none) -%}
 
-  {%- set s3_location = adapter.upload_seed_to_s3(
+  {%- set tmp_s3_location = adapter.upload_seed_to_s3(
     s3_data_dir,
     s3_data_naming,
     external_location,
     model.schema,
-    model.name,
+    model.name + "__dbt_tmp",
     agate_table,
   ) -%}
 
   -- create tmp relation
   {%- set tmp_relation = api.Relation.create(
-    identifier=model.name + "_tmp",
+    identifier=identifier + "__dbt_tmp",
     schema=model.schema,
     database=model.database,
     type='table'
@@ -61,7 +61,7 @@
 
   -- create target relation
   {%- set relation = api.Relation.create(
-    identifier=model.name,
+    identifier=identifier,
     schema=model.schema,
     database=model.database,
     type='table'
@@ -78,7 +78,7 @@
         {%- endfor -%}
     )
     row format serde 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
-    location '{{ s3_location }}'
+    location '{{ tmp_s3_location }}'
     tblproperties (
       'skip.header.line.count'='1'
     )
@@ -119,7 +119,7 @@
   {{ drop_relation(tmp_relation) }}
 
   -- delete csv file from s3
-  {% do adapter.delete_from_s3(s3_location) %}
+  {% do adapter.delete_from_s3(tmp_s3_location) %}
 
   {% if lf_tags is not none or lf_tags_columns is not none %}
     {{ adapter.add_lf_tags(model.schema, identifier, lf_tags, lf_tags_columns) }}

@@ -202,6 +202,34 @@ class MockAWSService:
             },
         )
 
+    def create_table_without_type(self, table_name: str, database_name: str = DATABASE_NAME):
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        glue.create_table(
+            DatabaseName=database_name,
+            TableInput={
+                "Name": table_name,
+                "StorageDescriptor": {
+                    "Columns": [
+                        {
+                            "Name": "id",
+                            "Type": "string",
+                        },
+                        {
+                            "Name": "country",
+                            "Type": "string",
+                        },
+                    ],
+                    "Location": f"s3://{BUCKET}/tables/{table_name}",
+                },
+                "Parameters": {
+                    "compressionType": "snappy",
+                    "classification": "parquet",
+                    "projection.enabled": "false",
+                    "typeOfData": "file",
+                },
+            },
+        )
+
     def create_table_without_partitions(self, table_name: str):
         glue = boto3.client("glue", region_name=AWS_REGION)
         glue.create_table(

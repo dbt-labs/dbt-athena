@@ -9,5 +9,6 @@
 
 ## Checklist
 - [ ] You followed [contributing section](https://github.com/dbt-athena/dbt-athena#contributing)
+- [ ] You kept your Pull Request small and focused on a single feature or bug fix.
 - [ ] You added unit testing when necessary
 - [ ] You added functional testing when necessary
