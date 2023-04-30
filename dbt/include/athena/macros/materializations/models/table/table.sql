@@ -13,10 +13,11 @@
 
   {{ run_hooks(pre_hooks) }}
 
-  -- cleanup
-  {%- if old_relation is not none -%}
-    {{ drop_relation(old_relation) }}
-  {%- endif -%}
+  {%- if old_relation is none or table_type != 'iceberg' -%}
+    -- cleanup
+    {%- if old_relation is not none and language != 'python' -%}
+      {{ drop_relation(old_relation) }}
+    {%- endif -%}
 
     {%- call statement('main', language=language) -%}
       {{ create_table_as(False, target_relation, compiled_code, language) }}
