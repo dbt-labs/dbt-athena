@@ -26,25 +26,26 @@
 
 {% endmacro %}
 
-{% macro get_update_statement(col, rule, is_last) %}
-    {% if rule == "coalesce" %}
-        {{ col.quoted }} = {{ 'coalesce(src.' + col.quoted + ', target.' + col.quoted + ')' }} {{ "," if not is_last }}
+{%- macro get_update_statement(col, rule, is_last) -%}
+    {%- if rule == "coalesce" -%}
+        {{ col.quoted }} = {{ 'coalesce(src.' + col.quoted + ', target.' + col.quoted + ')' }}
     {%- elif rule == "sum" -%}
-      {% if col.data_type.startswith("map") %}
-          {{ col.quoted }} = {{ 'map_zip_with(coalesce(src.' + col.quoted + ', map()), coalesce(target.' + col.quoted + ', map()), (k, v1, v2) -> coalesce(v1, 0) + coalesce(v2, 0))' }} {{ "," if not is_last }}
-      {% else %}
-        {{ col.quoted }} = {{ 'src.' + col.quoted + ' + target.' + col.quoted }} {{ "," if not is_last }}
-      {% endif %}
+      {%- if col.data_type.startswith("map") -%}
+          {{ col.quoted }} = {{ 'map_zip_with(coalesce(src.' + col.quoted + ', map()), coalesce(target.' + col.quoted + ', map()), (k, v1, v2) -> coalesce(v1, 0) + coalesce(v2, 0))' }}
+      {%- else -%}
+        {{ col.quoted }} = {{ 'src.' + col.quoted + ' + target.' + col.quoted }}
+      {%- endif -%}
     {%- elif rule == "append" -%}
-        {{ col.quoted }} = {{ 'src.' + col.quoted + ' || target.' + col.quoted }} {{ "," if not is_last }}
+        {{ col.quoted }} = {{ 'src.' + col.quoted + ' || target.' + col.quoted }}
     {%- elif rule == "append_distinct" -%}
-        {{ col.quoted }} = {{ 'array_distinct(src.' + col.quoted + ' || target.' + col.quoted + ')' }} {{ "," if not is_last }}
-    {% elif rule == "replace" %}
-        {{ col.quoted }} = {{ 'src.' + col.quoted }} {{ "," if not is_last }}
-    {% else %}
-        {{ col.quoted }} = {{ rule | replace("_new_", 'src.' + col.quoted) | replace("_old_", 'target.' + col.quoted) }} {{ "," if not is_last }}
-    {% endif %}
-{% endmacro %}
+        {{ col.quoted }} = {{ 'array_distinct(src.' + col.quoted + ' || target.' + col.quoted + ')' }}
+    {%- elif rule == "replace" -%}
+        {{ col.quoted }} = {{ 'src.' + col.quoted }}
+    {%- else -%}
+        {{ col.quoted }} = {{ rule | replace("_new_", 'src.' + col.quoted) | replace("_old_", 'target.' + col.quoted) }}
+    {%- endif -%}
+    {{ "," if not is_last }}
+{%- endmacro -%}
 
 {% macro iceberg_merge(on_schema_change, tmp_relation, target_relation, unique_key, existing_relation, delete_condition, statement_name="main") %}
     {%- set merge_update_columns = config.get('merge_update_columns') -%}
@@ -74,24 +75,23 @@
     {%- set src_cols_csv = src_columns_quoted | join(', ') -%}
     merge into {{ target_relation }} as target using {{ tmp_relation }} as src
     on (
-      {% for key in unique_key_cols %}
-        target.{{ key }} = src.{{ key }}
-        {{ "and " if not loop.last }}
-      {% endfor %}
+      {%- for key in unique_key_cols %}
+        target.{{ key }} = src.{{ key }} {{ "and " if not loop.last }}
+      {%- endfor %}
     )
-    {% if delete_condition is not none %}
+    {% if delete_condition is not none -%}
     when matched and ({{ delete_condition }})
       then delete
-    {% endif %}
+    {%- endif %}
     when matched
       then update set
-        {% for col in update_columns %}
-          {% if merge_update_columns_rules and col.name in merge_update_columns_rules %}
+        {%- for col in update_columns %}
+          {%- if merge_update_columns_rules and col.name in merge_update_columns_rules %}
             {{ get_update_statement(col, merge_update_columns_rules[col.name], loop.last) }}
-          {% else %}
+          {%- else -%}
             {{ get_update_statement(col, merge_update_columns_default_rule, loop.last) }}
-          {% endif %}
-        {% endfor %}
+          {%- endif -%}
+        {%- endfor %}
     when not matched
       then insert ({{ dest_cols_csv }})
        values ({{ src_cols_csv }});
