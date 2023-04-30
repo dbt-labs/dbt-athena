@@ -42,6 +42,8 @@ class AthenaCredentials(Credentials):
     endpoint_url: Optional[str] = None
     work_group: Optional[str] = None
     aws_profile_name: Optional[str] = None
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
     poll_interval: float = 1.0
     _ALIASES = {"catalog": "database"}
     num_retries: Optional[int] = 5
@@ -67,6 +69,8 @@ class AthenaCredentials(Credentials):
             "schema",
             "poll_interval",
             "aws_profile_name",
+            "aws_access_key_id",
+            "aws_secret_access_key",
             "endpoint_url",
             "s3_data_dir",
             "s3_data_naming",

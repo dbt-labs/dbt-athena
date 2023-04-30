@@ -193,6 +193,7 @@ class AthenaAdapter(SQLAdapter):
         s3_data_naming: str,
         schema_name: str,
         table_name: str,
+        s3_path_table_part: Optional[str] = None,
         external_location: Optional[str] = None,
         is_temporary_table: bool = False,
     ) -> str:
@@ -203,12 +204,17 @@ class AthenaAdapter(SQLAdapter):
         if external_location and not is_temporary_table:
             return external_location.rstrip("/")
 
+        if not s3_path_table_part:
+            s3_path_table_part = table_name
+
         mapping = {
             "uuid": path.join(self.s3_table_prefix(s3_data_dir), str(uuid4())),
-            "table": path.join(self.s3_table_prefix(s3_data_dir), table_name),
-            "table_unique": path.join(self.s3_table_prefix(s3_data_dir), table_name, str(uuid4())),
-            "schema_table": path.join(self.s3_table_prefix(s3_data_dir), schema_name, table_name),
-            "schema_table_unique": path.join(self.s3_table_prefix(s3_data_dir), schema_name, table_name, str(uuid4())),
+            "table": path.join(self.s3_table_prefix(s3_data_dir), s3_path_table_part),
+            "table_unique": path.join(self.s3_table_prefix(s3_data_dir), s3_path_table_part, str(uuid4())),
+            "schema_table": path.join(self.s3_table_prefix(s3_data_dir), schema_name, s3_path_table_part),
+            "schema_table_unique": path.join(
+                self.s3_table_prefix(s3_data_dir), schema_name, s3_path_table_part, str(uuid4())
+            ),
         }
         table_location = mapping.get(s3_data_naming)
 
@@ -282,7 +288,9 @@ class AthenaAdapter(SQLAdapter):
         client = conn.handle
 
         # TODO: consider using the workgroup default location when configured
-        s3_location = self.s3_table_location(s3_data_dir, s3_data_naming, database_name, table_name, external_location)
+        s3_location = self.s3_table_location(
+            s3_data_dir, s3_data_naming, database_name, table_name, external_location=external_location
+        )
         bucket, prefix = self._parse_s3_path(s3_location)
 
         file_name = f"{table_name}.csv"
@@ -401,6 +409,14 @@ class AthenaAdapter(SQLAdapter):
         schemas: Dict[str, Optional[Set[str]]],
         manifest: Manifest,
     ) -> agate.Table:
+        catalog_id = None
+        if (
+            information_schema.path.database is not None
+            and information_schema.path.database.lower() != "awsdatacatalog"
+        ):
+            data_catalog = self._get_data_catalog(information_schema.path.database.lower())
+            catalog_id = data_catalog["Parameters"]["catalog-id"]
+
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
@@ -410,10 +426,18 @@ class AthenaAdapter(SQLAdapter):
         catalog = []
         paginator = glue_client.get_paginator("get_tables")
         for schema, relations in schemas.items():
-            for page in paginator.paginate(DatabaseName=schema, MaxResults=100):
+            kwargs = {
+                "DatabaseName": schema,
+                "MaxResults": 100,
+            }
+            # If the catalog is `awsdatacatalog` we don't need to pass CatalogId as boto3 infers it from the account Id.
+            if catalog_id:
+                kwargs["CatalogId"] = catalog_id
+
+            for page in paginator.paginate(**kwargs):
                 for table in page["TableList"]:
                     if table["Name"] in relations:
-                        catalog.extend(self._get_one_table_for_catalog(table, conn.credentials.database))
+                        catalog.extend(self._get_one_table_for_catalog(table, information_schema.path.database))
 
         table = agate.Table.from_object(catalog)
         filtered_table = self._catalog_filter_table(table, manifest)

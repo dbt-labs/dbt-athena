@@ -24,6 +24,7 @@ class AthenaIncludePolicy(Policy):
 class AthenaRelation(BaseRelation):
     quote_character: str = '"'  # Presto quote character
     include_policy: Policy = field(default_factory=lambda: AthenaIncludePolicy())
+    s3_path_table_part: Optional[str] = None
 
     def render_hive(self):
         """
