@@ -7,6 +7,7 @@ import agate
 import boto3
 import pytest
 from moto import mock_athena, mock_glue, mock_s3, mock_sts
+from moto.core import DEFAULT_ACCOUNT_ID
 
 from dbt.adapters.athena import AthenaAdapter
 from dbt.adapters.athena import Plugin as AthenaPlugin
@@ -587,7 +588,7 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_data_catalog()
         self.adapter.acquire_connection("dummy")
         res = self.adapter._get_data_catalog(DATA_CATALOG_NAME)
-        assert {"Name": "awsdatacatalog", "Type": "GLUE", "Parameters": {"catalog-id": "123456789012"}} == res
+        assert {"Name": "awsdatacatalog", "Type": "GLUE", "Parameters": {"catalog-id": DEFAULT_ACCOUNT_ID}} == res
 
     @mock_glue
     @mock_s3
