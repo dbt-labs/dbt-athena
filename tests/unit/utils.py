@@ -1,6 +1,5 @@
 import os
 import string
-from typing import Literal
 
 import agate
 import boto3
@@ -8,8 +7,6 @@ import boto3
 from dbt.config.project import PartialProject
 
 from .constants import AWS_REGION, BUCKET, CATALOG_ID, DATA_CATALOG_NAME, DATABASE_NAME
-
-CatalogType = Literal["GLUE", "HIVE", "LAMBDA"]
 
 
 class Obj:
@@ -136,7 +133,7 @@ class TestAdapterConversions:
 
 class MockAWSService:
     def create_data_catalog(
-        self, catalog_name: str = DATA_CATALOG_NAME, catalog_type: CatalogType = "GLUE", catalog_id: str = CATALOG_ID
+        self, catalog_name: str = DATA_CATALOG_NAME, catalog_type: str = "GLUE", catalog_id: str = CATALOG_ID
     ):
         athena = boto3.client("athena", region_name=AWS_REGION)
         athena.create_data_catalog(Name=catalog_name, Type=catalog_type, Parameters={"catalog-id": catalog_id})
