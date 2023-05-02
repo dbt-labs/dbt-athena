@@ -612,7 +612,7 @@ class AthenaAdapter(SQLAdapter):
         table_versions = response_iterator.build_full_result().get("TableVersions")
         logger.debug(f"Total table versions: {[v['VersionId'] for v in table_versions]}")
         table_versions_ordered = sorted(table_versions, key=lambda i: int(i["Table"]["VersionId"]), reverse=True)
-        return table_versions_ordered[int(to_keep):]
+        return table_versions_ordered[int(to_keep) :]
 
     @available
     def expire_glue_table_versions(self, database_name: str, table_name: str, to_keep: int, delete_s3: bool):
