@@ -183,7 +183,7 @@ class TestAthenaAdapter:
             ),
             "model.root.model4": CompiledNode(
                 name="model4",
-                database="12345678910",
+                database=SHARED_DATA_CATALOG_NAME,
                 schema="foo",
                 resource_type=NodeType.Model,
                 unique_id="model.root.model4",
@@ -520,9 +520,11 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_athena
     def test__get_one_catalog_shared_catalog(self):
-        self.mock_aws_service.create_data_catalog(catalog_name=SHARED_DATA_CATALOG_NAME)
-        self.mock_aws_service.create_database("foo")
-        self.mock_aws_service.create_table(table_name="bar", database_name="foo")
+        self.mock_aws_service.create_data_catalog(
+            catalog_name=SHARED_DATA_CATALOG_NAME, catalog_id=SHARED_DATA_CATALOG_NAME
+        )
+        self.mock_aws_service.create_database("foo", catalog_id=SHARED_DATA_CATALOG_NAME)
+        self.mock_aws_service.create_table(table_name="bar", database_name="foo", catalog_id=SHARED_DATA_CATALOG_NAME)
         mock_information_schema = mock.MagicMock()
         mock_information_schema.path.database = SHARED_DATA_CATALOG_NAME
 
@@ -548,14 +550,15 @@ class TestAthenaAdapter:
             "table_owner",
         )
         expected_rows = [
-            ("12345678910", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
-            ("12345678910", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
-            ("12345678910", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
+            ("9876543210", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
+            ("9876543210", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
+            ("9876543210", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
         ]
 
         assert actual.column_names == expected_column_names
         assert len(actual.rows) == len(expected_rows)
         for row in actual.rows.values():
+            print(row.values())
             assert row.values() in expected_rows
 
     def test__get_catalog_schemas(self):
