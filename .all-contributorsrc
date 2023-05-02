@@ -101,6 +101,16 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "henriblancke",
+      "name": "Henri Blancke",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1708162?v=4",
+      "profile": "https://github.com/henriblancke",
+      "contributions": [
+        "code",
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
