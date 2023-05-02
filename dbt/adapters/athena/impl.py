@@ -20,7 +20,7 @@ from dbt.adapters.athena.relation import (
     AthenaSchemaSearchMap,
     TableType,
 )
-from dbt.adapters.athena.utils import clean_sql_comment
+from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id
 from dbt.adapters.base import available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
@@ -358,8 +358,7 @@ class AthenaAdapter(SQLAdapter):
         response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
         return True if "Contents" in response else False
 
-    @staticmethod
-    def _join_catalog_table_owners(table: agate.Table, manifest: Manifest) -> agate.Table:
+    def _join_catalog_table_owners(self, table: agate.Table, manifest: Manifest) -> agate.Table:
         owners = []
         # Get the owner for each model from the manifest
         for node in manifest.nodes.values():
@@ -410,7 +409,7 @@ class AthenaAdapter(SQLAdapter):
         manifest: Manifest,
     ) -> agate.Table:
         data_catalog = self._get_data_catalog(information_schema.path.database)
-        catalog_id = self._get_catalog_id(data_catalog)
+        catalog_id = get_catalog_id(data_catalog)
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
@@ -461,17 +460,9 @@ class AthenaAdapter(SQLAdapter):
                     athena = client.session.client("athena", region_name=client.region_name, config=get_boto3_config())
                 return athena.get_data_catalog(Name=database)["DataCatalog"]
 
-    @staticmethod
-    def _get_catalog_id(catalog: Optional[DataCatalogTypeDef]) -> Optional[str]:
-        if catalog:
-            return catalog["Parameters"]["catalog-id"]
-
-    def list_relations_without_caching(
-        self,
-        schema_relation: AthenaRelation,
-    ) -> List[BaseRelation]:
+    def list_relations_without_caching(self, schema_relation: AthenaRelation) -> List[BaseRelation]:
         data_catalog = self._get_data_catalog(schema_relation.database)
-        catalog_id = self._get_catalog_id(data_catalog)
+        catalog_id = get_catalog_id(data_catalog)
         if data_catalog and data_catalog["Type"] != "GLUE":
             # For non-Glue Data Catalogs, use the original Athena query against INFORMATION_SCHEMA approach
             return super().list_relations_without_caching(schema_relation)
@@ -621,7 +612,7 @@ class AthenaAdapter(SQLAdapter):
         table_versions = response_iterator.build_full_result().get("TableVersions")
         logger.debug(f"Total table versions: {[v['VersionId'] for v in table_versions]}")
         table_versions_ordered = sorted(table_versions, key=lambda i: int(i["Table"]["VersionId"]), reverse=True)
-        return table_versions_ordered[int(to_keep) :]
+        return table_versions_ordered[int(to_keep):]
 
     @available
     def expire_glue_table_versions(self, database_name: str, table_name: str, to_keep: int, delete_s3: bool):
