@@ -559,7 +559,6 @@ class TestAthenaAdapter:
         assert actual.column_names == expected_column_names
         assert len(actual.rows) == len(expected_rows)
         for row in actual.rows.values():
-            print(row.values())
             assert row.values() in expected_rows
 
     def test__get_catalog_schemas(self):
