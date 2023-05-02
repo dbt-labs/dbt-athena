@@ -111,6 +111,16 @@
         "code",
         "bug"
       ]
+    },
+    {
+      "login": "svdimchenko",
+      "name": "Serhii Dimchenko",
+      "avatar_url": "https://avatars.githubusercontent.com/u/39801237?v=4",
+      "profile": "https://github.com/svdimchenko",
+      "contributions": [
+        "code",
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
