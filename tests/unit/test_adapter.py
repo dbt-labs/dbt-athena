@@ -6,7 +6,8 @@ from unittest.mock import patch
 import agate
 import boto3
 import pytest
-from moto import mock_athena, mock_glue, mock_s3
+from moto import mock_athena, mock_glue, mock_s3, mock_sts
+from moto.core import DEFAULT_ACCOUNT_ID
 
 from dbt.adapters.athena import AthenaAdapter
 from dbt.adapters.athena import Plugin as AthenaPlugin
@@ -183,7 +184,7 @@ class TestAthenaAdapter:
             ),
             "model.root.model4": CompiledNode(
                 name="model4",
-                database="12345678910",
+                database=SHARED_DATA_CATALOG_NAME,
                 schema="foo",
                 resource_type=NodeType.Model,
                 unique_id="model.root.model4",
@@ -466,6 +467,7 @@ class TestAthenaAdapter:
 
     @mock_glue
     @mock_athena
+    @mock_sts
     def test__get_one_catalog(self):
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database("foo")
@@ -519,9 +521,11 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_athena
     def test__get_one_catalog_shared_catalog(self):
-        self.mock_aws_service.create_data_catalog(catalog_name=SHARED_DATA_CATALOG_NAME)
-        self.mock_aws_service.create_database("foo")
-        self.mock_aws_service.create_table(table_name="bar", database_name="foo")
+        self.mock_aws_service.create_data_catalog(
+            catalog_name=SHARED_DATA_CATALOG_NAME, catalog_id=SHARED_DATA_CATALOG_NAME
+        )
+        self.mock_aws_service.create_database("foo", catalog_id=SHARED_DATA_CATALOG_NAME)
+        self.mock_aws_service.create_table(table_name="bar", database_name="foo", catalog_id=SHARED_DATA_CATALOG_NAME)
         mock_information_schema = mock.MagicMock()
         mock_information_schema.path.database = SHARED_DATA_CATALOG_NAME
 
@@ -547,9 +551,9 @@ class TestAthenaAdapter:
             "table_owner",
         )
         expected_rows = [
-            ("12345678910", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
-            ("12345678910", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
-            ("12345678910", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
+            ("9876543210", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
+            ("9876543210", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
+            ("9876543210", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
         ]
 
         assert actual.column_names == expected_column_names
@@ -578,11 +582,12 @@ class TestAthenaAdapter:
         assert list(relations.values()) == [{"bar"}]
 
     @mock_athena
+    @mock_sts
     def test__get_data_catalog(self, aws_credentials):
         self.mock_aws_service.create_data_catalog()
         self.adapter.acquire_connection("dummy")
         res = self.adapter._get_data_catalog(DATA_CATALOG_NAME)
-        assert {"Name": "awsdatacatalog", "Type": "GLUE", "Parameters": {"catalog-id": "catalog_id"}} == res
+        assert {"Name": "awsdatacatalog", "Type": "GLUE", "Parameters": {"catalog-id": DEFAULT_ACCOUNT_ID}} == res
 
     @mock_glue
     @mock_s3
@@ -647,6 +652,7 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_glue
+    @mock_sts
     def test_list_relations_without_caching_with_awsdatacatalog(self, aws_credentials):
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database()
