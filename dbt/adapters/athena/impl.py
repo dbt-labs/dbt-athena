@@ -16,6 +16,7 @@ from mypy_boto3_athena.type_defs import DataCatalogTypeDef
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.config import get_boto3_config
+from dbt.adapters.athena.exceptions import SnapshotMigrationRequired
 from dbt.adapters.athena.relation import (
     AthenaRelation,
     AthenaSchemaSearchMap,
@@ -28,7 +29,7 @@ from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import CompiledNode
 from dbt.events import AdapterLogger
-from dbt.exceptions import CompilationError, DbtRuntimeError
+from dbt.exceptions import DbtRuntimeError
 
 logger = AdapterLogger("Athena")
 
@@ -822,7 +823,3 @@ class AthenaAdapter(SQLAdapter):
                 drop_staging_sql.strip(),
             ]
         )
-
-
-class SnapshotMigrationRequired(CompilationError):
-    pass
