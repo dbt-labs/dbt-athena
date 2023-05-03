@@ -50,36 +50,31 @@
 
   {% do adapter.delete_from_s3(location) %}
 
-  create table {{ relation }}
-  with (
-    table_type='{{ table_type }}',
-    is_external={%- if table_type == 'iceberg' -%}false{%- else -%}true{%- endif %},
+  {# `create table table_name with (< properties >) as` should be on 1 line to help the athena engine v3 parser recognize UDF declarations. See Issue #274 #}
+  {# please be mindful of editing whitespace control characters #}
+  create table {{ relation }} with (table_type='{{ table_type }}', is_external={%- if table_type == 'iceberg' -%}false{%- else -%}true{%- endif -%}, format='{{ format }}'
   {%- if not work_group_output_location_enforced or table_type == 'iceberg' -%}
-    {{ location_property }}='{{ location }}',
-  {%- endif %}
-  {%- if partitioned_by is not none %}
-    {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', '\'') }},
-  {%- endif %}
-  {%- if bucketed_by is not none %}
-    bucketed_by=ARRAY{{ bucketed_by | tojson | replace('\"', '\'') }},
-  {%- endif %}
-  {%- if bucket_count is not none %}
-    bucket_count={{ bucket_count }},
-  {%- endif %}
-  {%- if field_delimiter is not none %}
-    field_delimiter='{{ field_delimiter }}',
-  {%- endif %}
-  {%- if write_compression is not none %}
-    write_compression='{{ write_compression }}',
-  {%- endif %}
-    format='{{ format }}'
+    , {{ location_property }}='{{ location }}'
+  {%- endif -%}
+  {%- if partitioned_by is not none -%}
+    , {{ partition_property }}=ARRAY{{ partitioned_by | tojson | replace('\"', '\'') }}
+  {%- endif -%}
+  {%- if bucketed_by is not none -%}
+    , bucketed_by=ARRAY{{ bucketed_by | tojson | replace('\"', '\'') }}
+  {%- endif -%}
+  {%- if bucket_count is not none -%}
+    , bucket_count={{ bucket_count }}
+  {%- endif -%}
+  {%- if field_delimiter is not none -%}
+    , field_delimiter='{{ field_delimiter }}'
+  {%- endif -%}
+  {%- if write_compression is not none -%}
+    , write_compression='{{ write_compression }}'
+  {%- endif -%}
   {%- if extra_table_properties is not none -%}
     {%- for prop_name, prop_value in extra_table_properties.items() -%}
-    ,
-    {{ prop_name }}={{ prop_value }}
+    , {{ prop_name }}={{ prop_value }}
     {%- endfor -%}
-  {% endif %}
-  )
-  as
+  {% endif -%}) as
     {{ sql }}
 {% endmacro %}
