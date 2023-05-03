@@ -39,7 +39,7 @@
       {%- set bucket_count = none -%}
       {% do log(ignored_bucket_iceberg) %}
     {%- endif -%}
-    {%- if s3_data_naming in ['table', 'table_schema'] or external_location is not none -%}
+    {%- if s3_data_naming in ['table', 'schema_table'] or external_location is not none -%}
       {%- set error_unique_location_iceberg -%}
         You need to have an unique table location when creating Iceberg table. Right now we are building tables in
         a destructive way but in the near future we will be using the RENAME feature to provide near-zero downtime.
