@@ -1,12 +1,6 @@
 {% macro athena__drop_relation(relation) -%}
-  {% set rel_type_object = adapter.get_table_type(relation.schema, relation.identifier) %}
-  {%- if rel_type_object is not none %}
-    {% set rel_type = rel_type_object.value %}
-    {%- if rel_type == 'table' or rel_type == 'iceberg_table' %}
-      {%- do adapter.clean_up_table(relation.schema, relation.identifier) -%}
-    {%- endif %}
-    {%- do adapter.delete_from_glue_catalog(relation) -%}
-  {%- endif %}
+  {%- do adapter.clean_up_table(relation) -%}
+  {%- do adapter.delete_from_glue_catalog(relation) -%}
 {% endmacro %}
 
 {% macro set_table_classification(relation) -%}

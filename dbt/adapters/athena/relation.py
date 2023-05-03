@@ -13,6 +13,14 @@ class TableType(Enum):
     ICEBERG = "iceberg_table"
 
 
+class S3DataNaming(Enum):
+    UUID = "uuid"
+    TABLE = "table"
+    TABLE_UNIQUE = "table_unique"
+    SCHEMA_TABLE = "schema_table"
+    SCHEMA_TABLE_UNIQUE = "schema_table_unique"
+
+
 @dataclass
 class AthenaIncludePolicy(Policy):
     database: bool = True

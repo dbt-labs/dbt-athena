@@ -18,6 +18,7 @@ from dbt.clients import agate_helper
 from dbt.contracts.connection import ConnectionState
 from dbt.contracts.files import FileHash
 from dbt.contracts.graph.nodes import CompiledNode, DependsOn, NodeConfig
+from dbt.contracts.relation import RelationType
 from dbt.exceptions import ConnectionError, DbtRuntimeError
 from dbt.node_types import NodeType
 
@@ -348,19 +349,19 @@ class TestAthenaAdapter:
         ),
     )
     @patch("dbt.adapters.athena.impl.uuid4", return_value="uuid")
-    def test_s3_table_location(
+    def test_generate_s3_location(
         self, _, s3_data_dir, s3_data_naming, external_location, s3_path_table_part, is_temporary_table, expected
     ):
         self.adapter.acquire_connection("dummy")
-        assert expected == self.adapter.s3_table_location(
-            s3_data_dir, s3_data_naming, "schema", "table", s3_path_table_part, external_location, is_temporary_table
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema="schema",
+            identifier="table",
+            s3_path_table_part=s3_path_table_part,
         )
-
-    def test_s3_table_location_exc(self):
-        self.adapter.acquire_connection("dummy")
-        with pytest.raises(ValueError) as exc:
-            self.adapter.s3_table_location(None, "other", "schema", "table")
-        assert exc.value.__str__() == "Unknown value for s3_data_naming: other"
+        assert expected == self.adapter.generate_s3_location(
+            relation, s3_data_dir, s3_data_naming, external_location, is_temporary_table
+        )
 
     @mock_glue
     @mock_s3
@@ -371,7 +372,12 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database()
         self.mock_aws_service.create_table(table_name)
-        assert self.adapter.get_table_location(DATABASE_NAME, table_name) == "s3://test-dbt-athena/tables/test_table"
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=table_name,
+        )
+        assert self.adapter.get_glue_table_location(relation) == "s3://test-dbt-athena/tables/test_table"
 
     @mock_glue
     @mock_s3
@@ -381,8 +387,13 @@ class TestAthenaAdapter:
         self.adapter.acquire_connection("dummy")
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database()
-        assert self.adapter.get_table_location(DATABASE_NAME, table_name) is None
-        assert f"Table '{table_name}' does not exists - Ignoring" in dbt_debug_caplog.getvalue()
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=table_name,
+        )
+        assert self.adapter.get_glue_table_location(relation) is None
+        assert f"Table {relation.render()} does not exists - Ignoring" in dbt_debug_caplog.getvalue()
 
     @pytest.fixture(scope="function")
     def aws_credentials(self):
@@ -402,8 +413,13 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_database()
         self.mock_aws_service.create_table(table_name)
         self.mock_aws_service.add_data_in_table(table_name)
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=table_name,
+        )
         self.adapter.acquire_connection("dummy")
-        self.adapter.clean_up_partitions(DATABASE_NAME, table_name, "dt < '2022-01-03'")
+        self.adapter.clean_up_partitions(relation, "dt < '2022-01-03'")
         log_records = dbt_debug_caplog.getvalue()
         assert (
             "Deleting table data: path="
@@ -427,9 +443,16 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_data_catalog()
         self.mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
-        result = self.adapter.clean_up_table(DATABASE_NAME, "table")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier="table",
+        )
+        result = self.adapter.clean_up_table(relation)
         assert result is None
-        assert "Table 'table' does not exists - Ignoring" in dbt_debug_caplog.getvalue()
+        assert (
+            'Table "awsdatacatalog"."test_dbt_athena"."table" does not exists - Ignoring' in dbt_debug_caplog.getvalue()
+        )
 
     @mock_glue
     @mock_athena
@@ -438,7 +461,13 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
         self.mock_aws_service.create_view("test_view")
-        result = self.adapter.clean_up_table(DATABASE_NAME, "test_view")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier="test_view",
+            type=RelationType.View,
+        )
+        result = self.adapter.clean_up_table(relation)
         assert result is None
 
     @mock_glue
@@ -450,7 +479,12 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_table("table")
         self.mock_aws_service.add_data_in_table("table")
         self.adapter.acquire_connection("dummy")
-        self.adapter.clean_up_table(DATABASE_NAME, "table")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier="table",
+        )
+        self.adapter.clean_up_table(relation)
         assert (
             "Deleting table data: path='s3://test-dbt-athena/tables/table', "
             "bucket='test-dbt-athena', "
@@ -597,7 +631,12 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_database()
         self.mock_aws_service.create_table("test_table")
         self.adapter.acquire_connection("dummy")
-        table_type = self.adapter.get_table_type(DATABASE_NAME, "test_table")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier="test_table",
+        )
+        table_type = self.adapter.get_table_type(relation)
         assert table_type == TableType.TABLE
 
     @mock_glue
@@ -608,9 +647,14 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_database()
         self.mock_aws_service.create_table_without_table_type("test_table")
         self.adapter.acquire_connection("dummy")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier="test_table",
+        )
 
         with pytest.raises(ValueError):
-            self.adapter.get_table_type(DATABASE_NAME, "test_table")
+            self.adapter.get_table_type(relation)
 
     @mock_glue
     @mock_s3
@@ -620,7 +664,10 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_database()
         self.mock_aws_service.create_view("test_view")
         self.adapter.acquire_connection("dummy")
-        table_type = self.adapter.get_table_type(DATABASE_NAME, "test_view")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="test_view", type=RelationType.View
+        )
+        table_type = self.adapter.get_table_type(relation)
         assert table_type == TableType.VIEW
 
     @mock_glue
@@ -631,7 +678,12 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_database()
         self.mock_aws_service.create_iceberg_table("test_iceberg")
         self.adapter.acquire_connection("dummy")
-        table_type = self.adapter.get_table_type(DATABASE_NAME, "test_iceberg")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier="test_iceberg",
+        )
+        table_type = self.adapter.get_table_type(relation)
         assert table_type == TableType.ICEBERG
 
     def _test_list_relations_without_caching(self, schema_relation):
@@ -721,8 +773,18 @@ class TestAthenaAdapter:
         self.mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
         self.mock_aws_service.create_table(target_table)
         self.mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
-        self.adapter.swap_table(DATABASE_NAME, source_table, DATABASE_NAME, target_table)
-        assert self.adapter.get_table_location(DATABASE_NAME, target_table) == f"s3://{BUCKET}/tables/{source_table}"
+        source_relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=source_table,
+        )
+        target_relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=target_table,
+        )
+        self.adapter.swap_table(source_relation, target_relation)
+        assert self.adapter.get_glue_table_location(target_relation) == f"s3://{BUCKET}/tables/{source_table}"
 
     @mock_athena
     @mock_glue
@@ -735,8 +797,18 @@ class TestAthenaAdapter:
         source_table = "source_table"
         self.mock_aws_service.create_table_without_partitions(source_table)
         self.mock_aws_service.create_table_without_partitions(target_table)
-        self.adapter.swap_table(DATABASE_NAME, source_table, DATABASE_NAME, target_table)
-        assert self.adapter.get_table_location(DATABASE_NAME, target_table) == f"s3://{BUCKET}/tables/{source_table}"
+        source_relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=source_table,
+        )
+        target_relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=target_table,
+        )
+        self.adapter.swap_table(source_relation, target_relation)
+        assert self.adapter.get_glue_table_location(target_relation) == f"s3://{BUCKET}/tables/{source_table}"
 
     @mock_athena
     @mock_glue
@@ -754,14 +826,25 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_table(target_table)
         self.mock_aws_service.add_partitions_to_table(DATABASE_NAME, target_table)
 
-        self.adapter.swap_table(DATABASE_NAME, source_table, DATABASE_NAME, target_table)
+        source_relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=source_table,
+        )
+        target_relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=target_table,
+        )
+
+        self.adapter.swap_table(source_relation, target_relation)
         glue_client = boto3.client("glue", region_name=AWS_REGION)
 
         target_table_partitions = glue_client.get_partitions(DatabaseName=DATABASE_NAME, TableName=target_table).get(
             "Partitions"
         )
 
-        assert self.adapter.get_table_location(DATABASE_NAME, target_table) == f"s3://{BUCKET}/tables/{source_table}"
+        assert self.adapter.get_glue_table_location(target_relation) == f"s3://{BUCKET}/tables/{source_table}"
         assert len(target_table_partitions) == 0
 
     @mock_athena
@@ -781,12 +864,22 @@ class TestAthenaAdapter:
             "Partitions"
         )
         assert len(target_table_partitions) == 0
-        self.adapter.swap_table(DATABASE_NAME, source_table, DATABASE_NAME, target_table)
+        source_relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=source_table,
+        )
+        target_relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=target_table,
+        )
+        self.adapter.swap_table(source_relation, target_relation)
         target_table_partitions_after = glue_client.get_partitions(
             DatabaseName=DATABASE_NAME, TableName=target_table
         ).get("Partitions")
 
-        assert self.adapter.get_table_location(DATABASE_NAME, target_table) == f"s3://{BUCKET}/tables/{source_table}"
+        assert self.adapter.get_glue_table_location(target_relation) == f"s3://{BUCKET}/tables/{source_table}"
         assert len(target_table_partitions_after) == 3
 
     @mock_athena
@@ -804,7 +897,12 @@ class TestAthenaAdapter:
         table_versions = glue.get_table_versions(DatabaseName=DATABASE_NAME, TableName=table_name).get("TableVersions")
         assert len(table_versions) == 4
         version_to_keep = 1
-        versions_to_expire = self.adapter._get_glue_table_versions_to_expire(DATABASE_NAME, table_name, version_to_keep)
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=table_name,
+        )
+        versions_to_expire = self.adapter._get_glue_table_versions_to_expire(relation, version_to_keep)
         assert len(versions_to_expire) == 3
         assert [v["VersionId"] for v in versions_to_expire] == ["3", "2", "1"]
 
@@ -824,7 +922,12 @@ class TestAthenaAdapter:
         table_versions = glue.get_table_versions(DatabaseName=DATABASE_NAME, TableName=table_name).get("TableVersions")
         assert len(table_versions) == 4
         version_to_keep = 1
-        self.adapter.expire_glue_table_versions(DATABASE_NAME, table_name, version_to_keep, False)
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=table_name,
+        )
+        self.adapter.expire_glue_table_versions(relation, version_to_keep, False)
         # TODO delete_table_version is not implemented in moto
         # TODO moto issue https://github.com/getmoto/moto/issues/5952
         # assert len(result) == 3
@@ -840,13 +943,18 @@ class TestAthenaAdapter:
         s3_client = boto3.client("s3", region_name=AWS_REGION)
         s3_client.create_bucket(Bucket=BUCKET, CreateBucketConfiguration={"LocationConstraint": AWS_REGION})
 
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=database,
+            identifier=table,
+        )
+
         location = self.adapter.upload_seed_to_s3(
+            relation,
+            seed_table,
             s3_data_dir=f"s3://{BUCKET}",
             s3_data_naming="schema_table",
             external_location=None,
-            database_name=database,
-            table_name=table,
-            table=seed_table,
         )
 
         prefix = "db_seeds/data"
@@ -868,13 +976,18 @@ class TestAthenaAdapter:
         s3_client = boto3.client("s3", region_name=AWS_REGION)
         s3_client.create_bucket(Bucket=bucket, CreateBucketConfiguration={"LocationConstraint": AWS_REGION})
 
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema="db_seeds",
+            identifier="data",
+        )
+
         location = self.adapter.upload_seed_to_s3(
+            relation,
+            seed_table,
             s3_data_dir=None,
             s3_data_naming="schema_table",
             external_location=external_location,
-            database_name="db_seeds",
-            table_name="data",
-            table=seed_table,
         )
 
         objects = s3_client.list_objects(Bucket=bucket, Prefix=prefix).get("Contents")
