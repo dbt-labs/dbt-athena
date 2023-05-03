@@ -38,9 +38,7 @@
     {% set tmp_relation = make_temp_relation(target_relation, '__ha') %}
 
     -- drop the tmp_relation
-    {% call statement('drop_tmp_relation', auto_begin=False) -%}
-      drop table if exists {{ tmp_relation.render_hive() }}
-    {%- endcall %}
+    {{ adapter.delete_from_glue_catalog(tmp_relation) }}
 
     -- create tmp table
     {% call statement('main') -%}
@@ -54,9 +52,7 @@
     {% set swap_table = adapter.swap_table(tmp_relation.schema, tmp_relation.name, target_relation.schema, target_relation.table) %}
 
     -- delete glue tmp table, do not use drop_relation, as it will remove data of the target table
-    {% call statement('drop_tmp_relation', auto_begin=False) -%}
-      drop table if exists {{ tmp_relation.render_hive() }}
-    {%- endcall %}
+    {{ adapter.delete_from_glue_catalog(tmp_relation) }}
 
     {% set result_table_version_expiration = adapter.expire_glue_table_versions(target_relation.schema, target_relation.table, versions_to_keep, True) %}
 
