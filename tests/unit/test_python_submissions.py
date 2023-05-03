@@ -45,7 +45,7 @@ class TestPythonSubmission:
             ),
         ],
     )
-    def teststart_session(self, session_status_response, expected_response, athena_job_helper, athena_client) -> None:
+    def test_start_session(self, session_status_response, expected_response, athena_job_helper, athena_client) -> None:
         """
         Test the start_session method of the AthenaJobHelper class.
 

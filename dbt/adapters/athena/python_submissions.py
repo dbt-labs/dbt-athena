@@ -1,7 +1,9 @@
+import threading
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
-from typing import Any, Dict
+from typing import Dict, List
 
 import boto3
 import botocore
@@ -15,8 +17,230 @@ DEFAULT_POLLING_INTERVAL = 5
 DEFAULT_ENGINE_CONFIG = {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1}
 SUBMISSION_LANGUAGE = "python"
 DEFAULT_TIMEOUT = 60 * 60 * 2
+DEFAULT_SESSION_COUNT = 16
 
 logger = AdapterLogger("Athena")
+session_locks = {}
+
+
+class AthenaSparkSessionConfig:
+    def __init__(self, config: dict):
+        self.config = config
+
+    def set_timeout(self) -> int:
+        """
+        Get the timeout value.
+
+        This function retrieves the timeout value from the parsed model's configuration. If the timeout value
+        is not defined, it falls back to the default timeout value. If the retrieved timeout value is less than or
+        equal to 0, a ValueError is raised as timeout must be a positive integer.
+
+        Returns:
+            int: The timeout value in seconds.
+
+        Raises:
+            ValueError: If the timeout value is not a positive integer.
+
+        """
+        timeout = self.config.get("timeout", DEFAULT_TIMEOUT)
+        if not isinstance(timeout, int):
+            raise TypeError("Timeout must be an integer")
+        if timeout <= 0:
+            raise ValueError("Timeout must be a positive integer")
+        logger.debug(f"Setting timeout: {timeout}")
+        return timeout
+
+    def set_polling_interval(self) -> int:
+        polling_interval = self.config.get("polling_interval", DEFAULT_POLLING_INTERVAL)
+        if not isinstance(polling_interval, int) or polling_interval <= 0:
+            raise ValueError("polling_interval must be a positive integer")
+        logger.debug(f"Setting polling_interval: {polling_interval}")
+        return polling_interval
+
+    def set_engine_config(self) -> dict:
+        engine_config = self.config.get("engine_config", DEFAULT_ENGINE_CONFIG)
+        if not isinstance(engine_config, dict):
+            raise TypeError("engine configuration has to be of type dict")
+
+        expected_keys = {"CoordinatorDpuSize", "MaxConcurrentDpus", "DefaultExecutorDpuSize"}
+        if set(engine_config.keys()) != expected_keys:
+            raise KeyError(f"The keys of the dictionary entered do not match the expected format: {expected_keys}")
+        return engine_config
+
+
+class AthenaSparkSessionManager:
+    """_summary_
+
+    Args:
+        AthenaConnectionManager (AthenaConnectionManager): _description_
+    """
+
+    def __init__(self, credentials: str, **kwargs):
+        self.credentials = credentials
+        self.timeout = kwargs.get("timeout")
+        self.polling_interval = kwargs.get("polling_interval")
+        self.engine_config = kwargs.get("engine_config")
+        self.lock = threading.Lock()
+
+    @property
+    @lru_cache
+    def athena_client(self):
+        """
+        Get the AWS Athena client.
+
+        This function returns an AWS Athena client object that can be used to interact with the Athena service.
+        The client is created using the region name and profile name provided during object instantiation.
+
+        Returns:
+            Any: The Athena client object.
+
+        """
+        return boto3.session.Session(
+            region_name=self.credentials.region_name, profile_name=self.credentials.aws_profile_name
+        ).client("athena")
+
+    def get_sessions(self) -> List[uuid.UUID]:
+        sessions = self.list_sessions()
+        existing_sessions = set(session_locks.keys())
+        new_sessions = [session["SessionId"] for session in sessions if session["SessionId"] not in existing_sessions]
+        logger.debug(f"Setting sessions: {new_sessions}")
+        return [uuid.UUID(session) for session in new_sessions]
+
+    def update_session_locks(self) -> None:
+        for session_uuid in self.get_sessions():
+            session_locks.setdefault(session_uuid, threading.Lock())
+        logger.debug(f"Updated session locks: {session_locks}")
+
+    def get_session_id(self) -> str:
+        """
+        Get the session ID.
+
+        This function retrieves the session ID from the stored session information. If session information
+        is not available, a new session is started and its session ID is returned.
+
+        Returns:
+            str: The session ID.
+
+        """
+        self.update_session_locks()
+        with self.lock:
+            for session_uuid, lock in session_locks.items():
+                if not lock.locked():
+                    logger.debug(f"Locking existing session: {session_uuid}")
+                    lock.acquire()
+                    return session_uuid
+        logger.debug("All sessions are currently locked. Starting new session.")
+        return self.start_session()
+
+    def list_sessions(self, max_results: int = DEFAULT_SESSION_COUNT, state: str = "IDLE") -> dict:
+        """
+        List idle athena spark sessions.
+
+        This function sends a request to the Athena service to list the sessions in the specified Spark workgroup.
+        It filters the sessions by state, only returning the first session that is in IDLE state. If no idle sessions
+        are found or if an error occurs, None is returned.
+
+        Returns:
+            dict: The session information dictionary if an idle session is found, None otherwise.
+
+        """
+        response = self.athena_client.list_sessions(
+            WorkGroup=self.credentials.spark_work_group, MaxResults=max_results, StateFilter=state
+        )
+        if len(response.get("Sessions")) == 0 or response.get("Sessions") is None:
+            return {}
+        return response.get("Sessions")
+
+    def start_session(self) -> dict:
+        """
+        Start an Athena session.
+
+        This function sends a request to the Athena service to start a session in the specified Spark workgroup.
+        It configures the session with specific engine configurations. If the session state is not IDLE, the function
+        polls until the session creation is complete. The response containing session information is returned.
+
+        Returns:
+            dict: The session information dictionary.
+
+        """
+        with self.lock:
+            if len(session_locks) >= DEFAULT_SESSION_COUNT:
+                # Raise this exception but also poll until a session is free and assign that
+                raise Exception(
+                    f"""Maximum session count: {DEFAULT_SESSION_COUNT} reached.
+                    Cannot start new spark session."""
+                )
+            response = self.athena_client.start_session(
+                WorkGroup=self.credentials.spark_work_group,
+                EngineConfiguration=self.engine_config,
+            )
+            if response["State"] != "IDLE":
+                self.poll_until_session_creation(response["SessionId"])
+            session_uuid = uuid.UUID(response["SessionId"])
+            logger.debug(f"Locking new session: {session_uuid}")
+            lock = threading.Lock()
+            session_locks[session_uuid] = lock
+            session_locks[session_uuid].acquire()
+            return session_uuid
+
+    def poll_until_session_creation(self, session_id):
+        """
+        Polls the status of an Athena session creation until it is completed or reaches the timeout.
+
+        Args:
+            session_id (str): The ID of the session being created.
+
+        Returns:
+            str: The final status of the session, which will be "IDLE" if the session creation is successful.
+
+        Raises:
+            DbtRuntimeError: If the session creation fails, is terminated, or degrades during polling.
+            DbtRuntimeError: If the session does not become IDLE within the specified timeout.
+
+        """
+        polling_interval = self.polling_interval
+        while True:
+            creation_status = self.get_session_status(session_id)["State"]
+            if creation_status in ["FAILED", "TERMINATED", "DEGRADED"]:
+                raise DbtRuntimeError(f"Unable to create session: {session_id}. Got status: {creation_status}.")
+            elif creation_status == "IDLE":
+                return creation_status
+            time.sleep(polling_interval)
+            polling_interval *= 2
+            if polling_interval > self.timeout:
+                raise DbtRuntimeError(f"Session {session_id} did not create within {self.timeout} seconds.")
+
+    def release_session_lock(self, session_id) -> None:
+        """
+        Terminate the current Athena session.
+
+        This function terminates the current Athena session if it is in IDLE or BUSY state and has exceeded the
+        configured timeout period. It retrieves the session status, and if the session state is IDLE or BUSY and the
+        duration since the session start time exceeds the timeout period, the session is terminated. The session ID is
+        used to terminate the session via the Athena client.
+
+        Returns:
+            dict: The response from the Athena client after terminating the session.
+
+        """
+        session_status = self.get_session_status(session_id)
+        if session_status["State"] in ["IDLE", "BUSY"] and (
+            session_status["StartDateTime"] - datetime.now(tz=timezone.utc) > timedelta(seconds=self.timeout)
+        ):
+            logger.debug(f"Terminating session: {session_id}")
+            self.athena_client.terminate_session(SessionId=session_id)
+        with self.lock:
+            logger.debug(f"Releasing lock for session: {session_id}")
+            session_locks[uuid.UUID(session_id)].release()
+
+    def get_session_status(self, session_id) -> str:
+        """
+        Get the session status.
+
+        Returns:
+            str: The status of the session
+        """
+        return self.athena_client.get_session_status(SessionId=session_id)["Status"]
 
 
 class AthenaPythonJobHelper(PythonJobHelper):
@@ -49,158 +273,31 @@ class AthenaPythonJobHelper(PythonJobHelper):
     """
 
     def __init__(self, parsed_model: Dict, credentials: AthenaCredentials) -> None:
-        self.parsed_model = parsed_model
-        self.credentials = credentials
-        self.athena_client = self.get_athena_client()
+        self.config = AthenaSparkSessionConfig(parsed_model.get("config", {}))
+        self.spark_connection = AthenaSparkSessionManager(
+            credentials, timeout=self.timeout, polling_interval=self.polling_interval, engine_config=self.engine_config
+        )
+        self.athena_client = self.spark_connection.athena_client
 
     @property
-    def identifier(self) -> str:
-        return self.parsed_model["alias"]
-
-    @property
-    def schema(self) -> str:
-        return self.parsed_model["schema"]
+    @lru_cache()
+    def timeout(self):
+        return self.config.set_timeout()
 
     @property
     @lru_cache()
     def session_id(self) -> str:
-        session_id = self.set_session_id()
-        logger.info(f"Setting session id: {session_id}")
-        return session_id
-
-    def set_session_id(self) -> str:
-        """
-        Get the session ID.
-
-        This function retrieves the session ID from the stored session information. If session information
-        is not available, a new session is started and its session ID is returned.
-
-        Returns:
-            str: The session ID.
-
-        """
-        session_info = self.list_sessions()
-        if session_info.get("SessionId") is None:
-            return self.start_session()["SessionId"]
-        return session_info["SessionId"]
-
-    @property
-    def spark_work_group(self) -> str:
-        if self.credentials.spark_work_group is None:
-            raise ValueError("Need a spark group for executing python functions. Add it to your dbt profile.")
-        return self.credentials.spark_work_group
-
-    def get_athena_client(self) -> Any:
-        """
-        Get the AWS Athena client.
-
-        This function returns an AWS Athena client object that can be used to interact with the Athena service.
-        The client is created using the region name and profile name provided during object instantiation.
-
-        Returns:
-            Any: The Athena client object.
-
-        """
-        return boto3.session.Session(
-            region_name=self.credentials.region_name, profile_name=self.credentials.aws_profile_name
-        ).client("athena")
-
-    @property
-    @lru_cache()
-    def timeout(self) -> int:
-        return self.set_timeout()
-
-    def set_timeout(self) -> int:
-        """
-        Get the timeout value.
-
-        This function retrieves the timeout value from the parsed model's configuration. If the timeout value
-        is not defined, it falls back to the default timeout value. If the retrieved timeout value is less than or
-        equal to 0, a ValueError is raised as timeout must be a positive integer.
-
-        Returns:
-            int: The timeout value in seconds.
-
-        Raises:
-            ValueError: If the timeout value is not a positive integer.
-
-        """
-        if self.parsed_model.get("config") is not None:
-            timeout = self.parsed_model["config"].get("timeout", DEFAULT_TIMEOUT)
-            if not isinstance(timeout, int):
-                raise TypeError("Timeout must be an integer")
-            if timeout <= 0:
-                raise ValueError("Timeout must be a positive integer")
-            logger.info(f"Setting timeout: {timeout}")
-        else:
-            logger.info(f"Using default timeout: {DEFAULT_TIMEOUT}")
-            timeout = DEFAULT_TIMEOUT
-        return timeout
+        return str(self.spark_connection.get_session_id())
 
     @property
     @lru_cache()
     def polling_interval(self):
-        return self.set_polling_interval()
-
-    def set_polling_interval(self) -> int:
-        polling_interval = self.parsed_model.get("config", {}).get("polling_interval", DEFAULT_POLLING_INTERVAL)
-        if not isinstance(polling_interval, int) or polling_interval <= 0:
-            raise ValueError("polling_interval must be a positive integer")
-        logger.info(f"Setting polling_interval: {polling_interval}")
-        return polling_interval
+        return self.config.set_polling_interval()
 
     @property
     @lru_cache()
     def engine_config(self):
-        return self.set_engine_config()
-
-    def set_engine_config(self) -> dict:
-        engine_config = self.parsed_model.get("config", {}).get("engine_config", DEFAULT_ENGINE_CONFIG)
-        if not isinstance(engine_config, dict):
-            raise TypeError("engine configuration has to be of type dict")
-
-        expected_keys = {"CoordinatorDpuSize", "MaxConcurrentDpus", "DefaultExecutorDpuSize"}
-        if set(engine_config.keys()) != expected_keys:
-            raise KeyError(f"The keys of the dictionary entered do not match the expected format: {expected_keys}")
-
-        return engine_config
-
-    def list_sessions(self) -> dict:
-        """
-        List Athena sessions.
-
-        This function sends a request to the Athena service to list the sessions in the specified Spark workgroup.
-        It filters the sessions by state, only returning the first session that is in IDLE state. If no idle sessions
-        are found or if an error occurs, None is returned.
-
-        Returns:
-            dict: The session information dictionary if an idle session is found, None otherwise.
-
-        """
-        response = self.athena_client.list_sessions(WorkGroup=self.spark_work_group, MaxResults=1, StateFilter="IDLE")
-        if len(response.get("Sessions")) == 0 or response.get("Sessions") is None:
-            return {}
-        return response.get("Sessions")[0]
-
-    def start_session(self) -> dict:
-        """
-        Start an Athena session.
-
-        This function sends a request to the Athena service to start a session in the specified Spark workgroup.
-        It configures the session with specific engine configurations. If the session state is not IDLE, the function
-        polls until the session creation is complete. The response containing session information is returned.
-
-        Returns:
-            dict: The session information dictionary.
-
-        """
-        response = self.athena_client.start_session(
-            WorkGroup=self.spark_work_group,
-            EngineConfiguration=self.engine_config,
-        )
-        if response["State"] != "IDLE":
-            self.poll_until_session_creation(response["SessionId"])
-        return response
+        return self.config.set_engine_config()
 
     def get_current_session_status(self) -> str:
         """
@@ -266,7 +363,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         except Exception as e:
             logger.error(f"Unable to poll execution status: Got: {e}")
         finally:
-            self.terminate_session()
+            self.spark_connection.release_session_lock(self.session_id)
         logger.debug(f"Received execution status {execution_status}")
         if execution_status == "COMPLETED":
             result_s3_uri = self.athena_client.get_calculation_execution(
@@ -275,26 +372,6 @@ class AthenaPythonJobHelper(PythonJobHelper):
             return result_s3_uri
         else:
             raise DbtRuntimeError(f"python model run ended in state {execution_status}")
-
-    def terminate_session(self) -> None:
-        """
-        Terminate the current Athena session.
-
-        This function terminates the current Athena session if it is in IDLE or BUSY state and has exceeded the
-        configured timeout period. It retrieves the session status, and if the session state is IDLE or BUSY and the
-        duration since the session start time exceeds the timeout period, the session is terminated. The session ID is
-        used to terminate the session via the Athena client.
-
-        Returns:
-            dict: The response from the Athena client after terminating the session.
-
-        """
-        session_status = self.get_current_session_status()
-        if session_status["State"] in ["IDLE", "BUSY"] and (
-            session_status["StartDateTime"] - datetime.now(tz=timezone.utc) > timedelta(seconds=self.timeout)
-        ):
-            logger.debug(f"Terminating session: {self.session_id}")
-            self.athena_client.terminate_session(SessionId=self.session_id)
 
     def poll_until_execution_completion(self, calculation_execution_id):
         """
@@ -330,30 +407,3 @@ class AthenaPythonJobHelper(PythonJobHelper):
                 raise DbtRuntimeError(
                     f"Execution {calculation_execution_id} did not complete within {self.timeout} seconds."
                 )
-
-    def poll_until_session_creation(self, session_id):
-        """
-        Polls the status of an Athena session creation until it is completed or reaches the timeout.
-
-        Args:
-            session_id (str): The ID of the session being created.
-
-        Returns:
-            str: The final status of the session, which will be "IDLE" if the session creation is successful.
-
-        Raises:
-            DbtRuntimeError: If the session creation fails, is terminated, or degrades during polling.
-            DbtRuntimeError: If the session does not become IDLE within the specified timeout.
-
-        """
-        polling_interval = self.polling_interval
-        while True:
-            creation_status = self.athena_client.get_session_status(SessionId=session_id)["Status"]["State"]
-            if creation_status in ["FAILED", "TERMINATED", "DEGRADED"]:
-                raise DbtRuntimeError(f"Unable to create session: {session_id}. Got status: {creation_status}.")
-            elif creation_status == "IDLE":
-                return creation_status
-            time.sleep(polling_interval)
-            polling_interval *= 2
-            if polling_interval > self.timeout:
-                raise DbtRuntimeError(f"Session {session_id} did not create within {self.timeout} seconds.")

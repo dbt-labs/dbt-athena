@@ -45,8 +45,8 @@
       {%- do drop_relation(old_relation_bkp) -%}
     {%- endif -%}
 
-    {%- call statement('main') -%}
-      {{ create_table_as(False, tmp_relation, sql) }}
+    {%- call statement('main', language=language) -%}
+      {{ create_table_as(False, tmp_relation, compiled_code, language) }}
     {%- endcall -%}
 
     {{ rename_relation(old_relation, old_relation_bkp) }}

@@ -52,13 +52,9 @@ materialize(spark, df, dbt.this)
 {%- endmacro -%}
 
 {%- macro athena__py_execute_query(query) -%}
-import pyspark
-
-
 {{ athena__py_get_spark_dbt_object() }}
 
 def execute_query(spark_session):
-    import pandas
     try:
         spark_session.sql("""{{ query }}""")
         return "OK"
