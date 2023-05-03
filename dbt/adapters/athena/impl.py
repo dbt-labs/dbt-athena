@@ -4,7 +4,7 @@ import posixpath as path
 import tempfile
 from itertools import chain
 from threading import Lock
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -18,6 +18,7 @@ from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.relation import (
     AthenaRelation,
     AthenaSchemaSearchMap,
+    S3DataNaming,
     TableType,
 )
 from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id
@@ -170,11 +171,11 @@ class AthenaAdapter(SQLAdapter):
         else:
             return False
 
-    @available
-    def s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
+    def _s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
         """
         Returns the root location for storing tables in S3.
-        This is `s3_data_dir`, if set, and `s3_staging_dir/tables/` if not.
+        This is `s3_data_dir`, if set at the model level, the s3_data_dir of the connection if provided,
+        and `s3_staging_dir/tables/` if nothing provided as data dir.
         We generate a value here even if `s3_data_dir` is not set,
         since creating a seed table requires a non-default location.
         """
@@ -182,17 +183,29 @@ class AthenaAdapter(SQLAdapter):
         creds = conn.credentials
         if s3_data_dir is not None:
             return s3_data_dir
-        else:
-            return path.join(creds.s3_staging_dir, "tables")
+
+        if creds.s3_data_dir:
+            return creds.s3_data_dir
+
+        return path.join(creds.s3_staging_dir, "tables")
+
+    def _s3_data_naming(self, s3_data_naming: Optional[str]) -> Optional[S3DataNaming]:
+        """
+        Returns the s3 data naming strategy if provided, otherwise the value from the connection.
+        """
+        conn = self.connections.get_thread_connection()
+        creds = conn.credentials
+        if s3_data_naming is not None:
+            return S3DataNaming(s3_data_naming)
+
+        return S3DataNaming(creds.s3_data_naming) or S3DataNaming.TABLE_UNIQUE
 
     @available
-    def s3_table_location(
+    def generate_s3_location(
         self,
-        s3_data_dir: Optional[str],
-        s3_data_naming: str,
-        schema_name: str,
-        table_name: str,
-        s3_path_table_part: Optional[str] = None,
+        relation: AthenaRelation,
+        s3_data_dir: Optional[str] = None,
+        s3_data_naming: Optional[str] = None,
         external_location: Optional[str] = None,
         is_temporary_table: bool = False,
     ) -> str:
@@ -203,46 +216,45 @@ class AthenaAdapter(SQLAdapter):
         if external_location and not is_temporary_table:
             return external_location.rstrip("/")
 
-        if not s3_path_table_part:
-            s3_path_table_part = table_name
+        s3_path_table_part = relation.s3_path_table_part or relation.identifier
+        schema_name = relation.schema
+        s3_data_naming = self._s3_data_naming(s3_data_naming)
+        table_prefix = self._s3_table_prefix(s3_data_dir)
 
         mapping = {
-            "uuid": path.join(self.s3_table_prefix(s3_data_dir), str(uuid4())),
-            "table": path.join(self.s3_table_prefix(s3_data_dir), s3_path_table_part),
-            "table_unique": path.join(self.s3_table_prefix(s3_data_dir), s3_path_table_part, str(uuid4())),
-            "schema_table": path.join(self.s3_table_prefix(s3_data_dir), schema_name, s3_path_table_part),
-            "schema_table_unique": path.join(
-                self.s3_table_prefix(s3_data_dir), schema_name, s3_path_table_part, str(uuid4())
-            ),
+            S3DataNaming.UUID: path.join(table_prefix, str(uuid4())),
+            S3DataNaming.TABLE: path.join(table_prefix, s3_path_table_part),
+            S3DataNaming.TABLE_UNIQUE: path.join(table_prefix, s3_path_table_part, str(uuid4())),
+            S3DataNaming.SCHEMA_TABLE: path.join(table_prefix, schema_name, s3_path_table_part),
+            S3DataNaming.SCHEMA_TABLE_UNIQUE: path.join(table_prefix, schema_name, s3_path_table_part, str(uuid4())),
         }
-        table_location = mapping.get(s3_data_naming)
 
-        if table_location is None:
-            raise ValueError(f"Unknown value for s3_data_naming: {s3_data_naming}")
-
-        return table_location
+        return mapping[s3_data_naming]
 
     @available
-    def get_table_location(self, database_name: str, table_name: str) -> Union[str, None]:
+    def get_glue_table_location(self, relation: AthenaRelation) -> Optional[str]:
         """
-        Helper function to S3 get table location
+        Helper function to get location of a relation in S3.
+        Will return nothing if the table does not exist
+        Will return empty if the relation is a view
         """
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
         try:
-            table = glue_client.get_table(DatabaseName=database_name, Name=table_name)
-            table_location = table["Table"]["StorageDescriptor"]["Location"]
-            logger.debug(f"{database_name}.{table_name} is stored in {table_location}")
-            return table_location
+            table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
-                logger.debug(f"Table '{table_name}' does not exists - Ignoring")
+                logger.debug(f"Table {relation.render()} does not exists - Ignoring")
                 return
+            raise e
+        table_location = table["Table"]["StorageDescriptor"]["Location"]
+        logger.debug(f"{relation.render()} is stored in {table_location}")
+        return table_location
 
     @available
-    def clean_up_partitions(self, database_name: str, table_name: str, where_condition: str):
+    def clean_up_partitions(self, relation: AthenaRelation, where_condition: str):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
@@ -250,8 +262,8 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
         paginator = glue_client.get_paginator("get_partitions")
         partition_params = {
-            "DatabaseName": database_name,
-            "TableName": table_name,
+            "DatabaseName": relation.schema,
+            "TableName": relation.identifier,
             "Expression": where_condition,
             "ExcludeColumnSchema": True,
         }
@@ -261,8 +273,8 @@ class AthenaAdapter(SQLAdapter):
             self.delete_from_s3(partition["StorageDescriptor"]["Location"])
 
     @available
-    def clean_up_table(self, database_name: str, table_name: str):
-        table_location = self.get_table_location(database_name, table_name)
+    def clean_up_table(self, relation: AthenaRelation):
+        table_location = self.get_glue_table_location(relation)
 
         # this check avoid issues for when the table location is an empty string
         # or when the table do not exist and table location is None
@@ -276,23 +288,22 @@ class AthenaAdapter(SQLAdapter):
     @available
     def upload_seed_to_s3(
         self,
-        s3_data_dir: Optional[str],
-        s3_data_naming: Optional[str],
-        external_location: Optional[str],
-        database_name: str,
-        table_name: str,
+        relation: AthenaRelation,
         table: agate.Table,
+        s3_data_dir: Optional[str] = None,
+        s3_data_naming: Optional[str] = None,
+        external_location: Optional[str] = None,
     ) -> str:
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
         # TODO: consider using the workgroup default location when configured
-        s3_location = self.s3_table_location(
-            s3_data_dir, s3_data_naming, database_name, table_name, external_location=external_location
+        s3_location = self.generate_s3_location(
+            relation, s3_data_dir, s3_data_naming, external_location=external_location
         )
         bucket, prefix = self._parse_s3_path(s3_location)
 
-        file_name = f"{table_name}.csv"
+        file_name = f"{relation.identifier}.csv"
         object_name = path.join(prefix, file_name)
 
         with boto3_client_lock:
@@ -514,7 +525,7 @@ class AthenaAdapter(SQLAdapter):
         return relations
 
     @available
-    def get_table_type(self, db_name, table_name) -> TableType:
+    def get_table_type(self, relation: AthenaRelation) -> Optional[TableType]:
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
@@ -522,43 +533,44 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         try:
-            response = glue_client.get_table(DatabaseName=db_name, Name=table_name)
-            _type = self.relation_type_map.get(response.get("Table", {}).get("TableType"))
-            _specific_type = response.get("Table", {}).get("Parameters", {}).get("table_type", "")
-
-            if _specific_type.lower() == "iceberg":
-                _type = TableType.ICEBERG
-
-            if _type is None:
-                raise ValueError("Table type cannot be None")
-
-            logger.debug(f"table_name : {table_name}")
-            logger.debug(f"table type : {_type}")
-
-            return _type
-
+            response = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)
         except glue_client.exceptions.EntityNotFoundException as e:
             logger.debug(f"Error calling Glue get_table: {e}")
+            return None
+
+        _type = self.relation_type_map.get(response.get("Table", {}).get("TableType"))
+        _specific_type = response.get("Table", {}).get("Parameters", {}).get("table_type", "")
+
+        if _specific_type.lower() == "iceberg":
+            _type = TableType.ICEBERG
+
+        if _type is None:
+            raise ValueError("Table type cannot be None")
+
+        logger.debug(f"table_name : {relation.identifier}")
+        logger.debug(f"table type : {_type}")
+
+        return _type
 
     @available
-    def swap_table(self, src_database: str, src_table_name: str, target_database: str, target_table_name: str):
+    def swap_table(self, src_relation: AthenaRelation, target_relation: AthenaRelation):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
-        src_table = glue_client.get_table(DatabaseName=src_database, Name=src_table_name).get("Table")
-        src_table_partitions = glue_client.get_partitions(DatabaseName=src_database, TableName=src_table_name).get(
-            "Partitions"
-        )
+        src_table = glue_client.get_table(DatabaseName=src_relation.schema, Name=src_relation.identifier).get("Table")
+        src_table_partitions = glue_client.get_partitions(
+            DatabaseName=src_relation.schema, TableName=src_relation.identifier
+        ).get("Partitions")
 
         target_table_partitions = glue_client.get_partitions(
-            DatabaseName=target_database, TableName=target_table_name
+            DatabaseName=target_relation.schema, TableName=target_relation.identifier
         ).get("Partitions")
 
         target_table_version = {
-            "Name": target_table_name,
+            "Name": target_relation.identifier,
             "StorageDescriptor": src_table["StorageDescriptor"],
             "PartitionKeys": src_table["PartitionKeys"],
             "TableType": src_table["TableType"],
@@ -567,32 +579,30 @@ class AthenaAdapter(SQLAdapter):
         }
 
         # perform a table swap
-        glue_client.update_table(DatabaseName=target_database, TableInput=target_table_version)
-        logger.debug(
-            f"Table {target_database}.{target_table_name} swapped with the content of {src_database}.{src_table}"
-        )
+        glue_client.update_table(DatabaseName=target_relation.schema, TableInput=target_table_version)
+        logger.debug(f"Table {target_relation.render()} swapped with the content of {src_relation.render()}")
 
         # we delete the target table partitions in any case
         # if source table has partitions we need to delete and add partitions
         # it source table hasn't any partitions we need to delete target table partitions
         if target_table_partitions:
             glue_client.batch_delete_partition(
-                DatabaseName=target_database,
-                TableName=target_table_name,
+                DatabaseName=target_relation.schema,
+                TableName=target_relation.identifier,
                 PartitionsToDelete=[{"Values": i["Values"]} for i in target_table_partitions],
             )
 
         if src_table_partitions:
             glue_client.batch_create_partition(
-                DatabaseName=target_database,
-                TableName=target_table_name,
+                DatabaseName=target_relation.schema,
+                TableName=target_relation.identifier,
                 PartitionInputList=[
                     {"Values": p["Values"], "StorageDescriptor": p["StorageDescriptor"], "Parameters": p["Parameters"]}
                     for p in src_table_partitions
                 ],
             )
 
-    def _get_glue_table_versions_to_expire(self, database_name: str, table_name: str, to_keep: int):
+    def _get_glue_table_versions_to_expire(self, relation: AthenaRelation, to_keep: int):
         """
         Given a table and the amount of its version to keep, it returns the versions to delete
         """
@@ -605,8 +615,8 @@ class AthenaAdapter(SQLAdapter):
         paginator = glue_client.get_paginator("get_table_versions")
         response_iterator = paginator.paginate(
             **{
-                "DatabaseName": database_name,
-                "TableName": table_name,
+                "DatabaseName": relation.schema,
+                "TableName": relation.identifier,
             }
         )
         table_versions = response_iterator.build_full_result().get("TableVersions")
@@ -615,14 +625,14 @@ class AthenaAdapter(SQLAdapter):
         return table_versions_ordered[int(to_keep) :]
 
     @available
-    def expire_glue_table_versions(self, database_name: str, table_name: str, to_keep: int, delete_s3: bool):
+    def expire_glue_table_versions(self, relation: AthenaRelation, to_keep: int, delete_s3: bool):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
-        versions_to_delete = self._get_glue_table_versions_to_expire(database_name, table_name, to_keep)
+        versions_to_delete = self._get_glue_table_versions_to_expire(relation, to_keep)
         logger.debug(f"Versions to delete: {[v['VersionId'] for v in versions_to_delete]}")
 
         deleted_versions = []
@@ -631,10 +641,10 @@ class AthenaAdapter(SQLAdapter):
             location = v["Table"]["StorageDescriptor"]["Location"]
             try:
                 glue_client.delete_table_version(
-                    DatabaseName=database_name, TableName=table_name, VersionId=str(version)
+                    DatabaseName=relation.schema, TableName=relation.identifier, VersionId=str(version)
                 )
                 deleted_versions.append(version)
-                logger.debug(f"Deleted version {version} of table {database_name}.{table_name} ")
+                logger.debug(f"Deleted version {version} of table {relation.render()} ")
                 if delete_s3:
                     self.delete_from_s3(location)
             except Exception as err:
@@ -721,7 +731,7 @@ class AthenaAdapter(SQLAdapter):
             else:
                 logger.error(e)
                 raise e
-        table_type = self.get_table_type(relation.schema, relation.identifier)
+        table_type = self.get_table_type(relation)
 
         columns = [c for c in table["StorageDescriptor"]["Columns"] if self._is_current_column(c)]
         partition_keys = table.get("PartitionKeys", [])

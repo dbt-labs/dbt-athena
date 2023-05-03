@@ -42,21 +42,19 @@
   {%- set s3_data_naming = config.get('s3_data_naming', target.s3_data_naming) -%}
   {%- set external_location = config.get('external_location', default=none) -%}
 
-  {%- set tmp_s3_location = adapter.upload_seed_to_s3(
-    s3_data_dir,
-    s3_data_naming,
-    external_location,
-    model.schema,
-    model.name + "__dbt_tmp",
-    agate_table,
-  ) -%}
-
-  -- create tmp relation
   {%- set tmp_relation = api.Relation.create(
     identifier=identifier + "__dbt_tmp",
     schema=model.schema,
     database=model.database,
     type='table'
+  ) -%}
+
+  {%- set tmp_s3_location = adapter.upload_seed_to_s3(
+    tmp_relation,
+    agate_table,
+    s3_data_dir,
+    s3_data_naming,
+    external_location,
   ) -%}
 
   -- create target relation
