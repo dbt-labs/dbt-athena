@@ -1,4 +1,5 @@
-from dbt.adapters.athena.relation import AthenaRelation
+from dbt.adapters.athena.relation import AthenaRelation, TableType
+from dbt.contracts.relation import RelationType
 
 from .constants import DATA_CATALOG_NAME, DATABASE_NAME
 
@@ -30,3 +31,23 @@ class TestAthenaRelation:
             schema=DATABASE_NAME,
         )
         assert relation.render_pure() == f"{DATA_CATALOG_NAME}.{DATABASE_NAME}.{TABLE_NAME}"
+
+    def test_table_type_with_none(self):
+        relation = AthenaRelation.create(
+            identifier=TABLE_NAME,
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+        )
+        assert relation.table_type == TableType.TABLE
+
+    def test_table_type_with_inferred_from_type(self):
+        relation = AthenaRelation.create(
+            identifier=TABLE_NAME, database=DATA_CATALOG_NAME, schema=DATABASE_NAME, type=RelationType.View
+        )
+        assert relation.table_type == TableType.VIEW
+
+    def test_table_type_with_table_type(self):
+        relation = AthenaRelation.create(
+            identifier=TABLE_NAME, database=DATA_CATALOG_NAME, schema=DATABASE_NAME, _table_type=TableType.ICEBERG
+        )
+        assert relation.table_type == TableType.ICEBERG

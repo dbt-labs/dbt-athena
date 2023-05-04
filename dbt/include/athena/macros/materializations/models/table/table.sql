@@ -8,7 +8,8 @@
   {%- set target_relation = api.Relation.create(identifier=identifier,
                                                 schema=schema,
                                                 database=database,
-                                                type='table') -%}
+                                                type='table',
+                                                _table_type=table_type) -%}
 
   {{ run_hooks(pre_hooks) }}
 
@@ -29,7 +30,8 @@
                                                schema=schema,
                                                database=database,
                                                s3_path_table_part=target_relation.identifier,
-                                               type='table') -%}
+                                               type='table',
+                                               _table_type=table_type) -%}
     {%- if tmp_relation is not none -%}
       {%- do drop_relation(tmp_relation) -%}
     {%- endif -%}

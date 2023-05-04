@@ -10,6 +10,7 @@
       schema=schema,
       database=database,
       type='view',
+      _table_type='view',
     ) -%}
 
   {% if run_outside_transaction_hooks %}

@@ -11,7 +11,8 @@
   {%- set target_relation = api.Relation.create(identifier=identifier,
                                                 schema=schema,
                                                 database=database,
-                                                type='table') -%}
+                                                type='table',
+                                                _table_type=table_type) -%}
 
   {%- if s3_data_naming in ['table', 'schema_table'] or external_location is not none -%}
     {%- set error_unique_location_hive_ha -%}

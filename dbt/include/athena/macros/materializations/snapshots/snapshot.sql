@@ -285,7 +285,8 @@
         {%- set tmp_relation = api.Relation.create(identifier=tmp_identifier,
                                                       schema=target_relation.schema,
                                                       database=target_relation.database,
-                                                      type='table') -%}
+                                                      type='table',
+                                                      _table_type=table_type) -%}
 
         {% do adapter.drop_relation(tmp_relation) %}
 
@@ -312,7 +313,8 @@
     {%- set target_relation = api.Relation.create(identifier=tmp_identifier,
       schema=target.schema,
       database=target.database,
-      type='table') -%}
+      type='table',
+      _table_type=table_type) -%}
 
     {%- set source_columns = adapter.get_columns_in_relation(source) -%}
 

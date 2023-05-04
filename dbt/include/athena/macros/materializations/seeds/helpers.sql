@@ -46,7 +46,8 @@
     identifier=identifier + "__dbt_tmp",
     schema=model.schema,
     database=model.database,
-    type='table'
+    type='table',
+    _table_type='table',
   ) -%}
 
   {%- set tmp_s3_location = adapter.upload_seed_to_s3(
@@ -62,7 +63,8 @@
     identifier=identifier,
     schema=model.schema,
     database=model.database,
-    type='table'
+    type='table',
+    _table_type='table',
   ) -%}
 
   -- drop tmp relation if exists

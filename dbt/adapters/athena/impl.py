@@ -502,11 +502,13 @@ class AthenaAdapter(SQLAdapter):
                     if "TableType" not in table:
                         logger.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
                         continue
-                    _type = table["TableType"]
-                    if _type == "VIRTUAL_VIEW":
-                        _type = self.Relation.View
-                    else:
-                        _type = self.Relation.Table
+
+                    relation_type = self.Relation.View if table["TableType"] == "VIRTUAL_VIEW" else self.Relation.Table
+                    table_type = self.relation_type_map[table["TableType"]]
+                    specific_table_type = table.get("Parameters", {}).get("table_type", "")
+
+                    if specific_table_type == "iceberg":
+                        table_type = TableType.ICEBERG
 
                     relations.append(
                         self.Relation.create(
@@ -514,7 +516,8 @@ class AthenaAdapter(SQLAdapter):
                             database=schema_relation.database,
                             identifier=table["Name"],
                             quote_policy=quote_policy,
-                            type=_type,
+                            type=relation_type,
+                            _table_type=table_type,
                         )
                     )
         except ClientError as e:
@@ -523,34 +526,6 @@ class AthenaAdapter(SQLAdapter):
             logger.debug(f"Schema '{schema_relation.schema}' does not exist - Ignoring: {e}")
 
         return relations
-
-    @available
-    def get_table_type(self, relation: AthenaRelation) -> Optional[TableType]:
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
-
-        try:
-            response = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)
-        except glue_client.exceptions.EntityNotFoundException as e:
-            logger.debug(f"Error calling Glue get_table: {e}")
-            return None
-
-        _type = self.relation_type_map.get(response.get("Table", {}).get("TableType"))
-        _specific_type = response.get("Table", {}).get("Parameters", {}).get("table_type", "")
-
-        if _specific_type.lower() == "iceberg":
-            _type = TableType.ICEBERG
-
-        if _type is None:
-            raise ValueError("Table type cannot be None")
-
-        logger.debug(f"table_name : {relation.identifier}")
-        logger.debug(f"table type : {_type}")
-
-        return _type
 
     @available
     def swap_table(self, src_relation: AthenaRelation, target_relation: AthenaRelation):
@@ -731,7 +706,6 @@ class AthenaAdapter(SQLAdapter):
             else:
                 logger.error(e)
                 raise e
-        table_type = self.get_table_type(relation)
 
         columns = [c for c in table["StorageDescriptor"]["Columns"] if self._is_current_column(c)]
         partition_keys = table.get("PartitionKeys", [])
@@ -739,7 +713,8 @@ class AthenaAdapter(SQLAdapter):
         logger.debug(f"Columns in relation {relation.identifier}: {columns + partition_keys}")
 
         return [
-            AthenaColumn(column=c["Name"], dtype=c["Type"], table_type=table_type) for c in columns + partition_keys
+            AthenaColumn(column=c["Name"], dtype=c["Type"], table_type=relation.table_type)
+            for c in columns + partition_keys
         ]
 
     @available

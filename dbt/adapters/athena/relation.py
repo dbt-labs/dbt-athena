@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Dict, Optional, Set
 
 from dbt.adapters.base.relation import BaseRelation, InformationSchema, Policy
+from dbt.contracts.relation import RelationType
 
 
 class TableType(Enum):
@@ -21,6 +22,15 @@ class S3DataNaming(Enum):
     SCHEMA_TABLE_UNIQUE = "schema_table_unique"
 
 
+RELATION_TYPE_TABLE_TYPE_MAP = {
+    RelationType.Table: TableType.TABLE,
+    RelationType.View: TableType.VIEW,
+    RelationType.CTE: TableType.CTE,
+    RelationType.MaterializedView: TableType.MATERIALIZED_VIEW,
+    RelationType.External: TableType.TABLE,
+}
+
+
 @dataclass
 class AthenaIncludePolicy(Policy):
     database: bool = True
@@ -33,6 +43,13 @@ class AthenaRelation(BaseRelation):
     quote_character: str = '"'  # Presto quote character
     include_policy: Policy = field(default_factory=lambda: AthenaIncludePolicy())
     s3_path_table_part: Optional[str] = None
+    _table_type: Optional[TableType] = None
+
+    @property
+    def table_type(self) -> TableType:
+        if self._table_type:
+            return self._table_type
+        return RELATION_TYPE_TABLE_TYPE_MAP.get(self.type, TableType.TABLE)
 
     def render_hive(self):
         """

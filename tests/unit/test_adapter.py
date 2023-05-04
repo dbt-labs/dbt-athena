@@ -623,84 +623,28 @@ class TestAthenaAdapter:
         res = self.adapter._get_data_catalog(DATA_CATALOG_NAME)
         assert {"Name": "awsdatacatalog", "Type": "GLUE", "Parameters": {"catalog-id": DEFAULT_ACCOUNT_ID}} == res
 
-    @mock_glue
-    @mock_s3
-    @mock_athena
-    def test__get_relation_type_table(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_table("test_table")
-        self.adapter.acquire_connection("dummy")
-        relation = self.adapter.Relation.create(
-            database=DATA_CATALOG_NAME,
-            schema=DATABASE_NAME,
-            identifier="test_table",
-        )
-        table_type = self.adapter.get_table_type(relation)
-        assert table_type == TableType.TABLE
-
-    @mock_glue
-    @mock_s3
-    @mock_athena
-    def test__get_relation_type_with_no_type(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_table_without_table_type("test_table")
-        self.adapter.acquire_connection("dummy")
-        relation = self.adapter.Relation.create(
-            database=DATA_CATALOG_NAME,
-            schema=DATABASE_NAME,
-            identifier="test_table",
-        )
-
-        with pytest.raises(ValueError):
-            self.adapter.get_table_type(relation)
-
-    @mock_glue
-    @mock_s3
-    @mock_athena
-    def test__get_relation_type_view(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_view("test_view")
-        self.adapter.acquire_connection("dummy")
-        relation = self.adapter.Relation.create(
-            database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="test_view", type=RelationType.View
-        )
-        table_type = self.adapter.get_table_type(relation)
-        assert table_type == TableType.VIEW
-
-    @mock_glue
-    @mock_s3
-    @mock_athena
-    def test__get_relation_type_iceberg(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_iceberg_table("test_iceberg")
-        self.adapter.acquire_connection("dummy")
-        relation = self.adapter.Relation.create(
-            database=DATA_CATALOG_NAME,
-            schema=DATABASE_NAME,
-            identifier="test_iceberg",
-        )
-        table_type = self.adapter.get_table_type(relation)
-        assert table_type == TableType.ICEBERG
-
     def _test_list_relations_without_caching(self, schema_relation):
         self.adapter.acquire_connection("dummy")
         relations = self.adapter.list_relations_without_caching(schema_relation)
-        assert len(relations) == 3
+        assert len(relations) == 4
         assert all(isinstance(rel, AthenaRelation) for rel in relations)
         relations.sort(key=lambda rel: rel.name)
-        other = relations[0]
-        table = relations[1]
-        view = relations[2]
+        iceberg = relations[0]
+        other = relations[1]
+        table = relations[2]
+        view = relations[3]
+        assert iceberg.name == "iceberg"
+        assert iceberg.type == "table"
+        assert iceberg._table_type == TableType.ICEBERG
         assert other.name == "other"
         assert other.type == "table"
+        assert other._table_type == TableType.TABLE
         assert table.name == "table"
         assert table.type == "table"
+        assert other._table_type == TableType.TABLE
         assert view.name == "view"
         assert view.type == "view"
+        assert view._table_type == TableType.VIEW
 
     @mock_athena
     @mock_glue
@@ -710,6 +654,7 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_database()
         self.mock_aws_service.create_table("table")
         self.mock_aws_service.create_table("other")
+        self.mock_aws_service.create_iceberg_table("iceberg")
         self.mock_aws_service.create_view("view")
         self.mock_aws_service.create_table_without_table_type("without_table_type")
         schema_relation = self.adapter.Relation.create(
@@ -727,6 +672,7 @@ class TestAthenaAdapter:
         self.mock_aws_service.create_database()
         self.mock_aws_service.create_table("table")
         self.mock_aws_service.create_table("other")
+        self.mock_aws_service.create_iceberg_table("iceberg")
         self.mock_aws_service.create_view("view")
         self.mock_aws_service.create_table_without_table_type("without_table_type")
         schema_relation = self.adapter.Relation.create(
