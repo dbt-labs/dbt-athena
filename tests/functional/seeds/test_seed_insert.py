@@ -16,4 +16,5 @@ class TestSeedByInsert:
         return {"my_seed.csv": my_seed_csv, "my_seed.yaml": my_seed_yaml}
 
     def test_seed(self, project):
+        # not sure how best to check that this actually ended up being an insert vs. an upload...?
         run_dbt(["build"])

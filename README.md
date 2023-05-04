@@ -84,6 +84,8 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | work_group            | Identifier of Athena workgroup                                                 | Optional  | `my-custom-workgroup`                      |
 | num_retries           | Number of times to retry a failing query                                       | Optional  | `3`                                        |
 | lf_tags               | Default lf tags to apply to any database created by dbt                        | Optional  | `{"origin": "dbt", "team": "analytics"}`   |
+| seed_by_insert        | When `True`, create seeds by inserting records, rather than uploading to S3. Does not require s3:PutObject permissions. | Optional  | `False` (default) |
+
 
 **Example profiles.yml entry:**
 ```yaml
