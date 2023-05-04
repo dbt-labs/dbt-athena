@@ -31,7 +31,7 @@
     ) as {{ col }}
 {% endmacro %}
 
-{% macro athena__create_csv_table(model, agate_table) %}
+{% macro create_csv_table_insert(model, agate_table) %}
   {%- set identifier = model['alias'] -%}
 
   {%- set lf_tags = config.get('lf_tags', default=none) -%}
@@ -41,6 +41,44 @@
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
   {%- set s3_data_naming = config.get('s3_data_naming', target.s3_data_naming) -%}
   {%- set external_location = config.get('external_location', default=none) -%}
+
+  {% set sql %}
+    create external table {{ this.render_hive() }} (
+        {%- for col_name in agate_table.column_names -%}
+            {%- set inferred_type = adapter.convert_type(agate_table, loop.index0) -%}
+            {%- set type = column_override.get(col_name, inferred_type) -%}
+            {%- set column_name = (col_name | string) -%}
+            {{ adapter.quote_seed_column(column_name, quote_seed_column) }} {{ type }} {%- if not loop.last -%}, {% endif -%}
+        {%- endfor -%}
+    )
+    stored as parquet
+    location '{{ adapter.s3_table_location(s3_data_dir, s3_data_naming, model["schema"], model["alias"], external_location) }}'
+    tblproperties ('classification'='parquet')
+  {% endset %}
+
+  {% call statement('_') -%}
+    {{ sql }}
+  {%- endcall %}
+
+  {% if lf_tags is not none or lf_tags_columns is not none %}
+    {{ adapter.add_lf_tags(model.schema, identifier, lf_tags, lf_tags_columns) }}
+  {% endif %}
+
+  {{ return(sql) }}
+{% endmacro %}
+
+{% macro create_csv_table_upload(model, agate_table) %}
+
+  {%- set identifier = model['alias'] -%}
+
+  {%- set lf_tags = config.get('lf_tags', default=none) -%}
+  {%- set lf_tags_columns = config.get('lf_tags_columns', default=none) -%}
+  {%- set column_override = config.get('column_types', {}) -%}
+  {%- set quote_seed_column = config.get('quote_columns', None) -%}
+  {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
+  {%- set s3_data_naming = config.get('s3_data_naming', target.s3_data_naming) -%}
+  {%- set external_location = config.get('external_location', default=none) -%}
+
 
   {%- set tmp_s3_location = adapter.upload_seed_to_s3(
     s3_data_dir,
@@ -121,6 +159,22 @@
   -- delete csv file from s3
   {% do adapter.delete_from_s3(tmp_s3_location) %}
 
+  {{ return(sql_table) }}
+
+{% endmacro %}
+
+{% macro athena__create_csv_table(model, agate_table) %}
+
+  {%- set seed_by_insert = target.seed_by_insert -%}
+
+  {%- if seed_by_insert -%}
+    {% do log('seed by insert...') %}
+    {%- set sql_table = create_csv_table_insert(model, agate_table) -%}
+  {%- else -%}
+    {% do log('seed by upload...') %}
+    {%- set sql_table = create_csv_table_upload(model, agate_table) -%}
+  {%- endif -%}
+
   {% if lf_tags is not none or lf_tags_columns is not none %}
     {{ adapter.add_lf_tags(model.schema, identifier, lf_tags, lf_tags_columns) }}
   {% endif %}
@@ -130,5 +184,9 @@
 
 {# Overwrite to satisfy dbt-core logic #}
 {% macro athena__load_csv_rows(model, agate_table) %}
+  {%- if target.seed_by_insert %}
+    {{ default__load_csv_rows(model, agate_table) }}
+  {%- else -%}
     select 1
+  {% endif %}
 {% endmacro %}

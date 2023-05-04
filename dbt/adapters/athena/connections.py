@@ -50,6 +50,7 @@ class AthenaCredentials(Credentials):
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
     lf_tags: Optional[Dict[str, str]] = None
+    seed_by_insert: Optional[bool] = False
 
     @property
     def type(self) -> str:
@@ -74,6 +75,7 @@ class AthenaCredentials(Credentials):
             "s3_data_dir",
             "s3_data_naming",
             "lf_tags",
+            "seed_by_insert",
         )
 
 
