@@ -21,10 +21,6 @@
                                                  external_location,
                                                  temporary) -%}
 
-  {%- if materialized == 'table_hive_ha' -%}
-    {%- set location = location.replace('__ha', '') -%}
-  {%- endif %}
-
   {%- if table_type == 'iceberg' -%}
     {%- set location_property = 'location' -%}
     {%- set partition_property = 'partitioning' -%}
