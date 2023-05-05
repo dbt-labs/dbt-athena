@@ -17,7 +17,7 @@ def get_catalog_id(catalog: Optional[DataCatalogTypeDef]) -> Optional[str]:
         return catalog["Parameters"]["catalog-id"]
 
 
-def get_table_type(table: TableTypeDef) -> Optional[TableType]:
+def get_table_type(table: TableTypeDef) -> TableType:
     _type = RELATION_TYPE_MAP.get(table.get("TableType"))
     _specific_type = table.get("Parameters", {}).get("table_type", "")
 

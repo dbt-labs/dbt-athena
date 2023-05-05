@@ -12,6 +12,7 @@ from dbt.adapters.athena import AthenaAdapter
 from dbt.adapters.athena import Plugin as AthenaPlugin
 from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.connections import AthenaCursor, AthenaParameterFormatter
+from dbt.adapters.athena.exceptions import S3LocationException
 from dbt.adapters.athena.relation import AthenaRelation, TableType
 from dbt.clients import agate_helper
 from dbt.contracts.connection import ConnectionState
@@ -370,6 +371,27 @@ class TestAthenaAdapter:
             identifier=table_name,
         )
         assert self.adapter.get_glue_table_location(relation) == "s3://test-dbt-athena/tables/test_table"
+
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test_get_table_location_raise_s3_location_exception(self, dbt_debug_caplog, mock_aws_service):
+        table_name = "test_table"
+        self.adapter.acquire_connection("dummy")
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
+        mock_aws_service.create_table(table_name, location="")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema=DATABASE_NAME,
+            identifier=table_name,
+        )
+        with pytest.raises(S3LocationException) as exc:
+            self.adapter.get_glue_table_location(relation)
+        assert exc.value.args[0] == (
+            'Relation "awsdatacatalog"."test_dbt_athena"."test_table" is of type \'table\' which requires a '
+            "location, but no location returned by Glue."
+        )
 
     @mock_glue
     @mock_s3

@@ -12,6 +12,9 @@ class TableType(Enum):
     MATERIALIZED_VIEW = "materializedview"
     ICEBERG = "iceberg_table"
 
+    def is_physical(self) -> bool:
+        return self in [TableType.TABLE, TableType.ICEBERG]
+
 
 @dataclass
 class AthenaIncludePolicy(Policy):

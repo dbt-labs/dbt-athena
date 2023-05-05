@@ -18,6 +18,7 @@ from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.exceptions import SnapshotMigrationRequired
 from dbt.adapters.athena.constants import LOGGER, RELATION_TYPE_MAP
+from dbt.adapters.athena.exceptions import S3LocationException
 from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
 from dbt.adapters.athena.s3 import S3DataNaming
 from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id, get_table_type
@@ -233,12 +234,18 @@ class AthenaAdapter(SQLAdapter):
                 return None
             raise e
 
-        table_location = table["Table"]["StorageDescriptor"]["Location"]
-        if table_location == "":
-            return None
+        table_type = get_table_type(table["Table"])
+        table_location = table["Table"].get("StorageDescriptor", {}).get("Location")
+        if table_type.is_physical():
+            if not table_location:
+                raise S3LocationException(
+                    f"Relation {relation.render()} is of type '{table_type.value}' which requires a location, "
+                    f"but no location returned by Glue."
+                )
+            LOGGER.debug(f"{relation.render()} is stored in {table_location}")
+            return table_location
 
-        LOGGER.debug(f"{relation.render()} is stored in {table_location}")
-        return table_location
+        return None
 
     @available
     def clean_up_partitions(self, relation: AthenaRelation, where_condition: str):
