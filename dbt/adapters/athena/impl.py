@@ -3,8 +3,9 @@ import os
 import posixpath as path
 import tempfile
 from itertools import chain
+from textwrap import dedent
 from threading import Lock
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -15,21 +16,25 @@ from mypy_boto3_athena.type_defs import DataCatalogTypeDef
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.config import get_boto3_config
+from dbt.adapters.athena.constants import LOGGER
+from dbt.adapters.athena.exceptions import (
+    S3LocationException,
+    SnapshotMigrationRequired,
+)
 from dbt.adapters.athena.relation import (
+    RELATION_TYPE_MAP,
     AthenaRelation,
     AthenaSchemaSearchMap,
-    TableType,
+    get_table_type,
 )
+from dbt.adapters.athena.s3 import S3DataNaming
 from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id
 from dbt.adapters.base import available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import CompiledNode
-from dbt.events import AdapterLogger
 from dbt.exceptions import DbtRuntimeError
-
-logger = AdapterLogger("Athena")
 
 boto3_client_lock = Lock()
 
@@ -37,16 +42,6 @@ boto3_client_lock = Lock()
 class AthenaAdapter(SQLAdapter):
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
-
-    relation_type_map = {
-        "EXTERNAL_TABLE": TableType.TABLE,
-        "MANAGED_TABLE": TableType.TABLE,
-        "VIRTUAL_VIEW": TableType.VIEW,
-        "table": TableType.TABLE,
-        "view": TableType.VIEW,
-        "cte": TableType.CTE,
-        "materializedview": TableType.MATERIALIZED_VIEW,
-    }
 
     @classmethod
     def date_function(cls) -> str:
@@ -83,7 +78,7 @@ class AthenaAdapter(SQLAdapter):
             for failure in failures:
                 tag = failure.get("LFTag", {}).get("TagKey")
                 error = failure.get("Error", {}).get("ErrorMessage")
-                logger.error(f"Failed to set {tag} for {database}" + msg_appendix + f" - {error}")
+                LOGGER.error(f"Failed to set {tag} for {database}" + msg_appendix + f" - {error}")
             raise DbtRuntimeError(base_msg)
         return f"Added LF tags: {lf_tags} to {database}" + msg_appendix
 
@@ -116,7 +111,7 @@ class AthenaAdapter(SQLAdapter):
         lf_tags = lf_tags or conn.credentials.lf_tags
 
         if not lf_tags and not lf_tags_columns:
-            logger.debug("No LF tags configured")
+            LOGGER.debug("No LF tags configured")
         else:
             with boto3_client_lock:
                 lf_client = client.session.client(
@@ -131,7 +126,7 @@ class AthenaAdapter(SQLAdapter):
                 response = lf_client.add_lf_tags_to_resource(
                     Resource=resource, LFTags=[{"TagKey": key, "TagValues": [value]} for key, value in lf_tags.items()]
                 )
-                logger.debug(self.parse_lf_response(response, database, table, None, lf_tags))
+                LOGGER.debug(self.parse_lf_response(response, database, table, None, lf_tags))
 
             if self.lf_tags_columns_is_valid(lf_tags_columns):
                 for tag_key, tag_config in lf_tags_columns.items():
@@ -142,7 +137,7 @@ class AthenaAdapter(SQLAdapter):
                             },
                             LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}],
                         )
-                        logger.debug(self.parse_lf_response(response, database, table, columns, {tag_key: tag_value}))
+                        LOGGER.debug(self.parse_lf_response(response, database, table, columns, {tag_key: tag_value}))
 
     @available
     def is_work_group_output_location_enforced(self) -> bool:
@@ -170,11 +165,11 @@ class AthenaAdapter(SQLAdapter):
         else:
             return False
 
-    @available
-    def s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
+    def _s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
         """
         Returns the root location for storing tables in S3.
-        This is `s3_data_dir`, if set, and `s3_staging_dir/tables/` if not.
+        This is `s3_data_dir`, if set at the model level, the s3_data_dir of the connection if provided,
+        and `s3_staging_dir/tables/` if nothing provided as data dir.
         We generate a value here even if `s3_data_dir` is not set,
         since creating a seed table requires a non-default location.
         """
@@ -182,17 +177,26 @@ class AthenaAdapter(SQLAdapter):
         creds = conn.credentials
         if s3_data_dir is not None:
             return s3_data_dir
-        else:
-            return path.join(creds.s3_staging_dir, "tables")
+
+        return path.join(creds.s3_staging_dir, "tables")
+
+    def _s3_data_naming(self, s3_data_naming: Optional[str]) -> Optional[S3DataNaming]:
+        """
+        Returns the s3 data naming strategy if provided, otherwise the value from the connection.
+        """
+        conn = self.connections.get_thread_connection()
+        creds = conn.credentials
+        if s3_data_naming is not None:
+            return S3DataNaming(s3_data_naming)
+
+        return S3DataNaming(creds.s3_data_naming) or S3DataNaming.TABLE_UNIQUE
 
     @available
-    def s3_table_location(
+    def generate_s3_location(
         self,
-        s3_data_dir: Optional[str],
-        s3_data_naming: str,
-        schema_name: str,
-        table_name: str,
-        s3_path_table_part: Optional[str] = None,
+        relation: AthenaRelation,
+        s3_data_dir: Optional[str] = None,
+        s3_data_naming: Optional[str] = None,
         external_location: Optional[str] = None,
         is_temporary_table: bool = False,
     ) -> str:
@@ -203,46 +207,55 @@ class AthenaAdapter(SQLAdapter):
         if external_location and not is_temporary_table:
             return external_location.rstrip("/")
 
-        if not s3_path_table_part:
-            s3_path_table_part = table_name
+        s3_path_table_part = relation.s3_path_table_part or relation.identifier
+        schema_name = relation.schema
+        s3_data_naming = self._s3_data_naming(s3_data_naming)
+        table_prefix = self._s3_table_prefix(s3_data_dir)
 
         mapping = {
-            "uuid": path.join(self.s3_table_prefix(s3_data_dir), str(uuid4())),
-            "table": path.join(self.s3_table_prefix(s3_data_dir), s3_path_table_part),
-            "table_unique": path.join(self.s3_table_prefix(s3_data_dir), s3_path_table_part, str(uuid4())),
-            "schema_table": path.join(self.s3_table_prefix(s3_data_dir), schema_name, s3_path_table_part),
-            "schema_table_unique": path.join(
-                self.s3_table_prefix(s3_data_dir), schema_name, s3_path_table_part, str(uuid4())
-            ),
+            S3DataNaming.UUID: path.join(table_prefix, str(uuid4())),
+            S3DataNaming.TABLE: path.join(table_prefix, s3_path_table_part),
+            S3DataNaming.TABLE_UNIQUE: path.join(table_prefix, s3_path_table_part, str(uuid4())),
+            S3DataNaming.SCHEMA_TABLE: path.join(table_prefix, schema_name, s3_path_table_part),
+            S3DataNaming.SCHEMA_TABLE_UNIQUE: path.join(table_prefix, schema_name, s3_path_table_part, str(uuid4())),
         }
-        table_location = mapping.get(s3_data_naming)
 
-        if table_location is None:
-            raise ValueError(f"Unknown value for s3_data_naming: {s3_data_naming}")
-
-        return table_location
+        return mapping[s3_data_naming]
 
     @available
-    def get_table_location(self, database_name: str, table_name: str) -> Union[str, None]:
+    def get_glue_table_location(self, relation: AthenaRelation) -> Optional[str]:
         """
-        Helper function to S3 get table location
+        Helper function to get location of a relation in S3.
+        Will return None if the table does not exist or does not have a location (views)
         """
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
         try:
-            table = glue_client.get_table(DatabaseName=database_name, Name=table_name)
-            table_location = table["Table"]["StorageDescriptor"]["Location"]
-            logger.debug(f"{database_name}.{table_name} is stored in {table_location}")
-            return table_location
+            table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
-                logger.debug(f"Table '{table_name}' does not exists - Ignoring")
-                return
+                LOGGER.debug(f"Table {relation.render()} does not exists - Ignoring")
+                return None
+            raise e
+
+        table_type = get_table_type(table["Table"])
+        table_location = table["Table"].get("StorageDescriptor", {}).get("Location")
+        if table_type.is_physical():
+            if not table_location:
+                raise S3LocationException(
+                    f"Relation {relation.render()} is of type '{table_type.value}' which requires a location, "
+                    f"but no location returned by Glue."
+                )
+            LOGGER.debug(f"{relation.render()} is stored in {table_location}")
+            return table_location
+
+        return None
 
     @available
-    def clean_up_partitions(self, database_name: str, table_name: str, where_condition: str):
+    def clean_up_partitions(self, relation: AthenaRelation, where_condition: str):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
@@ -250,8 +263,8 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
         paginator = glue_client.get_paginator("get_partitions")
         partition_params = {
-            "DatabaseName": database_name,
-            "TableName": table_name,
+            "DatabaseName": relation.schema,
+            "TableName": relation.identifier,
             "Expression": where_condition,
             "ExcludeColumnSchema": True,
         }
@@ -261,8 +274,8 @@ class AthenaAdapter(SQLAdapter):
             self.delete_from_s3(partition["StorageDescriptor"]["Location"])
 
     @available
-    def clean_up_table(self, database_name: str, table_name: str):
-        table_location = self.get_table_location(database_name, table_name)
+    def clean_up_table(self, relation: AthenaRelation):
+        table_location = self.get_glue_table_location(relation)
 
         # this check avoid issues for when the table location is an empty string
         # or when the table do not exist and table location is None
@@ -276,23 +289,22 @@ class AthenaAdapter(SQLAdapter):
     @available
     def upload_seed_to_s3(
         self,
-        s3_data_dir: Optional[str],
-        s3_data_naming: Optional[str],
-        external_location: Optional[str],
-        database_name: str,
-        table_name: str,
+        relation: AthenaRelation,
         table: agate.Table,
+        s3_data_dir: Optional[str] = None,
+        s3_data_naming: Optional[str] = None,
+        external_location: Optional[str] = None,
     ) -> str:
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
         # TODO: consider using the workgroup default location when configured
-        s3_location = self.s3_table_location(
-            s3_data_dir, s3_data_naming, database_name, table_name, external_location=external_location
+        s3_location = self.generate_s3_location(
+            relation, s3_data_dir, s3_data_naming, external_location=external_location
         )
         bucket, prefix = self._parse_s3_path(s3_location)
 
-        file_name = f"{table_name}.csv"
+        file_name = f"{relation.identifier}.csv"
         object_name = path.join(prefix, file_name)
 
         with boto3_client_lock:
@@ -318,14 +330,14 @@ class AthenaAdapter(SQLAdapter):
         if self._s3_path_exists(bucket_name, prefix):
             s3_resource = client.session.resource("s3", region_name=client.region_name, config=get_boto3_config())
             s3_bucket = s3_resource.Bucket(bucket_name)
-            logger.debug(f"Deleting table data: path='{s3_path}', bucket='{bucket_name}', prefix='{prefix}'")
+            LOGGER.debug(f"Deleting table data: path='{s3_path}', bucket='{bucket_name}', prefix='{prefix}'")
             response = s3_bucket.objects.filter(Prefix=prefix).delete()
             is_all_successful = True
             for res in response:
                 if "Errors" in res:
                     for err in res["Errors"]:
                         is_all_successful = False
-                        logger.error(
+                        LOGGER.error(
                             "Failed to delete files: Key='{}', Code='{}', Message='{}', s3_bucket='{}'",
                             err["Key"],
                             err["Code"],
@@ -335,7 +347,7 @@ class AthenaAdapter(SQLAdapter):
             if is_all_successful is False:
                 raise DbtRuntimeError("Failed to delete files from S3.")
         else:
-            logger.debug("S3 path does not exist")
+            LOGGER.debug("S3 path does not exist")
 
     @staticmethod
     def _parse_s3_path(s3_path: str) -> Tuple[str, str]:
@@ -386,7 +398,7 @@ class AthenaAdapter(SQLAdapter):
             "table_database": database,
             "table_schema": table["DatabaseName"],
             "table_name": table["Name"],
-            "table_type": self.relation_type_map[table.get("TableType", "EXTERNAL_TABLE")].value,
+            "table_type": RELATION_TYPE_MAP[table.get("TableType", "EXTERNAL_TABLE")].value,
             "table_comment": table.get("Parameters", {}).get("comment", table.get("Description", "")),
         }
         return [
@@ -489,7 +501,7 @@ class AthenaAdapter(SQLAdapter):
                 tables = page["TableList"]
                 for table in tables:
                     if "TableType" not in table:
-                        logger.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
+                        LOGGER.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
                         continue
                     _type = table["TableType"]
                     if _type == "VIRTUAL_VIEW":
@@ -509,56 +521,29 @@ class AthenaAdapter(SQLAdapter):
         except ClientError as e:
             # don't error out when schema doesn't exist
             # this allows dbt to create and manage schemas/databases
-            logger.debug(f"Schema '{schema_relation.schema}' does not exist - Ignoring: {e}")
+            LOGGER.debug(f"Schema '{schema_relation.schema}' does not exist - Ignoring: {e}")
 
         return relations
 
     @available
-    def get_table_type(self, db_name, table_name) -> TableType:
+    def swap_table(self, src_relation: AthenaRelation, target_relation: AthenaRelation):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
-        try:
-            response = glue_client.get_table(DatabaseName=db_name, Name=table_name)
-            _type = self.relation_type_map.get(response.get("Table", {}).get("TableType"))
-            _specific_type = response.get("Table", {}).get("Parameters", {}).get("table_type", "")
-
-            if _specific_type.lower() == "iceberg":
-                _type = TableType.ICEBERG
-
-            if _type is None:
-                raise ValueError("Table type cannot be None")
-
-            logger.debug(f"table_name : {table_name}")
-            logger.debug(f"table type : {_type}")
-
-            return _type
-
-        except glue_client.exceptions.EntityNotFoundException as e:
-            logger.debug(f"Error calling Glue get_table: {e}")
-
-    @available
-    def swap_table(self, src_database: str, src_table_name: str, target_database: str, target_table_name: str):
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
-
-        src_table = glue_client.get_table(DatabaseName=src_database, Name=src_table_name).get("Table")
-        src_table_partitions = glue_client.get_partitions(DatabaseName=src_database, TableName=src_table_name).get(
-            "Partitions"
-        )
+        src_table = glue_client.get_table(DatabaseName=src_relation.schema, Name=src_relation.identifier).get("Table")
+        src_table_partitions = glue_client.get_partitions(
+            DatabaseName=src_relation.schema, TableName=src_relation.identifier
+        ).get("Partitions")
 
         target_table_partitions = glue_client.get_partitions(
-            DatabaseName=target_database, TableName=target_table_name
+            DatabaseName=target_relation.schema, TableName=target_relation.identifier
         ).get("Partitions")
 
         target_table_version = {
-            "Name": target_table_name,
+            "Name": target_relation.identifier,
             "StorageDescriptor": src_table["StorageDescriptor"],
             "PartitionKeys": src_table["PartitionKeys"],
             "TableType": src_table["TableType"],
@@ -567,32 +552,30 @@ class AthenaAdapter(SQLAdapter):
         }
 
         # perform a table swap
-        glue_client.update_table(DatabaseName=target_database, TableInput=target_table_version)
-        logger.debug(
-            f"Table {target_database}.{target_table_name} swapped with the content of {src_database}.{src_table}"
-        )
+        glue_client.update_table(DatabaseName=target_relation.schema, TableInput=target_table_version)
+        LOGGER.debug(f"Table {target_relation.render()} swapped with the content of {src_relation.render()}")
 
         # we delete the target table partitions in any case
         # if source table has partitions we need to delete and add partitions
         # it source table hasn't any partitions we need to delete target table partitions
         if target_table_partitions:
             glue_client.batch_delete_partition(
-                DatabaseName=target_database,
-                TableName=target_table_name,
+                DatabaseName=target_relation.schema,
+                TableName=target_relation.identifier,
                 PartitionsToDelete=[{"Values": i["Values"]} for i in target_table_partitions],
             )
 
         if src_table_partitions:
             glue_client.batch_create_partition(
-                DatabaseName=target_database,
-                TableName=target_table_name,
+                DatabaseName=target_relation.schema,
+                TableName=target_relation.identifier,
                 PartitionInputList=[
                     {"Values": p["Values"], "StorageDescriptor": p["StorageDescriptor"], "Parameters": p["Parameters"]}
                     for p in src_table_partitions
                 ],
             )
 
-    def _get_glue_table_versions_to_expire(self, database_name: str, table_name: str, to_keep: int):
+    def _get_glue_table_versions_to_expire(self, relation: AthenaRelation, to_keep: int):
         """
         Given a table and the amount of its version to keep, it returns the versions to delete
         """
@@ -605,25 +588,25 @@ class AthenaAdapter(SQLAdapter):
         paginator = glue_client.get_paginator("get_table_versions")
         response_iterator = paginator.paginate(
             **{
-                "DatabaseName": database_name,
-                "TableName": table_name,
+                "DatabaseName": relation.schema,
+                "TableName": relation.identifier,
             }
         )
         table_versions = response_iterator.build_full_result().get("TableVersions")
-        logger.debug(f"Total table versions: {[v['VersionId'] for v in table_versions]}")
+        LOGGER.debug(f"Total table versions: {[v['VersionId'] for v in table_versions]}")
         table_versions_ordered = sorted(table_versions, key=lambda i: int(i["Table"]["VersionId"]), reverse=True)
         return table_versions_ordered[int(to_keep) :]
 
     @available
-    def expire_glue_table_versions(self, database_name: str, table_name: str, to_keep: int, delete_s3: bool):
+    def expire_glue_table_versions(self, relation: AthenaRelation, to_keep: int, delete_s3: bool):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
-        versions_to_delete = self._get_glue_table_versions_to_expire(database_name, table_name, to_keep)
-        logger.debug(f"Versions to delete: {[v['VersionId'] for v in versions_to_delete]}")
+        versions_to_delete = self._get_glue_table_versions_to_expire(relation, to_keep)
+        LOGGER.debug(f"Versions to delete: {[v['VersionId'] for v in versions_to_delete]}")
 
         deleted_versions = []
         for v in versions_to_delete:
@@ -631,16 +614,16 @@ class AthenaAdapter(SQLAdapter):
             location = v["Table"]["StorageDescriptor"]["Location"]
             try:
                 glue_client.delete_table_version(
-                    DatabaseName=database_name, TableName=table_name, VersionId=str(version)
+                    DatabaseName=relation.schema, TableName=relation.identifier, VersionId=str(version)
                 )
                 deleted_versions.append(version)
-                logger.debug(f"Deleted version {version} of table {database_name}.{table_name} ")
+                LOGGER.debug(f"Deleted version {version} of table {relation.render()} ")
                 if delete_s3:
                     self.delete_from_s3(location)
             except Exception as err:
-                logger.debug(f"There was an error when expiring table version {version} with error: {err}")
+                LOGGER.debug(f"There was an error when expiring table version {version} with error: {err}")
 
-            logger.debug(f"{location} was deleted")
+            LOGGER.debug(f"{location} was deleted")
 
         return deleted_versions
 
@@ -716,17 +699,18 @@ class AthenaAdapter(SQLAdapter):
             table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)["Table"]
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
-                logger.debug("table not exist, catching the error")
+                LOGGER.debug("table not exist, catching the error")
                 return []
             else:
-                logger.error(e)
+                LOGGER.error(e)
                 raise e
-        table_type = self.get_table_type(relation.schema, relation.identifier)
+
+        table_type = get_table_type(table)
 
         columns = [c for c in table["StorageDescriptor"]["Columns"] if self._is_current_column(c)]
         partition_keys = table.get("PartitionKeys", [])
 
-        logger.debug(f"Columns in relation {relation.identifier}: {columns + partition_keys}")
+        LOGGER.debug(f"Columns in relation {relation.identifier}: {columns + partition_keys}")
 
         return [
             AthenaColumn(column=c["Name"], dtype=c["Type"], table_type=table_type) for c in columns + partition_keys
@@ -745,10 +729,97 @@ class AthenaAdapter(SQLAdapter):
 
         try:
             glue_client.delete_table(DatabaseName=schema_name, Name=table_name)
-            logger.debug(f"Deleted table from glue catalog: {relation.render()}")
+            LOGGER.debug(f"Deleted table from glue catalog: {relation.render()}")
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
-                logger.debug(f"Table {relation.render()} does not exist and will not be deleted, ignoring")
+                LOGGER.debug(f"Table {relation.render()} does not exist and will not be deleted, ignoring")
             else:
-                logger.error(e)
+                LOGGER.error(e)
                 raise e
+
+    @available.parse_none
+    def valid_snapshot_target(self, relation: BaseRelation) -> None:
+        """Log an error to help developers migrate to the new snapshot logic"""
+        super().valid_snapshot_target(relation)
+        columns = self.get_columns_in_relation(relation)
+        names = {c.name.lower() for c in columns}
+
+        table_columns = [col for col in names if not col.startswith("dbt_") and col != "is_current_record"]
+
+        if "dbt_unique_key" in names:
+            sql = self._generate_snapshot_migration_sql(relation=relation, table_columns=table_columns)
+            msg = (
+                f"{'!'*90}\n"
+                "The snapshot logic of dbt-athena has changed in an incompatible way to be more consistent "
+                "with the dbt-core implementation.\nYou will need to migrate your existing snapshot tables to be "
+                "able to keep using them with the latest dbt-athena version.\nYou can find more information "
+                "in the release notes:\nhttps://github.com/dbt-athena/dbt-athena/releases\n"
+                f"{'!'*90}\n\n"
+                "You can use the example query below as a baseline to perform the migration:\n\n"
+                f"{'-'*90}\n"
+                f"{sql}\n"
+                f"{'-'*90}\n\n"
+            )
+            LOGGER.error(msg)
+            raise SnapshotMigrationRequired("Look into 1.5 dbt-athena docs for the complete migration procedure")
+
+    def _generate_snapshot_migration_sql(self, relation: AthenaRelation, table_columns: List[str]) -> str:
+        """Generate a sequence of queries that can be used to migrate the existing table to the new format.
+
+        The queries perform the following steps:
+        - Backup the existing table
+        - Make the necessary modifications and store the results in a staging table
+        - Delete the target table (users might have to delete the S3 files manually)
+        - Copy the content of the staging table to the final table
+        - Delete the staging table
+        """
+        col_csv = f",\n{' '*16}".join(table_columns)
+        staging_relation = relation.incorporate(
+            path={"identifier": relation.identifier + "__dbt_tmp_migration_staging"}
+        )
+        ctas = dedent(
+            f"""\
+            select
+                {col_csv},
+                dbt_snapshot_at as dbt_updated_at,
+                dbt_valid_from,
+                if(dbt_valid_to > cast('9000-01-01' as timestamp), null, dbt_valid_to) as dbt_valid_to,
+                dbt_scd_id
+            from {relation}
+            where dbt_change_type != 'delete'
+            ;
+            """
+        )
+        staging_sql = self.execute_macro(
+            "create_table_as", kwargs=dict(temporary=True, relation=staging_relation, compiled_code=ctas)
+        )
+
+        backup_relation = relation.incorporate(path={"identifier": relation.identifier + "__dbt_tmp_migration_backup"})
+        backup_sql = self.execute_macro(
+            "create_table_as",
+            kwargs=dict(temporary=True, relation=backup_relation, compiled_code=f"select * from {relation};"),
+        )
+
+        drop_target_sql = f"drop table {relation.render_hive()};"
+
+        copy_to_target_sql = self.execute_macro(
+            "create_table_as", kwargs=dict(relation=relation, compiled_code=f"select * from {staging_relation};")
+        )
+
+        drop_staging_sql = f"drop table {staging_relation.render_hive()};"
+
+        return "\n".join(
+            [
+                "-- Backup original table",
+                backup_sql.strip(),
+                "\n\n-- Store new results in staging table",
+                staging_sql.strip(),
+                "\n\n-- Drop target table\n"
+                "-- Note: you will need to manually remove the S3 files if you have a static table location\n",
+                drop_target_sql.strip(),
+                "\n\n-- Copy staging to target",
+                copy_to_target_sql.strip(),
+                "\n\n-- Drop staging table",
+                drop_staging_sql.strip(),
+            ]
+        )

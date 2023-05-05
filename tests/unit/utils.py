@@ -1,5 +1,6 @@
 import os
 import string
+from typing import Optional
 
 import agate
 import boto3
@@ -169,8 +170,16 @@ class MockAWSService:
             },
         )
 
-    def create_table(self, table_name: str, database_name: str = DATABASE_NAME, catalog_id: str = CATALOG_ID):
+    def create_table(
+        self,
+        table_name: str,
+        database_name: str = DATABASE_NAME,
+        catalog_id: str = CATALOG_ID,
+        location: Optional[str] = "auto",
+    ):
         glue = boto3.client("glue", region_name=AWS_REGION)
+        if location == "auto":
+            location = f"s3://{BUCKET}/tables/{table_name}"
         glue.create_table(
             CatalogId=catalog_id,
             DatabaseName=database_name,
@@ -187,7 +196,7 @@ class MockAWSService:
                             "Type": "string",
                         },
                     ],
-                    "Location": f"s3://{BUCKET}/tables/{table_name}",
+                    "Location": location,
                 },
                 "PartitionKeys": [
                     {
