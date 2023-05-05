@@ -734,6 +734,27 @@ class AthenaAdapter(SQLAdapter):
             AthenaColumn(column=c["Name"], dtype=c["Type"], table_type=table_type) for c in columns + partition_keys
         ]
 
+    @available
+    def delete_from_glue_catalog(self, relation: AthenaRelation):
+        schema_name = relation.schema
+        table_name = relation.identifier
+
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        try:
+            glue_client.delete_table(DatabaseName=schema_name, Name=table_name)
+            logger.debug(f"Deleted table from glue catalog: {relation.render()}")
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "EntityNotFoundException":
+                logger.debug(f"Table {relation.render()} does not exist and will not be deleted, ignoring")
+            else:
+                logger.error(e)
+                raise e
+
     @available.parse_none
     def valid_snapshot_target(self, relation: BaseRelation) -> None:
         """Log an error to help developers migrate to the new snapshot logic"""

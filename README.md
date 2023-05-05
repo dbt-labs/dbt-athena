@@ -9,18 +9,18 @@
 ## Features
 
 * Supports dbt version `1.4.*`
-* Supports [Seeds][seeds]
+* Supports [seeds][seeds]
 * Correctly detects views and their columns
 * Supports [table materialization][table]
-  * [Iceberg tables][athena-iceberg] is supported **only with Athena Engine v3** and **a unique table location**
+  * [Iceberg tables][athena-iceberg] are supported **only with Athena Engine v3** and **a unique table location**
   (see table location section below)
-  * Hive tables is supported by both Athena engines.
+  * Hive tables are supported by both Athena engines.
 * Supports [incremental models][incremental]
-  * On iceberg tables :
-    * Support the use of `unique_key` only with the `merge` strategy
-    * Support the `append` strategy
+  * On Iceberg tables :
+    * Supports the use of `unique_key` only with the `merge` strategy
+    * Supports the `append` strategy
   * On Hive tables :
-    * Support two incremental update strategies: `insert_overwrite` and `append`
+    * Supports two incremental update strategies: `insert_overwrite` and `append`
     * Does **not** support the use of `unique_key`
 * Supports [snapshots][snapshots]
 * Does not support [Python models][python-models]
@@ -63,7 +63,7 @@ Credentials can be passed directly to the adapter, or they can be [determined au
 You can either:
 - configure `aws_access_key_id` and `aws_secret_access_key`
 - configure `aws_profile_name` to match a profile defined in your AWS credentials file
-Checkout DBT profile configuration below for details.
+Checkout dbt profile configuration below for details.
 
 ### Configuring your profile
 
@@ -141,17 +141,19 @@ _Additional information_
   * lf tags to associate with the table columns
   * format: `{"tag1": {"value1": ["column1": "column2"]}}`
 
+[create-table-as]: https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html#ctas-table-properties
+
 ### Table location
 
 The location in which a table is saved is determined by:
 
 1. If `external_location` is defined, that value is used.
 2. If `s3_data_dir` is defined, the path is determined by that and `s3_data_naming`
-3. If `s3_data_dir` is not defined data is stored under `s3_staging_dir/tables/`
+3. If `s3_data_dir` is not defined, data is stored under `s3_staging_dir/tables/`
 
 Here all the options available for `s3_data_naming`:
 * `uuid`: `{s3_data_dir}/{uuid4()}/`
-* `table_table`: `{s3_data_dir}/{table}/`
+* `table`: `{s3_data_dir}/{table}/`
 * `table_unique`: `{s3_data_dir}/{table}/{uuid4()}/`
 * `schema_table`: `{s3_data_dir}/{schema}/{table}/`
 * `s3_data_naming=schema_table_unique`: `{s3_data_dir}/{schema}/{table}/{uuid4()}/`
@@ -159,7 +161,7 @@ Here all the options available for `s3_data_naming`:
 It's possible to set the `s3_data_naming` globally in the target profile, or overwrite the value in the table config,
 or setting up the value for groups of model in dbt_project.yml.
 
-> Note: when using a work group with a default output location configured, `s3_data_naming` and any configured buckets are ignored and the location configured in the work group is used.
+> Note: when using a workgroup with a default output location configured, `s3_data_naming` and any configured buckets are ignored and the location configured in the workgroup is used.
 
 ### Incremental models
 
@@ -184,14 +186,14 @@ The following options are supported:
 * `append_new_columns`
 * `sync_all_columns`
 
-In detail, please refer to [dbt docs](https://docs.getdbt.com/docs/build/incremental-models#what-if-the-columns-of-my-incremental-model-change).
+For details, please refer to [dbt docs](https://docs.getdbt.com/docs/build/incremental-models#what-if-the-columns-of-my-incremental-model-change).
 
 ### Iceberg
 
 The adapter supports table materialization for Iceberg.
 
 To get started just add this as your model:
-```
+```sql
 {{ config(
     materialized='table',
     table_type='iceberg',
@@ -202,21 +204,21 @@ To get started just add this as your model:
     	}
 ) }}
 
-SELECT
-	'A' AS user_id,
-	'pi' AS name,
-	'active' AS status,
-	17.89 AS cost,
-	1 AS quantity,
-	100000000 AS quantity_big,
-	current_date AS my_date
+select
+	'A' as user_id,
+	'pi' as name,
+	'active' as status,
+	17.89 as cost,
+	1 as quantity,
+	100000000 as quantity_big,
+	current_date as my_date
 ```
 
 Iceberg supports bucketing as hidden partitions, therefore use the `partitioned_by` config to add specific bucketing conditions.
 
 Iceberg supports several table formats for data : `PARQUET`, `AVRO` and `ORC`.
 
-It is possible to use iceberg in an incremental fashion, specifically 2 strategies are supported:
+It is possible to use Iceberg in an incremental fashion, specifically two strategies are supported:
 * `append`: new records are appended to the table, this can lead to duplicates
 * `merge`: must be used in combination with `unique_key` and it's only available with Engine version 3.
    It performs an upsert, new record are added, and record already existing are updated. If
@@ -231,28 +233,28 @@ It is possible to use iceberg in an incremental fashion, specifically 2 strategi
     table_type='iceberg',
     incremental_strategy='merge',
     unique_key='user_id',
-    delete_condition="src.status != 'active' and target.my_date < now() - interval '2' year"
-    format='parquet',
+    delete_condition="src.status != 'active' and target.my_date < now() - interval '2' year",
+    format='parquet'
 ) }}
 
-SELECT
-	'A' AS user_id,
-	'pi' AS name,
-	'active' AS status,
-	17.89 AS cost,
-	1 AS quantity,
-	100000000 AS quantity_big,
-	current_date AS my_date
+select
+	'A' as user_id,
+	'pi' as name,
+	'active' as status,
+	17.89 as cost,
+	1 as quantity,
+	100000000 as quantity_big,
+	current_date as my_date
 ```
 
-### High available table materialization
+### High availability table materialization
 The current implementation of the table materialization can lead to downtime, as target table is dropped and re-created.
 To have the less destructive behavior it's possible to use `table='table_hive_ha'` materialization.
-**table_hive_ha** leverage the table versions feature of glue catalog, creating a tmp table and swapping
-the target table to the location of the tmp table.
-This materialization is only available for `table_type=hive` and requires using unique locations.
+**table_hive_ha** leverages the table versions feature of Glue catalog, creating a temp table and swapping
+the target table to the location of the temp table.
+This materialization is only available for `table_type='hive'` and requires using unique locations.
 
-```
+```sql
 {{ config(
     materialized='table_hive_ha',
     format='parquet',
@@ -271,19 +273,19 @@ select
   'disabled' as status
 ```
 
-By default, the materialization keeps the last 4 table versions, you can change it that setting `versions_to_keep`.
+By default, the materialization keeps the last 4 table versions, you can change it by setting `versions_to_keep`.
 
 #### Known issues
 * When swapping from a table with partitions to a table without (and the other way around), there could be a little downtime.
   In case high performances are needed consider bucketing instead of partitions
-* By default, Glue "duplicate" the versions internally, so the last 2 versions of a table point to the same location
-* It's recommended to have versions_to_keep>= 4, as this will avoid to have the older location removed
-* The macro athena__end_of_time needs to be overwritten by the user if using Athena v3 since it requires a precision parameter for timestamps
+* By default, Glue "duplicates" the versions internally, so the last two versions of a table point to the same location
+* It's recommended to have `versions_to_keep` >= 4, as this will avoid having the older location removed
+* The macro `athena__end_of_time` needs to be overwritten by the user if using Athena engine v3 since it requires a precision parameter for timestamps
 
 
 ## Snapshots
 
-The adapter supports snapshot materialization. It supports both timestamp and check strategy. To create a snapshot create a snapshot file in the snapshots directory. If directory does not exist create one.
+The adapter supports snapshot materialization. It supports both timestamp and check strategy. To create a snapshot create a snapshot file in the snapshots directory. If the directory does not exist create one.
 
 ### Timestamp strategy
 
@@ -324,21 +326,21 @@ MEIM.S1WA,2000.1,74897,
 ```
 
 model.sql
-```
+```sql
 {{ config(
     materialized='table'
 ) }}
 
-SELECT
-    ROW_NUMBER() OVER () AS id
+select
+    row_number() over() as id
     , *
-    , cast(from_unixtime(to_unixtime(now())) as timestamp(6)) AS refresh_timestamp
-FROM {{ ref('employment_indicators_november_2022_csv_tables') }}
+    , cast(from_unixtime(to_unixtime(now())) as timestamp(6)) as refresh_timestamp
+from {{ ref('employment_indicators_november_2022_csv_tables') }}
 ```
 
 timestamp strategy - model_snapshot_1
 
-```
+```sql
 {% snapshot model_snapshot_1 %}
 
 {{
@@ -349,15 +351,14 @@ timestamp strategy - model_snapshot_1
     )
 }}
 
-SELECT *
-
+select *
 from {{ ref('model') }}
 
 {% endsnapshot %}
 ```
 
 invalidate hard deletes - model_snapshot_2
-```
+```sql
 {% snapshot model_snapshot_2 %}
 
 {{
@@ -369,13 +370,14 @@ invalidate hard deletes - model_snapshot_2
         invalidate_hard_deletes=True,
     )
 }}
-SELECT * from {{ ref('model') }}
+select *
+from {{ ref('model') }}
 
 {% endsnapshot %}
 ```
 
 check strategy - model_snapshot_3
-```
+```sql
 {% snapshot model_snapshot_3 %}
 
 {{
@@ -386,7 +388,8 @@ check strategy - model_snapshot_3
         check_cols=['series_reference','data_value']
     )
 }}
-SELECT * from {{ ref('model') }}
+select *
+from {{ ref('model') }}
 
 {% endsnapshot %}
 ```
@@ -433,6 +436,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/maiarareinaldo"><img src="https://avatars.githubusercontent.com/u/72740386?v=4?s=100" width="100px;" alt="Maiara Reinaldo"/><br /><sub><b>Maiara Reinaldo</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3Amaiarareinaldo" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/henriblancke"><img src="https://avatars.githubusercontent.com/u/1708162?v=4?s=100" width="100px;" alt="Henri Blancke"/><br /><sub><b>Henri Blancke</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/commits?author=henriblancke" title="Code">💻</a> <a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3Ahenriblancke" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/svdimchenko"><img src="https://avatars.githubusercontent.com/u/39801237?v=4?s=100" width="100px;" alt="Serhii Dimchenko"/><br /><sub><b>Serhii Dimchenko</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/commits?author=svdimchenko" title="Code">💻</a> <a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3Asvdimchenko" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/chrischin478"><img src="https://avatars.githubusercontent.com/u/47199426?v=4?s=100" width="100px;" alt="chrischin478"/><br /><sub><b>chrischin478</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/commits?author=chrischin478" title="Code">💻</a> <a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3Achrischin478" title="Bug reports">🐛</a></td>
     </tr>
   </tbody>
 </table>

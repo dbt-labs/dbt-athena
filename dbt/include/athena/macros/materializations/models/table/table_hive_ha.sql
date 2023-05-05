@@ -13,7 +13,7 @@
                                                 database=database,
                                                 type='table') -%}
 
-  {%- if s3_data_naming in ['table', 'table_schema'] or external_location is not none -%}
+  {%- if s3_data_naming in ['table', 'schema_table'] or external_location is not none -%}
     {%- set error_unique_location_hive_ha -%}
         You need to have an unique table location when using table_hive_ha materialization.
         Use s3_data_naming table_unique or schema_table_unique, and avoid to set an explicit external_location.
@@ -38,9 +38,7 @@
     {% set tmp_relation = make_temp_relation(target_relation, '__ha') %}
 
     -- drop the tmp_relation
-    {% call statement('drop_tmp_relation', auto_begin=False) -%}
-      drop table if exists {{ tmp_relation.render_hive() }}
-    {%- endcall %}
+    {{ adapter.delete_from_glue_catalog(tmp_relation) }}
 
     -- create tmp table
     {% call statement('main') -%}
@@ -54,9 +52,7 @@
     {% set swap_table = adapter.swap_table(tmp_relation.schema, tmp_relation.name, target_relation.schema, target_relation.table) %}
 
     -- delete glue tmp table, do not use drop_relation, as it will remove data of the target table
-    {% call statement('drop_tmp_relation', auto_begin=False) -%}
-      drop table if exists {{ tmp_relation.render_hive() }}
-    {%- endcall %}
+    {{ adapter.delete_from_glue_catalog(tmp_relation) }}
 
     {% set result_table_version_expiration = adapter.expire_glue_table_versions(target_relation.schema, target_relation.table, versions_to_keep, True) %}
 

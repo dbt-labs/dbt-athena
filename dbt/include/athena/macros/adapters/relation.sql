@@ -1,16 +1,11 @@
 {% macro athena__drop_relation(relation) -%}
-  {% set rel_type = adapter.get_table_type(relation.schema, relation.table) %}
-  {%- if rel_type is not none %}
-    {%- if rel_type == 'table' %}
-      {%- do adapter.clean_up_table(relation.schema, relation.table) -%}
+  {% set rel_type_object = adapter.get_table_type(relation.schema, relation.identifier) %}
+  {%- if rel_type_object is not none %}
+    {% set rel_type = rel_type_object.value %}
+    {%- if rel_type == 'table' or rel_type == 'iceberg_table' %}
+      {%- do adapter.clean_up_table(relation.schema, relation.identifier) -%}
     {%- endif %}
-    {% call statement('drop_relation', auto_begin=False) -%}
-      {%- if relation.type == 'view' -%}
-        drop {{ relation.type }} if exists {{ relation.render() }}
-      {%- else -%}
-        drop {{ relation.type }} if exists {{ relation.render_hive() }}
-      {% endif %}
-    {%- endcall %}
+    {%- do adapter.delete_from_glue_catalog(relation) -%}
   {%- endif %}
 {% endmacro %}
 

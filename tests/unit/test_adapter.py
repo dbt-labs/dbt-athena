@@ -1033,6 +1033,34 @@ class TestAthenaAdapter:
         )
         assert columns == []
 
+    @mock_athena
+    @mock_glue
+    def test_delete_from_glue_catalog(self):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.mock_aws_service.create_table("tbl_name")
+        self.adapter.acquire_connection("dummy")
+        relation = self.adapter.Relation.create(database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="tbl_name")
+        self.adapter.delete_from_glue_catalog(relation)
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        tables_list = glue.get_tables(DatabaseName=DATABASE_NAME).get("TableList")
+        assert tables_list == []
+
+    @mock_athena
+    @mock_glue
+    def test_delete_from_glue_catalog_not_found_table(self, dbt_debug_caplog):
+        self.mock_aws_service.create_data_catalog()
+        self.mock_aws_service.create_database()
+        self.mock_aws_service.create_table("tbl_name")
+        self.adapter.acquire_connection("dummy")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="tbl_does_not_exist"
+        )
+        delete_table = self.adapter.delete_from_glue_catalog(relation)
+        assert delete_table is None
+        error_msg = f"Table {relation.render()} does not exist and will not be deleted, ignoring"
+        assert error_msg in dbt_debug_caplog.getvalue()
+
     @pytest.mark.parametrize(
         "response,database,table,columns,lf_tags,expected",
         [
