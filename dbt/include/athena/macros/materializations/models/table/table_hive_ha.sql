@@ -46,15 +46,17 @@
     {%- endcall %}
 
     -- save the original target table location before swapping
-    {% set original_table_location = adapter.get_table_location(target_relation.schema, target_relation.table) %}
+    {% set original_table_location = adapter.get_glue_table_location(target_relation) %}
 
     -- swap table
-    {% set swap_table = adapter.swap_table(tmp_relation.schema, tmp_relation.name, target_relation.schema, target_relation.table) %}
+    {% set swap_table = adapter.swap_table(tmp_relation, target_relation) %}
 
     -- delete glue tmp table, do not use drop_relation, as it will remove data of the target table
     {{ adapter.delete_from_glue_catalog(tmp_relation) }}
 
-    {% set result_table_version_expiration = adapter.expire_glue_table_versions(target_relation.schema, target_relation.table, versions_to_keep, True) %}
+    {% set result_table_version_expiration = adapter.expire_glue_table_versions(target_relation,
+                                                                                versions_to_keep,
+                                                                                True) %}
 
   {% endif %}
 
