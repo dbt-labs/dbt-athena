@@ -15,13 +15,11 @@
   {%- set location_property = 'external_location' -%}
   {%- set partition_property = 'partitioned_by' -%}
   {%- set work_group_output_location_enforced = adapter.is_work_group_output_location_enforced() -%}
-  {%- set location = adapter.s3_table_location(s3_data_dir,
-                                               s3_data_naming,
-                                               relation.schema,
-                                               relation.identifier,
-                                               relation.s3_path_table_part,
-                                               external_location,
-                                               temporary) -%}
+  {%- set location = adapter.generate_s3_location(relation,
+                                                 s3_data_dir,
+                                                 s3_data_naming,
+                                                 external_location,
+                                                 temporary) -%}
 
   {%- if materialized == 'table_hive_ha' -%}
     {%- set location = location.replace('__ha', '') -%}
@@ -39,7 +37,7 @@
       {%- set bucket_count = none -%}
       {% do log(ignored_bucket_iceberg) %}
     {%- endif -%}
-    {%- if s3_data_naming in ['table', 'table_schema'] or external_location is not none -%}
+    {%- if s3_data_naming in ['table', 'schema_table'] or external_location is not none -%}
       {%- set error_unique_location_iceberg -%}
         You need to have an unique table location when creating Iceberg table. Right now we are building tables in
         a destructive way but in the near future we will be using the RENAME feature to provide near-zero downtime.

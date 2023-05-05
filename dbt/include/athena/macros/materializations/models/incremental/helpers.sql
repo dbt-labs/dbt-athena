@@ -64,7 +64,7 @@
     {%- do partitions.append('(' + single_partition_expression + ')') -%}
   {%- endfor -%}
   {%- for i in range(partitions | length) %}
-    {%- do adapter.clean_up_partitions(target_relation.schema, target_relation.table, partitions[i]) -%}
+    {%- do adapter.clean_up_partitions(target_relation, partitions[i]) -%}
   {%- endfor -%}
 {%- endmacro %}
 
