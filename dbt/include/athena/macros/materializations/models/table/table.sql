@@ -25,11 +25,11 @@
   {%- if (
     table_type == 'hive'
     and is_ha
-    and (s3_data_naming in ['table', 'schema_table'] or external_location is not none)
+    and ('unique' not in s3_data_naming or external_location is not none)
   ) -%}
       {%- set error_unique_location_hive_ha -%}
           You need to have an unique table location when using ha config with hive table.
-          Use s3_data_naming table_unique or schema_table_unique, and avoid to set an explicit
+          Use s3_data_naming unique, table_unique or schema_table_unique, and avoid to set an explicit
           external_location.
       {%- endset -%}
       {% do exceptions.raise_compiler_error(error_unique_location_hive_ha) %}
