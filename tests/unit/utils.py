@@ -132,13 +132,15 @@ class TestAdapterConversions:
 
 
 class MockAWSService:
-    def create_data_catalog(self, catalog_name: str = DATA_CATALOG_NAME, catalog_type: str = "GLUE"):
+    def create_data_catalog(
+        self, catalog_name: str = DATA_CATALOG_NAME, catalog_type: str = "GLUE", catalog_id: str = CATALOG_ID
+    ):
         athena = boto3.client("athena", region_name=AWS_REGION)
-        athena.create_data_catalog(Name=catalog_name, Type=catalog_type, Parameters={"catalog-id": CATALOG_ID})
+        athena.create_data_catalog(Name=catalog_name, Type=catalog_type, Parameters={"catalog-id": catalog_id})
 
-    def create_database(self, name: str = DATABASE_NAME):
+    def create_database(self, name: str = DATABASE_NAME, catalog_id: str = CATALOG_ID):
         glue = boto3.client("glue", region_name=AWS_REGION)
-        glue.create_database(DatabaseInput={"Name": name}, CatalogId=CATALOG_ID)
+        glue.create_database(DatabaseInput={"Name": name}, CatalogId=catalog_id)
 
     def create_view(self, view_name: str):
         glue = boto3.client("glue", region_name=AWS_REGION)
@@ -167,9 +169,10 @@ class MockAWSService:
             },
         )
 
-    def create_table(self, table_name: str, database_name: str = DATABASE_NAME):
+    def create_table(self, table_name: str, database_name: str = DATABASE_NAME, catalog_id: str = CATALOG_ID):
         glue = boto3.client("glue", region_name=AWS_REGION)
         glue.create_table(
+            CatalogId=catalog_id,
             DatabaseName=database_name,
             TableInput={
                 "Name": table_name,
