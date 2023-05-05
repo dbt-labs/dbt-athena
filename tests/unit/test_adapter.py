@@ -383,7 +383,7 @@ class TestAthenaAdapter:
         relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier=view_name, type=RelationType.View
         )
-        assert self.adapter.get_glue_table_location(relation) == ""
+        assert self.adapter.get_glue_table_location(relation) is None
 
     @mock_glue
     @mock_s3

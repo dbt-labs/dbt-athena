@@ -218,21 +218,25 @@ class AthenaAdapter(SQLAdapter):
     def get_glue_table_location(self, relation: AthenaRelation) -> Optional[str]:
         """
         Helper function to get location of a relation in S3.
-        Will return nothing if the table does not exist
-        Will return empty if the relation is a view
+        Will return None if the table does not exist or does not have a location (views)
         """
         conn = self.connections.get_thread_connection()
         client = conn.handle
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
         try:
             table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
                 LOGGER.debug(f"Table {relation.render()} does not exists - Ignoring")
-                return
+                return None
             raise e
+
         table_location = table["Table"]["StorageDescriptor"]["Location"]
+        if table_location == "":
+            return None
+
         LOGGER.debug(f"{relation.render()} is stored in {table_location}")
         return table_location
 
