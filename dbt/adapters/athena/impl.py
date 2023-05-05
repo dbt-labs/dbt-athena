@@ -17,22 +17,16 @@ from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.exceptions import SnapshotMigrationRequired
-from dbt.adapters.athena.relation import (
-    AthenaRelation,
-    AthenaSchemaSearchMap,
-    S3DataNaming,
-    TableType,
-)
-from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id
+from dbt.adapters.athena.constants import LOGGER, RELATION_TYPE_MAP
+from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
+from dbt.adapters.athena.s3 import S3DataNaming
+from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id, get_table_type
 from dbt.adapters.base import available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import CompiledNode
-from dbt.events import AdapterLogger
 from dbt.exceptions import DbtRuntimeError
-
-logger = AdapterLogger("Athena")
 
 boto3_client_lock = Lock()
 
@@ -40,16 +34,6 @@ boto3_client_lock = Lock()
 class AthenaAdapter(SQLAdapter):
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
-
-    relation_type_map = {
-        "EXTERNAL_TABLE": TableType.TABLE,
-        "MANAGED_TABLE": TableType.TABLE,
-        "VIRTUAL_VIEW": TableType.VIEW,
-        "table": TableType.TABLE,
-        "view": TableType.VIEW,
-        "cte": TableType.CTE,
-        "materializedview": TableType.MATERIALIZED_VIEW,
-    }
 
     @classmethod
     def date_function(cls) -> str:
@@ -86,7 +70,7 @@ class AthenaAdapter(SQLAdapter):
             for failure in failures:
                 tag = failure.get("LFTag", {}).get("TagKey")
                 error = failure.get("Error", {}).get("ErrorMessage")
-                logger.error(f"Failed to set {tag} for {database}" + msg_appendix + f" - {error}")
+                LOGGER.error(f"Failed to set {tag} for {database}" + msg_appendix + f" - {error}")
             raise DbtRuntimeError(base_msg)
         return f"Added LF tags: {lf_tags} to {database}" + msg_appendix
 
@@ -119,7 +103,7 @@ class AthenaAdapter(SQLAdapter):
         lf_tags = lf_tags or conn.credentials.lf_tags
 
         if not lf_tags and not lf_tags_columns:
-            logger.debug("No LF tags configured")
+            LOGGER.debug("No LF tags configured")
         else:
             with boto3_client_lock:
                 lf_client = client.session.client(
@@ -134,7 +118,7 @@ class AthenaAdapter(SQLAdapter):
                 response = lf_client.add_lf_tags_to_resource(
                     Resource=resource, LFTags=[{"TagKey": key, "TagValues": [value]} for key, value in lf_tags.items()]
                 )
-                logger.debug(self.parse_lf_response(response, database, table, None, lf_tags))
+                LOGGER.debug(self.parse_lf_response(response, database, table, None, lf_tags))
 
             if self.lf_tags_columns_is_valid(lf_tags_columns):
                 for tag_key, tag_config in lf_tags_columns.items():
@@ -145,7 +129,7 @@ class AthenaAdapter(SQLAdapter):
                             },
                             LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}],
                         )
-                        logger.debug(self.parse_lf_response(response, database, table, columns, {tag_key: tag_value}))
+                        LOGGER.debug(self.parse_lf_response(response, database, table, columns, {tag_key: tag_value}))
 
     @available
     def is_work_group_output_location_enforced(self) -> bool:
@@ -185,9 +169,6 @@ class AthenaAdapter(SQLAdapter):
         creds = conn.credentials
         if s3_data_dir is not None:
             return s3_data_dir
-
-        if creds.s3_data_dir:
-            return creds.s3_data_dir
 
         return path.join(creds.s3_staging_dir, "tables")
 
@@ -248,11 +229,11 @@ class AthenaAdapter(SQLAdapter):
             table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
-                logger.debug(f"Table {relation.render()} does not exists - Ignoring")
+                LOGGER.debug(f"Table {relation.render()} does not exists - Ignoring")
                 return
             raise e
         table_location = table["Table"]["StorageDescriptor"]["Location"]
-        logger.debug(f"{relation.render()} is stored in {table_location}")
+        LOGGER.debug(f"{relation.render()} is stored in {table_location}")
         return table_location
 
     @available
@@ -331,14 +312,14 @@ class AthenaAdapter(SQLAdapter):
         if self._s3_path_exists(bucket_name, prefix):
             s3_resource = client.session.resource("s3", region_name=client.region_name, config=get_boto3_config())
             s3_bucket = s3_resource.Bucket(bucket_name)
-            logger.debug(f"Deleting table data: path='{s3_path}', bucket='{bucket_name}', prefix='{prefix}'")
+            LOGGER.debug(f"Deleting table data: path='{s3_path}', bucket='{bucket_name}', prefix='{prefix}'")
             response = s3_bucket.objects.filter(Prefix=prefix).delete()
             is_all_successful = True
             for res in response:
                 if "Errors" in res:
                     for err in res["Errors"]:
                         is_all_successful = False
-                        logger.error(
+                        LOGGER.error(
                             "Failed to delete files: Key='{}', Code='{}', Message='{}', s3_bucket='{}'",
                             err["Key"],
                             err["Code"],
@@ -348,7 +329,7 @@ class AthenaAdapter(SQLAdapter):
             if is_all_successful is False:
                 raise DbtRuntimeError("Failed to delete files from S3.")
         else:
-            logger.debug("S3 path does not exist")
+            LOGGER.debug("S3 path does not exist")
 
     @staticmethod
     def _parse_s3_path(s3_path: str) -> Tuple[str, str]:
@@ -399,7 +380,7 @@ class AthenaAdapter(SQLAdapter):
             "table_database": database,
             "table_schema": table["DatabaseName"],
             "table_name": table["Name"],
-            "table_type": self.relation_type_map[table.get("TableType", "EXTERNAL_TABLE")].value,
+            "table_type": RELATION_TYPE_MAP[table.get("TableType", "EXTERNAL_TABLE")].value,
             "table_comment": table.get("Parameters", {}).get("comment", table.get("Description", "")),
         }
         return [
@@ -502,7 +483,7 @@ class AthenaAdapter(SQLAdapter):
                 tables = page["TableList"]
                 for table in tables:
                     if "TableType" not in table:
-                        logger.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
+                        LOGGER.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
                         continue
                     _type = table["TableType"]
                     if _type == "VIRTUAL_VIEW":
@@ -522,37 +503,9 @@ class AthenaAdapter(SQLAdapter):
         except ClientError as e:
             # don't error out when schema doesn't exist
             # this allows dbt to create and manage schemas/databases
-            logger.debug(f"Schema '{schema_relation.schema}' does not exist - Ignoring: {e}")
+            LOGGER.debug(f"Schema '{schema_relation.schema}' does not exist - Ignoring: {e}")
 
         return relations
-
-    @available
-    def get_table_type(self, relation: AthenaRelation) -> Optional[TableType]:
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
-
-        try:
-            response = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)
-        except glue_client.exceptions.EntityNotFoundException as e:
-            logger.debug(f"Error calling Glue get_table: {e}")
-            return None
-
-        _type = self.relation_type_map.get(response.get("Table", {}).get("TableType"))
-        _specific_type = response.get("Table", {}).get("Parameters", {}).get("table_type", "")
-
-        if _specific_type.lower() == "iceberg":
-            _type = TableType.ICEBERG
-
-        if _type is None:
-            raise ValueError("Table type cannot be None")
-
-        logger.debug(f"table_name : {relation.identifier}")
-        logger.debug(f"table type : {_type}")
-
-        return _type
 
     @available
     def swap_table(self, src_relation: AthenaRelation, target_relation: AthenaRelation):
@@ -582,7 +535,7 @@ class AthenaAdapter(SQLAdapter):
 
         # perform a table swap
         glue_client.update_table(DatabaseName=target_relation.schema, TableInput=target_table_version)
-        logger.debug(f"Table {target_relation.render()} swapped with the content of {src_relation.render()}")
+        LOGGER.debug(f"Table {target_relation.render()} swapped with the content of {src_relation.render()}")
 
         # we delete the target table partitions in any case
         # if source table has partitions we need to delete and add partitions
@@ -622,7 +575,7 @@ class AthenaAdapter(SQLAdapter):
             }
         )
         table_versions = response_iterator.build_full_result().get("TableVersions")
-        logger.debug(f"Total table versions: {[v['VersionId'] for v in table_versions]}")
+        LOGGER.debug(f"Total table versions: {[v['VersionId'] for v in table_versions]}")
         table_versions_ordered = sorted(table_versions, key=lambda i: int(i["Table"]["VersionId"]), reverse=True)
         return table_versions_ordered[int(to_keep) :]
 
@@ -635,7 +588,7 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         versions_to_delete = self._get_glue_table_versions_to_expire(relation, to_keep)
-        logger.debug(f"Versions to delete: {[v['VersionId'] for v in versions_to_delete]}")
+        LOGGER.debug(f"Versions to delete: {[v['VersionId'] for v in versions_to_delete]}")
 
         deleted_versions = []
         for v in versions_to_delete:
@@ -646,13 +599,13 @@ class AthenaAdapter(SQLAdapter):
                     DatabaseName=relation.schema, TableName=relation.identifier, VersionId=str(version)
                 )
                 deleted_versions.append(version)
-                logger.debug(f"Deleted version {version} of table {relation.render()} ")
+                LOGGER.debug(f"Deleted version {version} of table {relation.render()} ")
                 if delete_s3:
                     self.delete_from_s3(location)
             except Exception as err:
-                logger.debug(f"There was an error when expiring table version {version} with error: {err}")
+                LOGGER.debug(f"There was an error when expiring table version {version} with error: {err}")
 
-            logger.debug(f"{location} was deleted")
+            LOGGER.debug(f"{location} was deleted")
 
         return deleted_versions
 
@@ -728,17 +681,18 @@ class AthenaAdapter(SQLAdapter):
             table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)["Table"]
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
-                logger.debug("table not exist, catching the error")
+                LOGGER.debug("table not exist, catching the error")
                 return []
             else:
-                logger.error(e)
+                LOGGER.error(e)
                 raise e
-        table_type = self.get_table_type(relation)
+
+        table_type = get_table_type(table)
 
         columns = [c for c in table["StorageDescriptor"]["Columns"] if self._is_current_column(c)]
         partition_keys = table.get("PartitionKeys", [])
 
-        logger.debug(f"Columns in relation {relation.identifier}: {columns + partition_keys}")
+        LOGGER.debug(f"Columns in relation {relation.identifier}: {columns + partition_keys}")
 
         return [
             AthenaColumn(column=c["Name"], dtype=c["Type"], table_type=table_type) for c in columns + partition_keys
@@ -757,12 +711,12 @@ class AthenaAdapter(SQLAdapter):
 
         try:
             glue_client.delete_table(DatabaseName=schema_name, Name=table_name)
-            logger.debug(f"Deleted table from glue catalog: {relation.render()}")
+            LOGGER.debug(f"Deleted table from glue catalog: {relation.render()}")
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
-                logger.debug(f"Table {relation.render()} does not exist and will not be deleted, ignoring")
+                LOGGER.debug(f"Table {relation.render()} does not exist and will not be deleted, ignoring")
             else:
-                logger.error(e)
+                LOGGER.error(e)
                 raise e
 
     @available.parse_none

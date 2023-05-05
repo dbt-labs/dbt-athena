@@ -1,5 +1,4 @@
 import decimal
-import os
 from unittest import mock
 from unittest.mock import patch
 
@@ -32,17 +31,10 @@ from .constants import (
     SHARED_DATA_CATALOG_NAME,
 )
 from .fixtures import seed_data
-from .utils import (
-    MockAWSService,
-    TestAdapterConversions,
-    config_from_parts_or_dicts,
-    inject_adapter,
-)
+from .utils import TestAdapterConversions, config_from_parts_or_dicts, inject_adapter
 
 
 class TestAthenaAdapter:
-    mock_aws_service = MockAWSService()
-
     def setup_method(self, _):
         project_cfg = {
             "name": "X",
@@ -366,12 +358,12 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
-    def test_get_table_location(self, dbt_debug_caplog):
+    def test_get_table_location(self, dbt_debug_caplog, mock_aws_service):
         table_name = "test_table"
         self.adapter.acquire_connection("dummy")
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_table(table_name)
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
+        mock_aws_service.create_table(table_name)
         relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -382,11 +374,25 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
-    def test_get_table_location_with_failure(self, dbt_debug_caplog):
+    def test_get_table_location_for_view(self, dbt_debug_caplog, mock_aws_service):
+        view_name = "view"
+        self.adapter.acquire_connection("dummy")
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
+        mock_aws_service.create_view(view_name)
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier=view_name, type=RelationType.View
+        )
+        assert self.adapter.get_glue_table_location(relation) == ""
+
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test_get_table_location_with_failure(self, dbt_debug_caplog, mock_aws_service):
         table_name = "test_table"
         self.adapter.acquire_connection("dummy")
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
         relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -395,24 +401,15 @@ class TestAthenaAdapter:
         assert self.adapter.get_glue_table_location(relation) is None
         assert f"Table {relation.render()} does not exists - Ignoring" in dbt_debug_caplog.getvalue()
 
-    @pytest.fixture(scope="function")
-    def aws_credentials(self):
-        """Mocked AWS Credentials for moto."""
-        os.environ["AWS_ACCESS_KEY_ID"] = "testing"
-        os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
-        os.environ["AWS_SECURITY_TOKEN"] = "testing"
-        os.environ["AWS_SESSION_TOKEN"] = "testing"
-        os.environ["AWS_DEFAULT_REGION"] = AWS_REGION
-
     @mock_glue
     @mock_s3
     @mock_athena
-    def test_clean_up_partitions_will_work(self, dbt_debug_caplog, aws_credentials):
+    def test_clean_up_partitions_will_work(self, dbt_debug_caplog, mock_aws_service):
         table_name = "table"
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_table(table_name)
-        self.mock_aws_service.add_data_in_table(table_name)
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
+        mock_aws_service.create_table(table_name)
+        mock_aws_service.add_data_in_table(table_name)
         relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -439,9 +436,9 @@ class TestAthenaAdapter:
 
     @mock_glue
     @mock_athena
-    def test_clean_up_table_table_does_not_exist(self, dbt_debug_caplog, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
+    def test_clean_up_table_table_does_not_exist(self, dbt_debug_caplog, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
         relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
@@ -456,11 +453,11 @@ class TestAthenaAdapter:
 
     @mock_glue
     @mock_athena
-    def test_clean_up_table_view(self, dbt_debug_caplog, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
+    def test_clean_up_table_view(self, dbt_debug_caplog, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
-        self.mock_aws_service.create_view("test_view")
+        mock_aws_service.create_view("test_view")
         relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -473,11 +470,11 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
-    def test_clean_up_table_delete_table(self, dbt_debug_caplog, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_table("table")
-        self.mock_aws_service.add_data_in_table("table")
+    def test_clean_up_table_delete_table(self, dbt_debug_caplog, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
+        mock_aws_service.create_table("table")
+        mock_aws_service.add_data_in_table("table")
         self.adapter.acquire_connection("dummy")
         relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
@@ -502,14 +499,14 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_athena
     @mock_sts
-    def test__get_one_catalog(self):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database("foo")
-        self.mock_aws_service.create_database("quux")
-        self.mock_aws_service.create_database("baz")
-        self.mock_aws_service.create_table(table_name="bar", database_name="foo")
-        self.mock_aws_service.create_table(table_name="bar", database_name="quux")
-        self.mock_aws_service.create_table_without_type(table_name="qux", database_name="baz")
+    def test__get_one_catalog(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database("foo")
+        mock_aws_service.create_database("quux")
+        mock_aws_service.create_database("baz")
+        mock_aws_service.create_table(table_name="bar", database_name="foo")
+        mock_aws_service.create_table(table_name="bar", database_name="quux")
+        mock_aws_service.create_table_without_type(table_name="qux", database_name="baz")
         mock_information_schema = mock.MagicMock()
         mock_information_schema.path.database = "awsdatacatalog"
 
@@ -554,12 +551,10 @@ class TestAthenaAdapter:
 
     @mock_glue
     @mock_athena
-    def test__get_one_catalog_shared_catalog(self):
-        self.mock_aws_service.create_data_catalog(
-            catalog_name=SHARED_DATA_CATALOG_NAME, catalog_id=SHARED_DATA_CATALOG_NAME
-        )
-        self.mock_aws_service.create_database("foo", catalog_id=SHARED_DATA_CATALOG_NAME)
-        self.mock_aws_service.create_table(table_name="bar", database_name="foo", catalog_id=SHARED_DATA_CATALOG_NAME)
+    def test__get_one_catalog_shared_catalog(self, mock_aws_service):
+        mock_aws_service.create_data_catalog(catalog_name=SHARED_DATA_CATALOG_NAME, catalog_id=SHARED_DATA_CATALOG_NAME)
+        mock_aws_service.create_database("foo", catalog_id=SHARED_DATA_CATALOG_NAME)
+        mock_aws_service.create_table(table_name="bar", database_name="foo", catalog_id=SHARED_DATA_CATALOG_NAME)
         mock_information_schema = mock.MagicMock()
         mock_information_schema.path.database = SHARED_DATA_CATALOG_NAME
 
@@ -617,74 +612,11 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_sts
-    def test__get_data_catalog(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
+    def test__get_data_catalog(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
         self.adapter.acquire_connection("dummy")
         res = self.adapter._get_data_catalog(DATA_CATALOG_NAME)
         assert {"Name": "awsdatacatalog", "Type": "GLUE", "Parameters": {"catalog-id": DEFAULT_ACCOUNT_ID}} == res
-
-    @mock_glue
-    @mock_s3
-    @mock_athena
-    def test__get_relation_type_table(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_table("test_table")
-        self.adapter.acquire_connection("dummy")
-        relation = self.adapter.Relation.create(
-            database=DATA_CATALOG_NAME,
-            schema=DATABASE_NAME,
-            identifier="test_table",
-        )
-        table_type = self.adapter.get_table_type(relation)
-        assert table_type == TableType.TABLE
-
-    @mock_glue
-    @mock_s3
-    @mock_athena
-    def test__get_relation_type_with_no_type(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_table_without_table_type("test_table")
-        self.adapter.acquire_connection("dummy")
-        relation = self.adapter.Relation.create(
-            database=DATA_CATALOG_NAME,
-            schema=DATABASE_NAME,
-            identifier="test_table",
-        )
-
-        with pytest.raises(ValueError):
-            self.adapter.get_table_type(relation)
-
-    @mock_glue
-    @mock_s3
-    @mock_athena
-    def test__get_relation_type_view(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_view("test_view")
-        self.adapter.acquire_connection("dummy")
-        relation = self.adapter.Relation.create(
-            database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="test_view", type=RelationType.View
-        )
-        table_type = self.adapter.get_table_type(relation)
-        assert table_type == TableType.VIEW
-
-    @mock_glue
-    @mock_s3
-    @mock_athena
-    def test__get_relation_type_iceberg(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_iceberg_table("test_iceberg")
-        self.adapter.acquire_connection("dummy")
-        relation = self.adapter.Relation.create(
-            database=DATA_CATALOG_NAME,
-            schema=DATABASE_NAME,
-            identifier="test_iceberg",
-        )
-        table_type = self.adapter.get_table_type(relation)
-        assert table_type == TableType.ICEBERG
 
     def _test_list_relations_without_caching(self, schema_relation):
         self.adapter.acquire_connection("dummy")
@@ -705,13 +637,13 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_sts
-    def test_list_relations_without_caching_with_awsdatacatalog(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_table("table")
-        self.mock_aws_service.create_table("other")
-        self.mock_aws_service.create_view("view")
-        self.mock_aws_service.create_table_without_table_type("without_table_type")
+    def test_list_relations_without_caching_with_awsdatacatalog(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
+        mock_aws_service.create_table("table")
+        mock_aws_service.create_table("other")
+        mock_aws_service.create_view("view")
+        mock_aws_service.create_table_without_table_type("without_table_type")
         schema_relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -721,14 +653,14 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_glue
-    def test_list_relations_without_caching_with_other_glue_data_catalog(self, aws_credentials):
+    def test_list_relations_without_caching_with_other_glue_data_catalog(self, mock_aws_service):
         data_catalog_name = "other_data_catalog"
-        self.mock_aws_service.create_data_catalog(data_catalog_name)
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_table("table")
-        self.mock_aws_service.create_table("other")
-        self.mock_aws_service.create_view("view")
-        self.mock_aws_service.create_table_without_table_type("without_table_type")
+        mock_aws_service.create_data_catalog(data_catalog_name)
+        mock_aws_service.create_database()
+        mock_aws_service.create_table("table")
+        mock_aws_service.create_table("other")
+        mock_aws_service.create_view("view")
+        mock_aws_service.create_table_without_table_type("without_table_type")
         schema_relation = self.adapter.Relation.create(
             database=data_catalog_name,
             schema=DATABASE_NAME,
@@ -738,9 +670,11 @@ class TestAthenaAdapter:
 
     @mock_athena
     @patch("dbt.adapters.athena.impl.SQLAdapter.list_relations_without_caching", return_value=[])
-    def test_list_relations_without_caching_with_non_glue_data_catalog(self, parent_list_relations_without_caching):
+    def test_list_relations_without_caching_with_non_glue_data_catalog(
+        self, parent_list_relations_without_caching, mock_aws_service
+    ):
         data_catalog_name = "other_data_catalog"
-        self.mock_aws_service.create_data_catalog(data_catalog_name, "HIVE")
+        mock_aws_service.create_data_catalog(data_catalog_name, "HIVE")
         schema_relation = self.adapter.Relation.create(
             database=data_catalog_name,
             schema=DATABASE_NAME,
@@ -763,16 +697,16 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
-    def test_swap_table_with_partitions(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
+    def test_swap_table_with_partitions(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
         target_table = "target_table"
         source_table = "source_table"
-        self.mock_aws_service.create_table(source_table)
-        self.mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
-        self.mock_aws_service.create_table(target_table)
-        self.mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
+        mock_aws_service.create_table(source_table)
+        mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
+        mock_aws_service.create_table(target_table)
+        mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
         source_relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -789,14 +723,14 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
-    def test_swap_table_without_partitions(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
+    def test_swap_table_without_partitions(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
         target_table = "target_table"
         source_table = "source_table"
-        self.mock_aws_service.create_table_without_partitions(source_table)
-        self.mock_aws_service.create_table_without_partitions(target_table)
+        mock_aws_service.create_table_without_partitions(source_table)
+        mock_aws_service.create_table_without_partitions(target_table)
         source_relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -813,18 +747,18 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
-    def test_swap_table_with_partitions_to_one_without(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
+    def test_swap_table_with_partitions_to_one_without(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
         target_table = "target_table"
         source_table = "source_table"
         # source table does not have partitions
-        self.mock_aws_service.create_table_without_partitions(source_table)
+        mock_aws_service.create_table_without_partitions(source_table)
 
         # the target table has partitions
-        self.mock_aws_service.create_table(target_table)
-        self.mock_aws_service.add_partitions_to_table(DATABASE_NAME, target_table)
+        mock_aws_service.create_table(target_table)
+        mock_aws_service.add_partitions_to_table(DATABASE_NAME, target_table)
 
         source_relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
@@ -850,15 +784,15 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
-    def test_swap_table_with_no_partitions_to_one_with(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
+    def test_swap_table_with_no_partitions_to_one_with(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
         target_table = "target_table"
         source_table = "source_table"
-        self.mock_aws_service.create_table(source_table)
-        self.mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
-        self.mock_aws_service.create_table_without_partitions(target_table)
+        mock_aws_service.create_table(source_table)
+        mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
+        mock_aws_service.create_table_without_partitions(target_table)
         glue_client = boto3.client("glue", region_name=AWS_REGION)
         target_table_partitions = glue_client.get_partitions(DatabaseName=DATABASE_NAME, TableName=target_table).get(
             "Partitions"
@@ -884,15 +818,15 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_glue
-    def test__get_glue_table_versions_to_expire(self, aws_credentials, dbt_debug_caplog):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
+    def test__get_glue_table_versions_to_expire(self, mock_aws_service, dbt_debug_caplog):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
         table_name = "my_table"
-        self.mock_aws_service.create_table(table_name)
-        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
-        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
-        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        mock_aws_service.create_table(table_name)
+        mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        mock_aws_service.add_table_version(DATABASE_NAME, table_name)
         glue = boto3.client("glue", region_name=AWS_REGION)
         table_versions = glue.get_table_versions(DatabaseName=DATABASE_NAME, TableName=table_name).get("TableVersions")
         assert len(table_versions) == 4
@@ -909,15 +843,15 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
-    def test_expire_glue_table_versions(self, aws_credentials):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
+    def test_expire_glue_table_versions(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
         table_name = "my_table"
-        self.mock_aws_service.create_table(table_name)
-        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
-        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
-        self.mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        mock_aws_service.create_table(table_name)
+        mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        mock_aws_service.add_table_version(DATABASE_NAME, table_name)
+        mock_aws_service.add_table_version(DATABASE_NAME, table_name)
         glue = boto3.client("glue", region_name=AWS_REGION)
         table_versions = glue.get_table_versions(DatabaseName=DATABASE_NAME, TableName=table_name).get("TableVersions")
         assert len(table_versions) == 4
@@ -933,7 +867,7 @@ class TestAthenaAdapter:
         # assert len(result) == 3
 
     @mock_s3
-    def test_upload_seed_to_s3(self, aws_credentials):
+    def test_upload_seed_to_s3(self, mock_aws_service):
         seed_table = agate.Table.from_object(seed_data)
         self.adapter.acquire_connection("dummy")
 
@@ -965,7 +899,7 @@ class TestAthenaAdapter:
         assert objects[0].get("Key").endswith(".csv")
 
     @mock_s3
-    def test_upload_seed_to_s3_external_location(self, aws_credentials):
+    def test_upload_seed_to_s3_external_location(self, mock_aws_service):
         seed_table = agate.Table.from_object(seed_data)
         self.adapter.acquire_connection("dummy")
 
@@ -997,35 +931,35 @@ class TestAthenaAdapter:
         assert objects[0].get("Key").endswith(".csv")
 
     @mock_athena
-    def test_get_work_group_output_location(self, aws_credentials):
+    def test_get_work_group_output_location(self, mock_aws_service):
         self.adapter.acquire_connection("dummy")
-        self.mock_aws_service.create_work_group_with_output_location_enforced(ATHENA_WORKGROUP)
+        mock_aws_service.create_work_group_with_output_location_enforced(ATHENA_WORKGROUP)
         work_group_location_enforced = self.adapter.is_work_group_output_location_enforced()
         assert work_group_location_enforced
 
     @mock_athena
-    def test_get_work_group_output_location_no_location(self, aws_credentials):
+    def test_get_work_group_output_location_no_location(self, mock_aws_service):
         self.adapter.acquire_connection("dummy")
-        self.mock_aws_service.create_work_group_no_output_location(ATHENA_WORKGROUP)
+        mock_aws_service.create_work_group_no_output_location(ATHENA_WORKGROUP)
         work_group_location_enforced = self.adapter.is_work_group_output_location_enforced()
         assert not work_group_location_enforced
 
     @mock_athena
-    def test_get_work_group_output_location_not_enforced(self, aws_credentials):
+    def test_get_work_group_output_location_not_enforced(self, mock_aws_service):
         self.adapter.acquire_connection("dummy")
-        self.mock_aws_service.create_work_group_with_output_location_not_enforced(ATHENA_WORKGROUP)
+        mock_aws_service.create_work_group_with_output_location_not_enforced(ATHENA_WORKGROUP)
         work_group_location_enforced = self.adapter.is_work_group_output_location_enforced()
         assert not work_group_location_enforced
 
     @mock_athena
     @mock_glue
     @mock_s3
-    def test_persist_docs_to_glue_no_comment(self):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
+    def test_persist_docs_to_glue_no_comment(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
         table_name = "my_table"
-        self.mock_aws_service.create_table(table_name)
+        mock_aws_service.create_table(table_name)
         schema_relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -1061,12 +995,12 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
-    def test_persist_docs_to_glue_comment(self):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
+    def test_persist_docs_to_glue_comment(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
         table_name = "my_table"
-        self.mock_aws_service.create_table(table_name)
+        mock_aws_service.create_table(table_name)
         schema_relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -1102,21 +1036,21 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_glue
-    def test_list_schemas(self):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database(name="foo")
-        self.mock_aws_service.create_database(name="bar")
-        self.mock_aws_service.create_database(name="quux")
+    def test_list_schemas(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database(name="foo")
+        mock_aws_service.create_database(name="bar")
+        mock_aws_service.create_database(name="quux")
         self.adapter.acquire_connection("dummy")
         res = self.adapter.list_schemas("")
         assert sorted(res) == ["bar", "foo", "quux"]
 
     @mock_athena
     @mock_glue
-    def test_get_columns_in_relation(self):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_table("tbl_name")
+    def test_get_columns_in_relation(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
+        mock_aws_service.create_table("tbl_name")
         self.adapter.acquire_connection("dummy")
         columns = self.adapter.get_columns_in_relation(
             self.adapter.Relation.create(
@@ -1133,9 +1067,9 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_glue
-    def test_get_columns_in_relation_not_found_table(self):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
+    def test_get_columns_in_relation_not_found_table(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
         self.adapter.acquire_connection("dummy")
         columns = self.adapter.get_columns_in_relation(
             self.adapter.Relation.create(
@@ -1148,10 +1082,10 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_glue
-    def test_delete_from_glue_catalog(self):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_table("tbl_name")
+    def test_delete_from_glue_catalog(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
+        mock_aws_service.create_table("tbl_name")
         self.adapter.acquire_connection("dummy")
         relation = self.adapter.Relation.create(database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="tbl_name")
         self.adapter.delete_from_glue_catalog(relation)
@@ -1161,10 +1095,10 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_glue
-    def test_delete_from_glue_catalog_not_found_table(self, dbt_debug_caplog):
-        self.mock_aws_service.create_data_catalog()
-        self.mock_aws_service.create_database()
-        self.mock_aws_service.create_table("tbl_name")
+    def test_delete_from_glue_catalog_not_found_table(self, dbt_debug_caplog, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
+        mock_aws_service.create_table("tbl_name")
         self.adapter.acquire_connection("dummy")
         relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="tbl_does_not_exist"
