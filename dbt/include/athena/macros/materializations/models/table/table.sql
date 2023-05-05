@@ -11,6 +11,7 @@
   {%- set s3_data_naming = config.get('s3_data_naming', default='table_unique') -%}
   {%- set full_refresh_config = config.get('full_refresh', default=False) -%}
   {%- set is_full_refresh_mode = (flags.FULL_REFRESH == True or full_refresh_config == True) -%}
+  {%- set versions_to_keep = config.get('versions_to_keep', default=4) -%}
   {%- set external_location = config.get('external_location', default=none) -%}
   {%- set target_relation = api.Relation.create(identifier=identifier,
                                                 schema=schema,
