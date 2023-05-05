@@ -757,11 +757,8 @@ class AthenaAdapter(SQLAdapter):
                 f"{sql}\n"
                 f"{'-'*90}\n\n"
             )
-            print(msg)
-            raise SnapshotMigrationRequired(
-                msg
-                + "Note: the message above is also printed to stdout to make the copy-pasting of the query easier.\n\n"
-            )
+            logger.error(msg)
+            raise SnapshotMigrationRequired("Look into 1.5 dbt-athena docs for the complete migration procedure")
 
     def _generate_snapshot_migration_sql(self, relation: AthenaRelation, table_columns: List[str]) -> str:
         """Generate a sequence of queries that can be used to migrate the existing table to the new format.
