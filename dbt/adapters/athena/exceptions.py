@@ -1,5 +1,4 @@
-from dbt.exceptions import CompilationError
-from dbt.exceptions import DbtRuntimeError
+from dbt.exceptions import CompilationError, DbtRuntimeError
 
 
 class SnapshotMigrationRequired(CompilationError):

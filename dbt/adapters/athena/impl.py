@@ -16,12 +16,19 @@ from mypy_boto3_athena.type_defs import DataCatalogTypeDef
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.config import get_boto3_config
-from dbt.adapters.athena.exceptions import SnapshotMigrationRequired
-from dbt.adapters.athena.constants import LOGGER, RELATION_TYPE_MAP
-from dbt.adapters.athena.exceptions import S3LocationException
-from dbt.adapters.athena.relation import AthenaRelation, AthenaSchemaSearchMap
+from dbt.adapters.athena.constants import LOGGER
+from dbt.adapters.athena.exceptions import (
+    S3LocationException,
+    SnapshotMigrationRequired,
+)
+from dbt.adapters.athena.relation import (
+    RELATION_TYPE_MAP,
+    AthenaRelation,
+    AthenaSchemaSearchMap,
+    get_table_type,
+)
 from dbt.adapters.athena.s3 import S3DataNaming
-from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id, get_table_type
+from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id
 from dbt.adapters.base import available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
@@ -753,7 +760,7 @@ class AthenaAdapter(SQLAdapter):
                 f"{sql}\n"
                 f"{'-'*90}\n\n"
             )
-            logger.error(msg)
+            LOGGER.error(msg)
             raise SnapshotMigrationRequired("Look into 1.5 dbt-athena docs for the complete migration procedure")
 
     def _generate_snapshot_migration_sql(self, relation: AthenaRelation, table_columns: List[str]) -> str:
