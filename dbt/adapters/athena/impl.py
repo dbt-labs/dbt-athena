@@ -3,6 +3,7 @@ import os
 import posixpath as path
 import tempfile
 from itertools import chain
+from textwrap import dedent
 from threading import Lock
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 from urllib.parse import urlparse
@@ -15,6 +16,7 @@ from mypy_boto3_athena.type_defs import DataCatalogTypeDef
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.config import get_boto3_config
+from dbt.adapters.athena.exceptions import SnapshotMigrationRequired
 from dbt.adapters.athena.relation import (
     AthenaRelation,
     AthenaSchemaSearchMap,
@@ -752,3 +754,90 @@ class AthenaAdapter(SQLAdapter):
             else:
                 logger.error(e)
                 raise e
+
+    @available.parse_none
+    def valid_snapshot_target(self, relation: BaseRelation) -> None:
+        """Log an error to help developers migrate to the new snapshot logic"""
+        super().valid_snapshot_target(relation)
+        columns = self.get_columns_in_relation(relation)
+        names = {c.name.lower() for c in columns}
+
+        table_columns = [col for col in names if not col.startswith("dbt_") and col != "is_current_record"]
+
+        if "dbt_unique_key" in names:
+            sql = self._generate_snapshot_migration_sql(relation=relation, table_columns=table_columns)
+            msg = (
+                f"{'!'*90}\n"
+                "The snapshot logic of dbt-athena has changed in an incompatible way to be more consistent "
+                "with the dbt-core implementation.\nYou will need to migrate your existing snapshot tables to be "
+                "able to keep using them with the latest dbt-athena version.\nYou can find more information "
+                "in the release notes:\nhttps://github.com/dbt-athena/dbt-athena/releases\n"
+                f"{'!'*90}\n\n"
+                "You can use the example query below as a baseline to perform the migration:\n\n"
+                f"{'-'*90}\n"
+                f"{sql}\n"
+                f"{'-'*90}\n\n"
+            )
+            logger.error(msg)
+            raise SnapshotMigrationRequired("Look into 1.5 dbt-athena docs for the complete migration procedure")
+
+    def _generate_snapshot_migration_sql(self, relation: AthenaRelation, table_columns: List[str]) -> str:
+        """Generate a sequence of queries that can be used to migrate the existing table to the new format.
+
+        The queries perform the following steps:
+        - Backup the existing table
+        - Make the necessary modifications and store the results in a staging table
+        - Delete the target table (users might have to delete the S3 files manually)
+        - Copy the content of the staging table to the final table
+        - Delete the staging table
+        """
+        col_csv = f",\n{' '*16}".join(table_columns)
+        staging_relation = relation.incorporate(
+            path={"identifier": relation.identifier + "__dbt_tmp_migration_staging"}
+        )
+        ctas = dedent(
+            f"""\
+            select
+                {col_csv},
+                dbt_snapshot_at as dbt_updated_at,
+                dbt_valid_from,
+                if(dbt_valid_to > cast('9000-01-01' as timestamp), null, dbt_valid_to) as dbt_valid_to,
+                dbt_scd_id
+            from {relation}
+            where dbt_change_type != 'delete'
+            ;
+            """
+        )
+        staging_sql = self.execute_macro(
+            "create_table_as", kwargs=dict(temporary=True, relation=staging_relation, compiled_code=ctas)
+        )
+
+        backup_relation = relation.incorporate(path={"identifier": relation.identifier + "__dbt_tmp_migration_backup"})
+        backup_sql = self.execute_macro(
+            "create_table_as",
+            kwargs=dict(temporary=True, relation=backup_relation, compiled_code=f"select * from {relation};"),
+        )
+
+        drop_target_sql = f"drop table {relation.render_hive()};"
+
+        copy_to_target_sql = self.execute_macro(
+            "create_table_as", kwargs=dict(relation=relation, compiled_code=f"select * from {staging_relation};")
+        )
+
+        drop_staging_sql = f"drop table {staging_relation.render_hive()};"
+
+        return "\n".join(
+            [
+                "-- Backup original table",
+                backup_sql.strip(),
+                "\n\n-- Store new results in staging table",
+                staging_sql.strip(),
+                "\n\n-- Drop target table\n"
+                "-- Note: you will need to manually remove the S3 files if you have a static table location\n",
+                drop_target_sql.strip(),
+                "\n\n-- Copy staging to target",
+                copy_to_target_sql.strip(),
+                "\n\n-- Drop staging table",
+                drop_staging_sql.strip(),
+            ]
+        )
