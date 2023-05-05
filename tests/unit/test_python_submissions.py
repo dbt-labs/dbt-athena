@@ -1,9 +1,7 @@
 import time
-from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
-import pytz
 
 from dbt.adapters.athena.python_submissions import (
     AthenaPythonJobHelper,
@@ -323,7 +321,8 @@ class TestAthenaPythonJobHelper:
     #     ],
     # )
     # def test_terminate_session(
-    #     self, session_status_response, test_session_id, expected_response, athena_job_helper, athena_client, monkeypatch
+    #     self, session_status_response, test_session_id, expected_response, athena_job_helper,
+    # athena_client, monkeypatch
     # ) -> None:
     #     """
     #     Test function to check if _terminate_session() method of AthenaPythonJobHelper class correctly
