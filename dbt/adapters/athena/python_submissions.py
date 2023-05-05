@@ -24,6 +24,10 @@ session_locks = {}
 
 
 class AthenaSparkSessionConfig:
+    """
+    A helper class to manage Athena Spark Session Configuration.
+    """
+
     def __init__(self, config: dict):
         self.config = config
 
@@ -69,10 +73,8 @@ class AthenaSparkSessionConfig:
 
 
 class AthenaSparkSessionManager:
-    """_summary_
-
-    Args:
-        AthenaConnectionManager (AthenaConnectionManager): _description_
+    """
+    A helper class to manage Athena Spark Sessions.
     """
 
     def __init__(self, credentials: str, **kwargs):
@@ -81,10 +83,9 @@ class AthenaSparkSessionManager:
         self.polling_interval = kwargs.get("polling_interval")
         self.engine_config = kwargs.get("engine_config")
         self.lock = threading.Lock()
+        self.athena_client = self.get_athena_client()
 
-    @property
-    @lru_cache
-    def athena_client(self):
+    def get_athena_client(self):
         """
         Get the AWS Athena client.
 
@@ -130,11 +131,16 @@ class AthenaSparkSessionManager:
                     lock.acquire()
                     return session_uuid
         logger.debug("All sessions are currently locked. Starting new session.")
-        return self.start_session()
+        session_uuid = uuid.UUID(self.start_session())
+        with self.lock:
+            logger.debug(f"Locking new session: {session_uuid}")
+            session_locks[session_uuid] = threading.Lock()
+            session_locks[session_uuid].acquire()
+            return session_uuid
 
     def list_sessions(self, max_results: int = DEFAULT_SESSION_COUNT, state: str = "IDLE") -> dict:
         """
-        List idle athena spark sessions.
+        List athena spark sessions.
 
         This function sends a request to the Athena service to list the sessions in the specified Spark workgroup.
         It filters the sessions by state, only returning the first session that is in IDLE state. If no idle sessions
@@ -163,25 +169,19 @@ class AthenaSparkSessionManager:
             dict: The session information dictionary.
 
         """
-        with self.lock:
-            if len(session_locks) >= DEFAULT_SESSION_COUNT:
-                # Raise this exception but also poll until a session is free and assign that
-                raise Exception(
-                    f"""Maximum session count: {DEFAULT_SESSION_COUNT} reached.
-                    Cannot start new spark session."""
-                )
-            response = self.athena_client.start_session(
-                WorkGroup=self.credentials.spark_work_group,
-                EngineConfiguration=self.engine_config,
+        if len(session_locks) >= DEFAULT_SESSION_COUNT:
+            # Raise this exception but also poll until a session is free and assign that
+            raise Exception(
+                f"""Maximum session count: {DEFAULT_SESSION_COUNT} reached.
+                Cannot start new spark session."""
             )
-            if response["State"] != "IDLE":
-                self.poll_until_session_creation(response["SessionId"])
-            session_uuid = uuid.UUID(response["SessionId"])
-            logger.debug(f"Locking new session: {session_uuid}")
-            lock = threading.Lock()
-            session_locks[session_uuid] = lock
-            session_locks[session_uuid].acquire()
-            return session_uuid
+        response = self.athena_client.start_session(
+            WorkGroup=self.credentials.spark_work_group,
+            EngineConfiguration=self.engine_config,
+        )
+        if response["State"] != "IDLE":
+            self.poll_until_session_creation(response["SessionId"])
+        return response["SessionId"]
 
     def poll_until_session_creation(self, session_id):
         """
@@ -233,7 +233,7 @@ class AthenaSparkSessionManager:
             logger.debug(f"Releasing lock for session: {session_id}")
             session_locks[uuid.UUID(session_id)].release()
 
-    def get_session_status(self, session_id) -> str:
+    def get_session_status(self, session_id) -> dict:
         """
         Get the session status.
 
@@ -277,7 +277,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         self.spark_connection = AthenaSparkSessionManager(
             credentials, timeout=self.timeout, polling_interval=self.polling_interval, engine_config=self.engine_config
         )
-        self.athena_client = self.spark_connection.athena_client
+        self.athena_client = self.spark_connection.get_athena_client()
 
     @property
     @lru_cache()
@@ -306,7 +306,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         Returns:
             str: The status of the session
         """
-        return self.athena_client.get_session_status(SessionId=self.session_id)["Status"]
+        return self.spark_connection.get_session_status(self.session_id)
 
     def poll_until_session_idle(self):
         polling_interval = self.polling_interval
@@ -315,7 +315,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
             if session_status == "IDLE":
                 return session_status
             if session_status in ["FAILED", "TERMINATED", "DEGRADED"]:
-                return DbtRuntimeError(f"The session chosen was not available. Got status: {session_status}")
+                raise DbtRuntimeError(f"The session chosen was not available. Got status: {session_status}")
             time.sleep(polling_interval)
             polling_interval *= 2
             if polling_interval > self.timeout:
@@ -360,18 +360,18 @@ class AthenaPythonJobHelper(PythonJobHelper):
                 raise DbtRuntimeError(f"Unable to complete python execution. Got: {e}")
         try:
             execution_status = self.poll_until_execution_completion(calculation_execution_id)
+            logger.debug(f"Received execution status {execution_status}")
+            if execution_status == "COMPLETED":
+                result_s3_uri = self.athena_client.get_calculation_execution(
+                    CalculationExecutionId=calculation_execution_id
+                )["Result"]["ResultS3Uri"]
+                return result_s3_uri
+            else:
+                raise DbtRuntimeError(f"python model run ended in state {execution_status}")
         except Exception as e:
             logger.error(f"Unable to poll execution status: Got: {e}")
         finally:
             self.spark_connection.release_session_lock(self.session_id)
-        logger.debug(f"Received execution status {execution_status}")
-        if execution_status == "COMPLETED":
-            result_s3_uri = self.athena_client.get_calculation_execution(
-                CalculationExecutionId=calculation_execution_id
-            )["Result"]["ResultS3Uri"]
-            return result_s3_uri
-        else:
-            raise DbtRuntimeError(f"python model run ended in state {execution_status}")
 
     def poll_until_execution_completion(self, calculation_execution_id):
         """
