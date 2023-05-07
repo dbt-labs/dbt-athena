@@ -1,8 +1,10 @@
 import time
+import uuid
 from unittest.mock import Mock, patch
 
 import pytest
 
+from dbt.adapters.athena import python_submissions
 from dbt.adapters.athena.python_submissions import (
     AthenaPythonJobHelper,
     AthenaSparkSessionConfig,
@@ -234,11 +236,83 @@ class TestAthenaSparkSessionManager:
             response = spark_session_manager.get_session_status("test_session_id")
             assert response == expected_status
 
-    def test_get_sessions(self):
-        pass
+    @pytest.mark.parametrize(
+        "list_sessions_response, session_locks",
+        [
+            (
+                [
+                    {
+                        "Description": "string",
+                        "EngineVersion": {"EffectiveEngineVersion": "string", "SelectedEngineVersion": "string"},
+                        "NotebookVersion": "string",
+                        "SessionId": "106d7aca-4b3f-468d-a81d-308120e7f73c",
+                        "Status": {
+                            "State": "string",
+                            "StateChangeReason": "string",
+                        },
+                    },
+                    {
+                        "Description": "string",
+                        "EngineVersion": {"EffectiveEngineVersion": "string", "SelectedEngineVersion": "string"},
+                        "NotebookVersion": "string",
+                        "SessionId": "39cb8fc0-f855-4b67-91f1-81f068499071",
+                        "Status": {
+                            "State": "string",
+                            "StateChangeReason": "string",
+                        },
+                    },
+                ],
+                {"test_session_id": None},
+            ),
+            (
+                [],
+                {},
+            ),
+            (
+                [
+                    {
+                        "Description": "string",
+                        "EngineVersion": {"EffectiveEngineVersion": "string", "SelectedEngineVersion": "string"},
+                        "NotebookVersion": "string",
+                        "SessionId": "106d7aca-4b3f-468d-a81d-308120e7f73c",
+                        "Status": {
+                            "State": "string",
+                            "StateChangeReason": "string",
+                        },
+                    },
+                ],
+                {uuid.UUID("106d7aca-4b3f-468d-a81d-308120e7f73c"): "lock"},
+            ),
+        ],
+    )
+    def test_get_sessions(
+        self, list_sessions_response, session_locks, spark_session_manager, athena_client, monkeypatch
+    ):
+        monkeypatch.setattr(python_submissions, "session_locks", session_locks)
+        with patch.multiple(
+            spark_session_manager,
+            list_sessions=Mock(return_value=list_sessions_response),
+        ):
+            sessions = spark_session_manager.get_sessions()
+            assert sessions == [uuid.UUID(response["SessionId"]) for response in list_sessions_response]
 
-    def test_update_session_locks(self):
-        pass
+    @pytest.mark.parametrize(
+        "get_session_response, current_session_locks",
+        [([], {}), ([uuid.UUID("106d7aca-4b3f-468d-a81d-308120e7f73c")], {})],
+    )
+    def test_update_session_locks(
+        self, get_session_response, current_session_locks, spark_session_manager, monkeypatch
+    ):
+        print(get_session_response)
+        monkeypatch.setattr(python_submissions, "session_locks", current_session_locks)
+        with patch.multiple(
+            spark_session_manager,
+            get_sessions=Mock(return_value=get_session_response),
+        ):
+            spark_session_manager.update_session_locks()
+            for session in get_session_response:
+                assert session in python_submissions.session_locks.keys()
+                assert type(python_submissions.session_locks[session]) is not None
 
     def test_get_session_id(self):
         pass
