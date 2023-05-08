@@ -108,6 +108,19 @@ class AthenaSparkSessionManager:
         return [uuid.UUID(session) for session in new_sessions]
 
     def update_session_locks(self) -> None:
+        """
+        Update session locks for each session.
+
+        This function iterates over the existing sessions and ensures that a session lock is created for each session.
+        If a session lock already exists, it is left unchanged. After updating the session locks,
+        a debug log is generated to display the updated session locks.
+
+        Args:
+            self: The instance of the class.
+
+        Returns:
+            None
+        """
         for session_uuid in self.get_sessions():
             session_locks.setdefault(session_uuid, threading.Lock())
         logger.debug(f"Updated session locks: {session_locks}")

@@ -22,6 +22,23 @@ class TestAthenaSparkSessionConfig:
 
     @pytest.fixture
     def spark_config(self, request):
+        """
+        Fixture for providing Spark configuration parameters.
+
+        This fixture returns a dictionary containing the Spark configuration parameters. The parameters can be
+        customized using the `request.param` object. The default values are:
+        - `timeout`: 7200 seconds
+        - `polling_interval`: 5 seconds
+        - `engine_config`: {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1}
+
+        Args:
+            self: The test class instance.
+            request: The pytest request object.
+
+        Returns:
+            dict: The Spark configuration parameters.
+
+        """
         return {
             "timeout": request.param.get("timeout", 7200),
             "polling_interval": request.param.get("polling_interval", 5),
@@ -32,6 +49,14 @@ class TestAthenaSparkSessionConfig:
 
     @pytest.fixture
     def spark_config_helper(self, spark_config):
+        """Fixture for testing AthenaSparkSessionConfig class.
+
+        Args:
+            spark_config (dict): Fixture for default spark config.
+
+        Returns:
+            AthenaSparkSessionConfig: An instance of AthenaSparkSessionConfig class.
+        """
         return AthenaSparkSessionConfig(spark_config)
 
     @pytest.mark.parametrize(
@@ -91,6 +116,23 @@ class TestAthenaSparkSessionManager:
 
     @pytest.fixture
     def spark_session_manager(self, athena_credentials, athena_client, monkeypatch):
+        """
+        Fixture for creating a mock Spark session manager.
+
+        This fixture creates an instance of AthenaSparkSessionManager with the provided Athena credentials,
+        timeout, polling interval, and engine configuration. It then patches the Athena client of the manager
+        with the provided `athena_client` object. The fixture returns the mock Spark session manager.
+
+        Args:
+            self: The test class instance.
+            athena_credentials: The Athena credentials.
+            athena_client: The Athena client object.
+            monkeypatch: The monkeypatch object for mocking.
+
+        Returns:
+            The mock Spark session manager.
+
+        """
         mock_session_manager = AthenaSparkSessionManager(
             athena_credentials,
             timeout=10,
@@ -232,6 +274,22 @@ class TestAthenaSparkSessionManager:
         ],
     )
     def test_get_session_status(self, session_status_response, expected_status, spark_session_manager, athena_client):
+        """
+        Test the get_session_status function.
+
+        Args:
+            self: The test class instance.
+            session_status_response (dict): The response from get_session_status.
+            expected_status (dict): The expected session status.
+            spark_session_manager: The Spark session manager object.
+            athena_client: The Athena client object.
+
+        Returns:
+            None
+
+        Raises:
+            AssertionError: If the retrieved session status is not correct.
+        """
         with patch.multiple(athena_client, get_session_status=Mock(return_value=session_status_response)):
             response = spark_session_manager.get_session_status("test_session_id")
             assert response == expected_status
@@ -242,23 +300,15 @@ class TestAthenaSparkSessionManager:
             (
                 [
                     {
-                        "Description": "string",
-                        "EngineVersion": {"EffectiveEngineVersion": "string", "SelectedEngineVersion": "string"},
-                        "NotebookVersion": "string",
                         "SessionId": "106d7aca-4b3f-468d-a81d-308120e7f73c",
                         "Status": {
                             "State": "string",
-                            "StateChangeReason": "string",
                         },
                     },
                     {
-                        "Description": "string",
-                        "EngineVersion": {"EffectiveEngineVersion": "string", "SelectedEngineVersion": "string"},
-                        "NotebookVersion": "string",
                         "SessionId": "39cb8fc0-f855-4b67-91f1-81f068499071",
                         "Status": {
                             "State": "string",
-                            "StateChangeReason": "string",
                         },
                     },
                 ],
@@ -271,13 +321,9 @@ class TestAthenaSparkSessionManager:
             (
                 [
                     {
-                        "Description": "string",
-                        "EngineVersion": {"EffectiveEngineVersion": "string", "SelectedEngineVersion": "string"},
-                        "NotebookVersion": "string",
                         "SessionId": "106d7aca-4b3f-468d-a81d-308120e7f73c",
                         "Status": {
                             "State": "string",
-                            "StateChangeReason": "string",
                         },
                     },
                 ],
@@ -288,6 +334,23 @@ class TestAthenaSparkSessionManager:
     def test_get_sessions(
         self, list_sessions_response, session_locks, spark_session_manager, athena_client, monkeypatch
     ):
+        """
+        Test the get_sessions function.
+
+        Args:
+            self: The test class instance.
+            list_sessions_response (list): The response from list_sessions.
+            session_locks (dict): The session locks.
+            spark_session_manager: The Spark session manager object.
+            athena_client: The Athena client object.
+            monkeypatch: The monkeypatch object for mocking.
+
+        Returns:
+            None
+
+        Raises:
+            AssertionError: If the retrieved sessions are not correct.
+        """
         monkeypatch.setattr(python_submissions, "session_locks", session_locks)
         with patch.multiple(
             spark_session_manager,
@@ -303,7 +366,19 @@ class TestAthenaSparkSessionManager:
     def test_update_session_locks(
         self, get_session_response, current_session_locks, spark_session_manager, monkeypatch
     ):
-        print(get_session_response)
+        """
+        Test the update_session_locks function.
+
+        Args:
+            self: The test class instance.
+            get_session_response (list): The response from get_sessions.
+            current_session_locks (dict): The current session locks.
+            spark_session_manager: The Spark session manager object.
+            monkeypatch: The monkeypatch object for mocking.
+
+        Raises:
+            AssertionError: If the session locks are not updated correctly.
+        """
         monkeypatch.setattr(python_submissions, "session_locks", current_session_locks)
         with patch.multiple(
             spark_session_manager,
@@ -317,8 +392,64 @@ class TestAthenaSparkSessionManager:
     def test_get_session_id(self):
         pass
 
-    def test_release_session_lock(self):
-        pass
+    @pytest.mark.parametrize(
+        "test_session_id, get_session_status_response, current_session_locks, terminate_session_response",
+        [
+            (
+                "106d7aca-4b3f-468d-a81d-308120e7f73c",
+                {
+                    "State": "string",
+                },
+                {uuid.UUID("106d7aca-4b3f-468d-a81d-308120e7f73c"): Mock()},
+                {"State": "TERMINATED"},
+            ),
+            (
+                "106d7aca-4b3f-468d-a81d-308120e7f73c",
+                {
+                    "State": "string",
+                },
+                {uuid.UUID("106d7aca-4b3f-468d-a81d-308120e7f73c"): Mock()},
+                {"State": "CREATED"},
+            ),
+        ],
+    )
+    def test_release_session_lock(
+        self,
+        test_session_id,
+        get_session_status_response,
+        current_session_locks,
+        terminate_session_response,
+        spark_session_manager,
+        athena_client,
+        monkeypatch,
+    ):
+        """
+        Test the release_session_lock function.
+
+        Args:
+            self: The test class instance.
+            test_session_id (str): The ID of the test session.
+            get_session_status_response (dict): The response from get_session_status.
+            current_session_locks (dict): The current session locks.
+            terminate_session_response (dict): The response from terminate_session.
+            spark_session_manager: The Spark session manager object.
+            athena_client: The Athena client object.
+            monkeypatch: The monkeypatch object for mocking.
+
+        Raises:
+            AssertionError: If the session lock is not released correctly.
+        """
+        monkeypatch.setattr(python_submissions, "session_locks", current_session_locks)
+        with patch.multiple(
+            spark_session_manager,
+            get_session_status=Mock(return_value=get_session_status_response),
+        ), patch.multiple(
+            athena_client,
+            terminate_session=Mock(return_value=terminate_session_response),
+        ):
+            spark_session_manager.release_session_lock(test_session_id)
+            assert uuid.UUID(test_session_id) in python_submissions.session_locks.keys()
+            assert type(python_submissions.session_locks[uuid.UUID(test_session_id)]) is not None
 
 
 @pytest.mark.usefixtures("athena_credentials", "athena_client")
@@ -358,73 +489,6 @@ class TestAthenaPythonJobHelper:
         monkeypatch.setattr(mock_job_helper, "athena_client", athena_client)
         monkeypatch.setattr(mock_job_helper, "spark_connection", athena_spark_session_manager)
         return mock_job_helper
-
-    # @pytest.mark.parametrize(
-    #     "session_status_response, test_session_id, expected_response",
-    #     [
-    #         (
-    #             {
-    #                 "SessionId": "test_session_id",
-    #                 "Status": {
-    #                     "EndDateTime": "number",
-    #                     "IdleSinceDateTime": "number",
-    #                     "LastModifiedDateTime": "number",
-    #                     "StartDateTime": datetime(2023, 4, 21, 0, tzinfo=pytz.timezone("UTC")),
-    #                     "State": "IDLE",
-    #                     "StateChangeReason": "string",
-    #                 },
-    #             },
-    #             "test_session_id",
-    #             None,
-    #         ),
-    #         (
-    #             {
-    #                 "SessionId": "test_session_id_2",
-    #                 "Status": {
-    #                     "EndDateTime": "number",
-    #                     "IdleSinceDateTime": "number",
-    #                     "LastModifiedDateTime": "number",
-    #                     "StartDateTime": datetime(2023, 4, 21, 0, tzinfo=pytz.timezone("UTC")),
-    #                     "State": "TERMINATED",
-    #                     "StateChangeReason": "string",
-    #                 },
-    #             },
-    #             "test_session_id_2",
-    #             None,
-    #         ),
-    #     ],
-    # )
-    # def test_terminate_session(
-    #     self, session_status_response, test_session_id, expected_response, athena_job_helper,
-    # athena_client, monkeypatch
-    # ) -> None:
-    #     """
-    #     Test function to check if _terminate_session() method of AthenaPythonJobHelper class correctly
-    #     terminates an Athena session.
-
-    #     Args:
-    #         session_status_response: A mock response object containing the current status of the Athena session.
-    #         test_session_id: The session ID of the test Athena session.
-    #         expected_response: The expected response object after the Athena session is terminated.
-    #         athena_job_helper: An instance of the AthenaPythonJobHelper class.
-    #         athena_client: The mocked Athena client object.
-    #         monkeypatch: Pytest monkeypatch object for patching objects and values during testing.
-
-    #     Returns:
-    #         None
-    #     """
-
-    #     with patch.multiple(
-    #         athena_client,
-    #         get_session_status=Mock(return_value=session_status_response),
-    #         terminate_session=Mock(return_value=expected_response),
-    #     ), patch.multiple(
-    #         athena_job_helper,
-    #         set_session_id=Mock(return_value=test_session_id),
-    #         set_timeout=Mock(return_value=10),
-    #     ):
-    #         terminate_session_response = athena_job_helper.terminate_session()
-    #         assert terminate_session_response == expected_response
 
     @pytest.mark.parametrize(
         "parsed_model, session_status_response, expected_response",
