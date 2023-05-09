@@ -156,7 +156,7 @@ The location in which a table is saved is determined by:
 3. If `s3_data_dir` is not defined, data is stored under `s3_staging_dir/tables/`
 
 Here all the options available for `s3_data_naming`:
-* `uuid`: `{s3_data_dir}/{uuid4()}/`
+* `unique`: `{s3_data_dir}/{uuid4()}/`
 * `table`: `{s3_data_dir}/{table}/`
 * `table_unique`: `{s3_data_dir}/{table}/{uuid4()}/`
 * `schema_table`: `{s3_data_dir}/{schema}/{table}/`
