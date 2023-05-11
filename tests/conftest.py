@@ -4,7 +4,7 @@ from io import StringIO
 import pytest
 
 from dbt.events.base_types import EventLevel
-from dbt.events.eventmgr import NoFilter
+from dbt.events.eventmgr import LineFormat, NoFilter
 from dbt.events.functions import EVENT_MANAGER, _get_stdout_config
 
 # Import the fuctional fixtures as a plugin
@@ -41,7 +41,9 @@ def dbt_debug_caplog() -> StringIO:
 
 
 def _setup_custom_caplog(name: str, level: EventLevel):
-    capture_config = _get_stdout_config(level)
+    capture_config = _get_stdout_config(
+        line_format=LineFormat.PlainText, level=level, use_colors=False, debug=True, log_cache_events=True, quiet=False
+    )
     capture_config.name = name
     capture_config.filter = NoFilter
     stringbuf = StringIO()
