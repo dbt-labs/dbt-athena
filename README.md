@@ -9,18 +9,18 @@
 ## Features
 
 * Supports dbt version `1.4.*`
-* Supports [Seeds][seeds]
+* Supports [seeds][seeds]
 * Correctly detects views and their columns
 * Supports [table materialization][table]
-  * [Iceberg tables][athena-iceberg] is supported **only with Athena Engine v3** and **a unique table location**
+  * [Iceberg tables][athena-iceberg] are supported **only with Athena Engine v3** and **a unique table location**
   (see table location section below)
-  * Hive tables is supported by both Athena engines.
+  * Hive tables are supported by both Athena engines.
 * Supports [incremental models][incremental]
-  * On iceberg tables :
-    * Support the use of `unique_key` only with the `merge` strategy
-    * Support the `append` strategy
+  * On Iceberg tables :
+    * Supports the use of `unique_key` only with the `merge` strategy
+    * Supports the `append` strategy
   * On Hive tables :
-    * Support two incremental update strategies: `insert_overwrite` and `append`
+    * Supports two incremental update strategies: `insert_overwrite` and `append`
     * Does **not** support the use of `unique_key`
 * Supports [snapshots][snapshots]
 * Does not support [Python models][python-models]
@@ -59,26 +59,31 @@ Notes:
 
 ### Credentials
 
-This plugin does not accept any credentials directly. Instead, [credentials are determined automatically](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html) based on `aws cli`/`boto3` conventions and
-stored login info. You can configure the AWS profile name to use via `aws_profile_name`. Checkout DBT profile configuration below for details.
+Credentials can be passed directly to the adapter, or they can be [determined automatically](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html) based on `aws cli`/`boto3` conventions.
+You can either:
+- configure `aws_access_key_id` and `aws_secret_access_key`
+- configure `aws_profile_name` to match a profile defined in your AWS credentials file
+Checkout dbt profile configuration below for details.
 
 ### Configuring your profile
 
 A dbt profile can be configured to run against AWS Athena using the following configuration:
 
-| Option           | Description                                                                    | Required? | Example                                  |
-|------------------|--------------------------------------------------------------------------------|-----------|------------------------------------------|
-| s3_staging_dir   | S3 location to store Athena query results and metadata                         | Required  | `s3://bucket/dbt/`                       |
-| s3_data_dir      | Prefix for storing tables, if different from the connection's `s3_staging_dir` | Optional  | `s3://bucket2/dbt/`                      |
-| s3_data_naming   | How to generate table paths in `s3_data_dir`                                   | Optional  | `schema_table_unique`                    |
-| region_name      | AWS region of your Athena instance                                             | Required  | `eu-west-1`                              |
-| schema           | Specify the schema (Athena database) to build models into (lowercase **only**) | Required  | `dbt`                                    |
-| database         | Specify the database (Data catalog) to build models into (lowercase **only**)  | Required  | `awsdatacatalog`                         |
-| poll_interval    | Interval in seconds to use for polling the status of query results in Athena   | Optional  | `5`                                      |
-| aws_profile_name | Profile to use from your AWS shared credentials file.                          | Optional  | `my-profile`                             |
-| work_group       | Identifier of Athena workgroup                                                 | Optional  | `my-custom-workgroup`                    |
-| num_retries      | Number of times to retry a failing query                                       | Optional  | `3`                                      |
-| lf_tags          | Default lf tags to apply to any database created by dbt                        | Optional  | `{"origin": "dbt", "team": "analytics"}` |
+| Option                | Description                                                                    | Required? | Example                                    |
+|-----------------------|--------------------------------------------------------------------------------|-----------|--------------------------------------------|
+| s3_staging_dir        | S3 location to store Athena query results and metadata                         | Required  | `s3://bucket/dbt/`                         |
+| s3_data_dir           | Prefix for storing tables, if different from the connection's `s3_staging_dir` | Optional  | `s3://bucket2/dbt/`                        |
+| s3_data_naming        | How to generate table paths in `s3_data_dir`                                   | Optional  | `schema_table_unique`                      |
+| region_name           | AWS region of your Athena instance                                             | Required  | `eu-west-1`                                |
+| schema                | Specify the schema (Athena database) to build models into (lowercase **only**) | Required  | `dbt`                                      |
+| database              | Specify the database (Data catalog) to build models into (lowercase **only**)  | Required  | `awsdatacatalog`                           |
+| poll_interval         | Interval in seconds to use for polling the status of query results in Athena   | Optional  | `5`                                        |
+| aws_access_key_id     | Access key ID of the user performing requests.                                 | Optional  | `AKIAIOSFODNN7EXAMPLE`                     |
+| aws_secret_access_key | Secret access key of the user performing requests                              | Optional  | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
+| aws_profile_name      | Profile to use from your AWS shared credentials file.                          | Optional  | `my-profile`                               |
+| work_group            | Identifier of Athena workgroup                                                 | Optional  | `my-custom-workgroup`                      |
+| num_retries           | Number of times to retry a failing query                                       | Optional  | `3`                                        |
+| lf_tags               | Default lf tags to apply to any database created by dbt                        | Optional  | `{"origin": "dbt", "team": "analytics"}`   |
 
 **Example profiles.yml entry:**
 ```yaml
@@ -110,7 +115,8 @@ _Additional information_
 ### Table Configuration
 
 * `external_location` (`default=none`)
-  * If set, the full S3 path in which the table will be saved. (Does not work with Iceberg table).
+  * If set, the full S3 path in which the table will be saved.
+  * Does not work with Iceberg table or Hive table with `ha` set to true.
 * `partitioned_by` (`default=none`)
   * An array list of columns by which the table will be partitioned
   * Limited to creation of 100 partitions (_currently_)
@@ -121,6 +127,9 @@ _Additional information_
 * `table_type` (`default='hive'`)
   * The type of table
   * Supports `hive` or `iceberg`
+* `ha` (`default=false`)
+  * If the table should be built using the high-availability method. This option is only available for Hive tables
+    since it is by default for Iceberg tables (see the section [below](#highly-available-table))
 * `format` (`default='parquet'`)
   * The data format for the table
   * Supports `ORC`, `PARQUET`, `AVRO`, `JSON`, `TEXTFILE`
@@ -136,17 +145,19 @@ _Additional information_
   * lf tags to associate with the table columns
   * format: `{"tag1": {"value1": ["column1": "column2"]}}`
 
+[create-table-as]: https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html#ctas-table-properties
+
 ### Table location
 
 The location in which a table is saved is determined by:
 
 1. If `external_location` is defined, that value is used.
 2. If `s3_data_dir` is defined, the path is determined by that and `s3_data_naming`
-3. If `s3_data_dir` is not defined data is stored under `s3_staging_dir/tables/`
+3. If `s3_data_dir` is not defined, data is stored under `s3_staging_dir/tables/`
 
 Here all the options available for `s3_data_naming`:
-* `uuid`: `{s3_data_dir}/{uuid4()}/`
-* `table_table`: `{s3_data_dir}/{table}/`
+* `unique`: `{s3_data_dir}/{uuid4()}/`
+* `table`: `{s3_data_dir}/{table}/`
 * `table_unique`: `{s3_data_dir}/{table}/{uuid4()}/`
 * `schema_table`: `{s3_data_dir}/{schema}/{table}/`
 * `s3_data_naming=schema_table_unique`: `{s3_data_dir}/{schema}/{table}/{uuid4()}/`
@@ -154,7 +165,7 @@ Here all the options available for `s3_data_naming`:
 It's possible to set the `s3_data_naming` globally in the target profile, or overwrite the value in the table config,
 or setting up the value for groups of model in dbt_project.yml.
 
-> Note: when using a work group with a default output location configured, `s3_data_naming` and any configured buckets are ignored and the location configured in the work group is used.
+> Note: when using a workgroup with a default output location configured, `s3_data_naming` and any configured buckets are ignored and the location configured in the workgroup is used.
 
 ### Incremental models
 
@@ -179,14 +190,14 @@ The following options are supported:
 * `append_new_columns`
 * `sync_all_columns`
 
-In detail, please refer to [dbt docs](https://docs.getdbt.com/docs/build/incremental-models#what-if-the-columns-of-my-incremental-model-change).
+For details, please refer to [dbt docs](https://docs.getdbt.com/docs/build/incremental-models#what-if-the-columns-of-my-incremental-model-change).
 
 ### Iceberg
 
 The adapter supports table materialization for Iceberg.
 
 To get started just add this as your model:
-```
+```sql
 {{ config(
     materialized='table',
     table_type='iceberg',
@@ -197,36 +208,62 @@ To get started just add this as your model:
     	}
 ) }}
 
-SELECT
-	'A' AS user_id,
-	'pi' AS name,
-	'active' AS status,
-	17.89 AS cost,
-	1 AS quantity,
-	100000000 AS quantity_big,
-	current_date AS my_date
+select
+	'A' as user_id,
+	'pi' as name,
+	'active' as status,
+	17.89 as cost,
+	1 as quantity,
+	100000000 as quantity_big,
+	current_date as my_date
 ```
 
 Iceberg supports bucketing as hidden partitions, therefore use the `partitioned_by` config to add specific bucketing conditions.
 
 Iceberg supports several table formats for data : `PARQUET`, `AVRO` and `ORC`.
 
-It is possible to use iceberg in an incremental fashion, specifically 2 strategies are supported:
+It is possible to use Iceberg in an incremental fashion, specifically two strategies are supported:
 * `append`: new records are appended to the table, this can lead to duplicates
 * `merge`: must be used in combination with `unique_key` and it's only available with Engine version 3.
-   It performs an upsert, new record are added, and record already existing are updated
+   It performs an upsert, new record are added, and record already existing are updated. If
+   `delete_condition` is provided in the model config, it can also delete records based on the
+   provided condition (SQL condition). You can use any column of the incremental table (`src`) or
+   the final table (`target`). You must prefix the column by the name of the table to prevent
+   `Column is ambiguous` error.
 
-### High available table materialization
-The current implementation of the table materialization can lead to downtime, as target table is dropped and re-created.
-To have the less destructive behavior it's possible to use `table='table_hive_ha'` materialization.
-**table_hive_ha** leverage the table versions feature of glue catalog, creating a tmp table and swapping
-the target table to the location of the tmp table.
-This materialization is only available for `table_type=hive` and requires using unique locations.
-
-```
+```sql
 {{ config(
-    materialized='table_hive_ha',
+    materialized='incremental',
+    table_type='iceberg',
+    incremental_strategy='merge',
+    unique_key='user_id',
+    delete_condition="src.status != 'active' and target.my_date < now() - interval '2' year",
+    format='parquet'
+) }}
+
+select
+	'A' as user_id,
+	'pi' as name,
+	'active' as status,
+	17.89 as cost,
+	1 as quantity,
+	100000000 as quantity_big,
+	current_date as my_date
+```
+
+### Highly available table
+The current implementation of the table materialization can lead to downtime, as target table is dropped and re-created.
+To have the less destructive behavior it's possible to use the `ha` config on your `table` materialized models.
+It leverages the table versions feature of glue catalog, creating a tmp table and swapping the target table to the
+location of the tmp table. This materialization is only available for `table_type=hive` and requires using unique
+locations. For iceberg, high availability is by default.
+
+```sql
+{{ config(
+    materialized='table',
+    ha=true,
     format='parquet',
+    table_type='hive',
     partition_by=['status'],
     s3_data_naming='table_unique'
 ) }}
@@ -242,19 +279,19 @@ select
   'disabled' as status
 ```
 
-By default, the materialization keeps the last 4 table versions, you can change it that setting `versions_to_keep`.
+By default, the materialization keeps the last 4 table versions, you can change it by setting `versions_to_keep`.
 
 #### Known issues
 * When swapping from a table with partitions to a table without (and the other way around), there could be a little downtime.
   In case high performances are needed consider bucketing instead of partitions
-* By default, Glue "duplicate" the versions internally, so the last 2 versions of a table point to the same location
-* It's recommended to have versions_to_keep>= 4, as this will avoid to have the older location removed
-* The macro athena__end_of_time needs to be overwritten by the user if using Athena v3 since it requires a precision parameter for timestamps
+* By default, Glue "duplicates" the versions internally, so the last two versions of a table point to the same location
+* It's recommended to have `versions_to_keep` >= 4, as this will avoid having the older location removed
+* The macro `athena__end_of_time` needs to be overwritten by the user if using Athena engine v3 since it requires a precision parameter for timestamps
 
 
 ## Snapshots
 
-The adapter supports snapshot materialization. It supports both timestamp and check strategy. To create a snapshot create a snapshot file in the snapshots directory. If directory does not exist create one.
+The adapter supports snapshot materialization. It supports both timestamp and check strategy. To create a snapshot create a snapshot file in the snapshots directory. If the directory does not exist create one.
 
 ### Timestamp strategy
 
@@ -295,21 +332,21 @@ MEIM.S1WA,2000.1,74897,
 ```
 
 model.sql
-```
+```sql
 {{ config(
     materialized='table'
 ) }}
 
-SELECT
-    ROW_NUMBER() OVER () AS id
+select
+    row_number() over() as id
     , *
-    , cast(from_unixtime(to_unixtime(now())) as timestamp(6)) AS refresh_timestamp
-FROM {{ ref('employment_indicators_november_2022_csv_tables') }}
+    , cast(from_unixtime(to_unixtime(now())) as timestamp(6)) as refresh_timestamp
+from {{ ref('employment_indicators_november_2022_csv_tables') }}
 ```
 
 timestamp strategy - model_snapshot_1
 
-```
+```sql
 {% snapshot model_snapshot_1 %}
 
 {{
@@ -320,15 +357,14 @@ timestamp strategy - model_snapshot_1
     )
 }}
 
-SELECT *
-
+select *
 from {{ ref('model') }}
 
 {% endsnapshot %}
 ```
 
 invalidate hard deletes - model_snapshot_2
-```
+```sql
 {% snapshot model_snapshot_2 %}
 
 {{
@@ -340,13 +376,14 @@ invalidate hard deletes - model_snapshot_2
         invalidate_hard_deletes=True,
     )
 }}
-SELECT * from {{ ref('model') }}
+select *
+from {{ ref('model') }}
 
 {% endsnapshot %}
 ```
 
 check strategy - model_snapshot_3
-```
+```sql
 {% snapshot model_snapshot_3 %}
 
 {{
@@ -357,7 +394,8 @@ check strategy - model_snapshot_3
         check_cols=['series_reference','data_value']
     )
 }}
-SELECT * from {{ ref('model') }}
+select *
+from {{ ref('model') }}
 
 {% endsnapshot %}
 ```
@@ -377,50 +415,7 @@ The only way, from a dbt perspective, is to do a full-refresh of the incremental
 
 ## Contributing
 
-This connector works with Python from 3.7 to 3.11.
-
-### Getting started
-
-In order to start developing on this adapter clone the repo and run this make command (see [Makefile](Makefile)) :
-
-```bash
-make setup
-```
-
-It will :
-1. Install all dependencies.
-2. Install pre-commit hooks.
-3. Generate your `.env` file
-
-Next, adjust `.env` file by configuring the environment variables to match your Athena development environment.
-
-### Running tests
-
-We have 2 different types of testing:
-* **unit testing**: you can run this type of tests running `make unit_test`
-* **functional testing**: you must have an AWS account with Athena setup in order to launch this type of tests and have a `.env` file in place with the right values.
-  You can run this type of tests running `make functional_test`
-
-All type of tests can be run using `make`:
-```bash
-make test
-```
-
-### Pull Request
-
-* Create a commit with your changes and push them to a
-  [fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo).
-* Create a [pull request on
-  Github](https://docs.github.com/en/github/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
-* Pull request title and message (and PR title and description) must adhere to
-  [conventionalcommits](https://www.conventionalcommits.org).
-* Pull request body should describe _motivation_.
-
-
-## Resources
-* [Athena CREATE TABLE AS](https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html)
-* [dbt-labs/dbt-core](https://github.com/dbt-labs/dbt-core)
-* [laughingman7743/PyAthena](https://github.com/laughingman7743/PyAthena)
+See [CONTRIBUTING](CONTRIBUTING.md) for more information on how to contribute to this project.
 
 
 ## Contributors ✨
@@ -433,12 +428,21 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <table>
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/nicor88"><img src="https://avatars.githubusercontent.com/u/6278547?v=4?s=100" width="100px;" alt="nicor88"/><br /><sub><b>nicor88</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/commits?author=nicor88" title="Code">💻</a> <a href="#maintenance-nicor88" title="Maintenance">🚧</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/nicor88"><img src="https://avatars.githubusercontent.com/u/6278547?v=4?s=100" width="100px;" alt="nicor88"/><br /><sub><b>nicor88</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/commits?author=nicor88" title="Code">💻</a> <a href="#maintenance-nicor88" title="Maintenance">🚧</a> <a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3Anicor88" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://jessedobbelae.re"><img src="https://avatars.githubusercontent.com/u/1352979?v=4?s=100" width="100px;" alt="Jesse Dobbelaere"/><br /><sub><b>Jesse Dobbelaere</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3Ajessedobbelaere" title="Bug reports">🐛</a> <a href="#maintenance-jessedobbelaere" title="Maintenance">🚧</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/lemiffe"><img src="https://avatars.githubusercontent.com/u/7487772?v=4?s=100" width="100px;" alt="Lemiffe"/><br /><sub><b>Lemiffe</b></sub></a><br /><a href="#design-lemiffe" title="Design">🎨</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Jrmyy"><img src="https://avatars.githubusercontent.com/u/9251353?v=4?s=100" width="100px;" alt="Jérémy Guiselin"/><br /><sub><b>Jérémy Guiselin</b></sub></a><br /><a href="#maintenance-Jrmyy" title="Maintenance">🚧</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Jrmyy"><img src="https://avatars.githubusercontent.com/u/9251353?v=4?s=100" width="100px;" alt="Jérémy Guiselin"/><br /><sub><b>Jérémy Guiselin</b></sub></a><br /><a href="#maintenance-Jrmyy" title="Maintenance">🚧</a> <a href="https://github.com/dbt-athena/dbt-athena/commits?author=Jrmyy" title="Code">💻</a> <a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3AJrmyy" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Tomme"><img src="https://avatars.githubusercontent.com/u/932895?v=4?s=100" width="100px;" alt="Tom"/><br /><sub><b>Tom</b></sub></a><br /><a href="#maintenance-Tomme" title="Maintenance">🚧</a> <a href="https://github.com/dbt-athena/dbt-athena/commits?author=Tomme" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/mattiamatrix"><img src="https://avatars.githubusercontent.com/u/5013654?v=4?s=100" width="100px;" alt="Mattia"/><br /><sub><b>Mattia</b></sub></a><br /><a href="#maintenance-mattiamatrix" title="Maintenance">🚧</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Gatsby-Lee"><img src="https://avatars.githubusercontent.com/u/22950880?v=4?s=100" width="100px;" alt="Gatsby Lee"/><br /><sub><b>Gatsby Lee</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3AGatsby-Lee" title="Bug reports">🐛</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/BrechtDeVlieger"><img src="https://avatars.githubusercontent.com/u/12074972?v=4?s=100" width="100px;" alt="BrechtDeVlieger"/><br /><sub><b>BrechtDeVlieger</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3ABrechtDeVlieger" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/aartaria"><img src="https://avatars.githubusercontent.com/u/10273710?v=4?s=100" width="100px;" alt="Andrea Artaria"/><br /><sub><b>Andrea Artaria</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3Aaartaria" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/maiarareinaldo"><img src="https://avatars.githubusercontent.com/u/72740386?v=4?s=100" width="100px;" alt="Maiara Reinaldo"/><br /><sub><b>Maiara Reinaldo</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3Amaiarareinaldo" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/henriblancke"><img src="https://avatars.githubusercontent.com/u/1708162?v=4?s=100" width="100px;" alt="Henri Blancke"/><br /><sub><b>Henri Blancke</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/commits?author=henriblancke" title="Code">💻</a> <a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3Ahenriblancke" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/svdimchenko"><img src="https://avatars.githubusercontent.com/u/39801237?v=4?s=100" width="100px;" alt="Serhii Dimchenko"/><br /><sub><b>Serhii Dimchenko</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/commits?author=svdimchenko" title="Code">💻</a> <a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3Asvdimchenko" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/chrischin478"><img src="https://avatars.githubusercontent.com/u/47199426?v=4?s=100" width="100px;" alt="chrischin478"/><br /><sub><b>chrischin478</b></sub></a><br /><a href="https://github.com/dbt-athena/dbt-athena/commits?author=chrischin478" title="Code">💻</a> <a href="https://github.com/dbt-athena/dbt-athena/issues?q=author%3Achrischin478" title="Bug reports">🐛</a></td>
     </tr>
   </tbody>
 </table>

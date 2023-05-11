@@ -2,6 +2,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Optional, Set
 
+from mypy_boto3_glue.type_defs import TableTypeDef
+
+from dbt.adapters.athena.constants import LOGGER
 from dbt.adapters.base.relation import BaseRelation, InformationSchema, Policy
 
 
@@ -11,6 +14,9 @@ class TableType(Enum):
     CTE = "cte"
     MATERIALIZED_VIEW = "materializedview"
     ICEBERG = "iceberg_table"
+
+    def is_physical(self) -> bool:
+        return self in [TableType.TABLE, TableType.ICEBERG]
 
 
 @dataclass
@@ -24,6 +30,7 @@ class AthenaIncludePolicy(Policy):
 class AthenaRelation(BaseRelation):
     quote_character: str = '"'  # Presto quote character
     include_policy: Policy = field(default_factory=lambda: AthenaIncludePolicy())
+    s3_path_table_part: Optional[str] = None
 
     def render_hive(self):
         """
@@ -69,3 +76,30 @@ class AthenaSchemaSearchMap(Dict[InformationSchema, Dict[str, Set[Optional[str]]
             if schema not in self[key]:
                 self[key][schema] = set()
             self[key][schema].add(relation_name)
+
+
+RELATION_TYPE_MAP = {
+    "EXTERNAL_TABLE": TableType.TABLE,
+    "MANAGED_TABLE": TableType.TABLE,
+    "VIRTUAL_VIEW": TableType.VIEW,
+    "table": TableType.TABLE,
+    "view": TableType.VIEW,
+    "cte": TableType.CTE,
+    "materializedview": TableType.MATERIALIZED_VIEW,
+}
+
+
+def get_table_type(table: TableTypeDef) -> TableType:
+    _type = RELATION_TYPE_MAP.get(table.get("TableType"))
+    _specific_type = table.get("Parameters", {}).get("table_type", "")
+
+    if _specific_type.lower() == "iceberg":
+        _type = TableType.ICEBERG
+
+    if _type is None:
+        raise ValueError("Table type cannot be None")
+
+    LOGGER.debug(f"table_name : {table.get('Name')}")
+    LOGGER.debug(f"table type : {_type}")
+
+    return _type

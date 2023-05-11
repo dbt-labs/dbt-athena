@@ -6,7 +6,7 @@ from setuptools import find_namespace_packages, setup
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 
-with open(os.path.join(this_directory, "README.md")) as f:
+with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 package_name = "dbt-athena-community"
@@ -44,14 +44,30 @@ setup(
     description=description,
     long_description=long_description,
     long_description_content_type="text/markdown",
+    platforms="any",
+    license="Apache License 2.0",
+    license_files=("LICENSE.txt",),
     url="https://github.com/dbt-athena/dbt-athena",
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
     install_requires=[
         # In order to control dbt-core version and package version
         "boto3~=1.26",
-        "dbt-core~=1.4.5",
-        "pyathena~=2.23",
+        "boto3-stubs[athena,glue,lakeformation,sts]~=1.26",
+        "dbt-core~=1.4.6",
+        "pyathena~=2.25",
         "tenacity~=8.2",
+    ],
+    classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "License :: OSI Approved :: Apache Software License",
+        "Operating System :: Microsoft :: Windows",
+        "Operating System :: MacOS :: MacOS X",
+        "Operating System :: POSIX :: Linux",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
 )

@@ -14,12 +14,12 @@
 
   {%- set location_property = 'external_location' -%}
   {%- set partition_property = 'partitioned_by' -%}
-  {%- set work_group_output_location = adapter.get_work_group_output_location() -%}
-  {%- set location = adapter.s3_table_location(s3_data_dir, s3_data_naming, relation.schema, relation.identifier, external_location, temporary) -%}
-
-  {%- if materialized == 'table_hive_ha' -%}
-    {%- set location = location.replace('__ha', '') -%}
-  {%- endif %}
+  {%- set work_group_output_location_enforced = adapter.is_work_group_output_location_enforced() -%}
+  {%- set location = adapter.generate_s3_location(relation,
+                                                 s3_data_dir,
+                                                 s3_data_naming,
+                                                 external_location,
+                                                 temporary) -%}
 
   {%- if table_type == 'iceberg' -%}
     {%- set location_property = 'location' -%}
@@ -33,10 +33,10 @@
       {%- set bucket_count = none -%}
       {% do log(ignored_bucket_iceberg) %}
     {%- endif -%}
-    {%- if s3_data_naming in ['table', 'table_schema'] or external_location is not none -%}
+    {%- if 'unique' not in s3_data_naming or external_location is not none -%}
       {%- set error_unique_location_iceberg -%}
-        You need to have an unique table location when creating Iceberg table. Right now we are building tables in
-        a destructive way but in the near future we will be using the RENAME feature to provide near-zero downtime.
+        You need to have an unique table location when creating Iceberg table since we use the RENAME feature
+        to have near-zero downtime.
       {%- endset -%}
       {% do exceptions.raise_compiler_error(error_unique_location_iceberg) %}
     {%- endif -%}
@@ -48,7 +48,7 @@
   with (
     table_type='{{ table_type }}',
     is_external={%- if table_type == 'iceberg' -%}false{%- else -%}true{%- endif %},
-  {%- if work_group_output_location is none -%}
+  {%- if not work_group_output_location_enforced or table_type == 'iceberg' -%}
     {{ location_property }}='{{ location }}',
   {%- endif %}
   {%- if partitioned_by is not none %}

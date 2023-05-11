@@ -1,5 +1,6 @@
 import os
 import string
+from typing import Optional
 
 import agate
 import boto3
@@ -132,13 +133,15 @@ class TestAdapterConversions:
 
 
 class MockAWSService:
-    def create_data_catalog(self, catalog_name: str = DATA_CATALOG_NAME, catalog_type: str = "GLUE"):
+    def create_data_catalog(
+        self, catalog_name: str = DATA_CATALOG_NAME, catalog_type: str = "GLUE", catalog_id: str = CATALOG_ID
+    ):
         athena = boto3.client("athena", region_name=AWS_REGION)
-        athena.create_data_catalog(Name=catalog_name, Type=catalog_type, Parameters={"catalog-id": CATALOG_ID})
+        athena.create_data_catalog(Name=catalog_name, Type=catalog_type, Parameters={"catalog-id": catalog_id})
 
-    def create_database(self, name: str = DATABASE_NAME):
+    def create_database(self, name: str = DATABASE_NAME, catalog_id: str = CATALOG_ID):
         glue = boto3.client("glue", region_name=AWS_REGION)
-        glue.create_database(DatabaseInput={"Name": name}, CatalogId=CATALOG_ID)
+        glue.create_database(DatabaseInput={"Name": name}, CatalogId=catalog_id)
 
     def create_view(self, view_name: str):
         glue = boto3.client("glue", region_name=AWS_REGION)
@@ -167,7 +170,51 @@ class MockAWSService:
             },
         )
 
-    def create_table(self, table_name: str, database_name: str = DATABASE_NAME):
+    def create_table(
+        self,
+        table_name: str,
+        database_name: str = DATABASE_NAME,
+        catalog_id: str = CATALOG_ID,
+        location: Optional[str] = "auto",
+    ):
+        glue = boto3.client("glue", region_name=AWS_REGION)
+        if location == "auto":
+            location = f"s3://{BUCKET}/tables/{table_name}"
+        glue.create_table(
+            CatalogId=catalog_id,
+            DatabaseName=database_name,
+            TableInput={
+                "Name": table_name,
+                "StorageDescriptor": {
+                    "Columns": [
+                        {
+                            "Name": "id",
+                            "Type": "string",
+                        },
+                        {
+                            "Name": "country",
+                            "Type": "string",
+                        },
+                    ],
+                    "Location": location,
+                },
+                "PartitionKeys": [
+                    {
+                        "Name": "dt",
+                        "Type": "date",
+                    },
+                ],
+                "TableType": "table",
+                "Parameters": {
+                    "compressionType": "snappy",
+                    "classification": "parquet",
+                    "projection.enabled": "false",
+                    "typeOfData": "file",
+                },
+            },
+        )
+
+    def create_table_without_type(self, table_name: str, database_name: str = DATABASE_NAME):
         glue = boto3.client("glue", region_name=AWS_REGION)
         glue.create_table(
             DatabaseName=database_name,
@@ -186,13 +233,6 @@ class MockAWSService:
                     ],
                     "Location": f"s3://{BUCKET}/tables/{table_name}",
                 },
-                "PartitionKeys": [
-                    {
-                        "Name": "dt",
-                        "Type": "date",
-                    },
-                ],
-                "TableType": "table",
                 "Parameters": {
                     "compressionType": "snappy",
                     "classification": "parquet",
@@ -291,7 +331,7 @@ class MockAWSService:
             },
         )
 
-    def create_work_group_with_output_location(self, work_group_name: str):
+    def create_work_group_with_output_location_enforced(self, work_group_name: str):
         athena = boto3.client("athena", region_name=AWS_REGION)
         athena.create_work_group(
             Name=work_group_name,
@@ -300,6 +340,23 @@ class MockAWSService:
                     "OutputLocation": "s3://pre-configured-output-location/",
                 },
                 "EnforceWorkGroupConfiguration": True,
+                "PublishCloudWatchMetricsEnabled": True,
+                "EngineVersion": {
+                    "SelectedEngineVersion": "Athena engine version 2",
+                    "EffectiveEngineVersion": "Athena engine version 2",
+                },
+            },
+        )
+
+    def create_work_group_with_output_location_not_enforced(self, work_group_name: str):
+        athena = boto3.client("athena", region_name=AWS_REGION)
+        athena.create_work_group(
+            Name=work_group_name,
+            Configuration={
+                "ResultConfiguration": {
+                    "OutputLocation": "s3://pre-configured-output-location/",
+                },
+                "EnforceWorkGroupConfiguration": False,
                 "PublishCloudWatchMetricsEnabled": True,
                 "EngineVersion": {
                     "SelectedEngineVersion": "Athena engine version 2",

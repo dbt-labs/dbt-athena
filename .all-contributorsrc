@@ -13,7 +13,8 @@
       "profile": "https://github.com/nicor88",
       "contributions": [
         "code",
-        "maintenance"
+        "maintenance",
+        "bug"
       ]
     },
     {
@@ -41,7 +42,9 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/9251353?v=4",
       "profile": "https://github.com/Jrmyy",
       "contributions": [
-        "maintenance"
+        "maintenance",
+        "code",
+        "bug"
       ]
     },
     {
@@ -61,6 +64,72 @@
       "profile": "https://github.com/mattiamatrix",
       "contributions": [
         "maintenance"
+      ]
+    },
+    {
+      "login": "Gatsby-Lee",
+      "name": "Gatsby Lee",
+      "avatar_url": "https://avatars.githubusercontent.com/u/22950880?v=4",
+      "profile": "https://github.com/Gatsby-Lee",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "BrechtDeVlieger",
+      "name": "BrechtDeVlieger",
+      "avatar_url": "https://avatars.githubusercontent.com/u/12074972?v=4",
+      "profile": "https://github.com/BrechtDeVlieger",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "aartaria",
+      "name": "Andrea Artaria",
+      "avatar_url": "https://avatars.githubusercontent.com/u/10273710?v=4",
+      "profile": "https://github.com/aartaria",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "maiarareinaldo",
+      "name": "Maiara Reinaldo",
+      "avatar_url": "https://avatars.githubusercontent.com/u/72740386?v=4",
+      "profile": "https://github.com/maiarareinaldo",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "henriblancke",
+      "name": "Henri Blancke",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1708162?v=4",
+      "profile": "https://github.com/henriblancke",
+      "contributions": [
+        "code",
+        "bug"
+      ]
+    },
+    {
+      "login": "svdimchenko",
+      "name": "Serhii Dimchenko",
+      "avatar_url": "https://avatars.githubusercontent.com/u/39801237?v=4",
+      "profile": "https://github.com/svdimchenko",
+      "contributions": [
+        "code",
+        "bug"
+      ]
+    },
+    {
+      "login": "chrischin478",
+      "name": "chrischin478",
+      "avatar_url": "https://avatars.githubusercontent.com/u/47199426?v=4",
+      "profile": "https://github.com/chrischin478",
+      "contributions": [
+        "code",
+        "bug"
       ]
     }
   ],
