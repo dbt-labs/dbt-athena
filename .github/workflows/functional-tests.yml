@@ -1,0 +1,34 @@
+name: functional-tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  DBT_TEST_ATHENA_DATABASE: dbt-tests
+  DBT_TEST_ATHENA_SCHEMA: awsdatacatalog
+  DBT_TEST_ATHENA_WORK_GROUND: athena-dbt-tests
+  # DBT_TEST_ATHENA_AWS_PROFILE_NAME:
+
+jobs:
+  functional-tests-eu-central-1:
+    name: Functional Test eu-central-1
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      DBT_TEST_ATHENA_S3_STAGING_DIR: dbt-athena-query-results-eu-central-1
+      DBT_TEST_ATHENA_REGION_NAME: eu-central-1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Configure AWS credentials from Test account eu-central-1
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
+          aws-region: eu-central-1
+      - name: Functional Test
+        run: |
+          make functional_test
