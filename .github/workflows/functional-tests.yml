@@ -26,15 +26,12 @@ jobs:
       DBT_TEST_ATHENA_S3_STAGING_DIR: dbt-athena-query-results-eu-central-1
       DBT_TEST_ATHENA_REGION_NAME: eu-central-1
     steps:
-      - name: Print ens
-        run: |
-          env
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.10'
       - name: Install dependencies
         run: |
           make install_deps
