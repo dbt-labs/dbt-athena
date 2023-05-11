@@ -40,4 +40,4 @@ jobs:
           aws-region: ${{ matrix.aws-region }}
       - name: Functional Test
         run: |
-          make functional_test
+          pytest tests/functional
