@@ -16,6 +16,9 @@ pytest_plugins = ["dbt.tests.fixtures.project"]
 # The profile dictionary, used to write out profiles.yml
 @pytest.fixture(scope="class")
 def dbt_profile_target():
+    for name, value in os.environ.items():
+        print(f"{name}: {value}")
+
     return {
         "type": "athena",
         "s3_staging_dir": os.getenv("DBT_TEST_ATHENA_S3_STAGING_DIR"),
@@ -24,7 +27,7 @@ def dbt_profile_target():
         "region_name": os.getenv("DBT_TEST_ATHENA_REGION_NAME"),
         "threads": 1,
         "num_retries": 0,
-        "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUND"),
+        "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUP"),
         "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME") or None,
     }
 

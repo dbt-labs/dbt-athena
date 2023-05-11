@@ -8,7 +8,7 @@ on:
 env:
   DBT_TEST_ATHENA_DATABASE: dbt-tests
   DBT_TEST_ATHENA_SCHEMA: awsdatacatalog
-  DBT_TEST_ATHENA_WORK_GROUND: athena-dbt-tests
+  DBT_TEST_ATHENA_WORK_GROUP: athena-dbt-tests
 
 jobs:
   functional-tests:
