@@ -1,0 +1,39 @@
+name: integration-tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test-s3:
+    name: Test Action
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Configure AWS credentials from Test account eu-central-1
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
+          aws-region: eu-central-1
+      - name: Test S3 eu-central-1
+        run: |
+          aws s3 ls s3://dbt-athena-query-results-eu-central-1 --recursive --human-readable --summarize
+      - name: Test Athena eu-central-1
+        run: |
+          aws athena start-query-execution --query-string "SHOW DATABASES" --work-group "athena-dbt-tests"
+      - name: Configure AWS credentials from Test account us-east-1
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
+          aws-region: us-east-1
+      - name: Test S3 us-east-1
+        run: |
+          aws s3 ls s3://dbt-athena-query-results-us-east-1 --recursive --human-readable --summarize
+      - name: Test Athena us-east-1
+        run: |
+          aws athena start-query-execution --query-string "SHOW DATABASES" --work-group "athena-dbt-tests"
