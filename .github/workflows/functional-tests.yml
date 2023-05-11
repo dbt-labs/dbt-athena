@@ -15,6 +15,9 @@ jobs:
   functional-tests-eu-central-1:
     name: Functional Test eu-central-1
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
     permissions:
       id-token: write
       contents: read
@@ -24,6 +27,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          make install_deps
       - name: Configure AWS credentials from Test account eu-central-1
         uses: aws-actions/configure-aws-credentials@v2
         with:
