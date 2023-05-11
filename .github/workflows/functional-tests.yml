@@ -9,22 +9,20 @@ env:
   DBT_TEST_ATHENA_DATABASE: dbt-tests
   DBT_TEST_ATHENA_SCHEMA: awsdatacatalog
   DBT_TEST_ATHENA_WORK_GROUND: athena-dbt-tests
-  # DBT_TEST_ATHENA_AWS_PROFILE_NAME:
 
 jobs:
-  functional-tests-eu-central-1:
-    name: Functional Test eu-central-1
+  functional-tests:
+    name: Functional Test
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
-        python-version: ['3.10']
+        aws-region: ['us-east-1', 'eu-west-1', 'eu-west-2', 'eu-central-1']
     permissions:
       id-token: write
       contents: read
     env:
-      DBT_TEST_ATHENA_S3_STAGING_DIR: dbt-athena-query-results-eu-central-1
-      DBT_TEST_ATHENA_REGION_NAME: eu-central-1
+      DBT_TEST_ATHENA_S3_STAGING_DIR: dbt-athena-query-results-${{ matrix.aws-region }}
+      DBT_TEST_ATHENA_REGION_NAME: ${{ matrix.aws-region }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -35,11 +33,11 @@ jobs:
       - name: Install dependencies
         run: |
           make install_deps
-      - name: Configure AWS credentials from Test account eu-central-1
+      - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
-          aws-region: eu-central-1
+          aws-region: ${{ matrix.aws-region }}
       - name: Functional Test
         run: |
           make functional_test
