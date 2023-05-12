@@ -21,7 +21,7 @@ jobs:
       id-token: write
       contents: read
     env:
-      DBT_TEST_ATHENA_S3_STAGING_DIR: dbt-athena-query-results-${{ matrix.aws-region }}
+      DBT_TEST_ATHENA_S3_STAGING_DIR: s3://dbt-athena-query-results-${{ matrix.aws-region }}
       DBT_TEST_ATHENA_REGION_NAME: ${{ matrix.aws-region }}
     steps:
       - name: Checkout
