@@ -42,4 +42,4 @@ jobs:
           aws-region: ${{ matrix.aws-region }}
       - name: Functional Test
         run: |
-          pytest -n auto tests/functional
+          pytest -n 8 tests/functional
