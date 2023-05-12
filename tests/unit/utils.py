@@ -149,7 +149,10 @@ class MockAWSService:
         self, catalog_name: str = DATA_CATALOG_NAME, catalog_type: str = "GLUE", catalog_id: str = CATALOG_ID
     ):
         athena = boto3.client("athena", region_name=AWS_REGION)
-        athena.create_data_catalog(Name=catalog_name, Type=catalog_type, Parameters={"catalog-id": catalog_id})
+        parameters = {}
+        if catalog_type == "GLUE":
+            parameters = {"catalog-id": catalog_id}
+        athena.create_data_catalog(Name=catalog_name, Type=catalog_type, Parameters=parameters)
 
     def create_database(self, name: str = DATABASE_NAME, catalog_id: str = CATALOG_ID):
         glue = boto3.client("glue", region_name=AWS_REGION)

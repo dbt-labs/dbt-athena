@@ -28,6 +28,7 @@ from .constants import (
     BUCKET,
     DATA_CATALOG_NAME,
     DATABASE_NAME,
+    FEDERATED_QUERY_CATALOG_NAME,
     S3_STAGING_DIR,
     SHARED_DATA_CATALOG_NAME,
 )
@@ -66,6 +67,7 @@ class TestAthenaAdapter:
             ("awsdatacatalog", "quux"),
             ("awsdatacatalog", "baz"),
             (SHARED_DATA_CATALOG_NAME, "foo"),
+            (FEDERATED_QUERY_CATALOG_NAME, "foo"),
         }
         self.mock_manifest.nodes = {
             "model.root.model1": CompiledNode(
@@ -205,6 +207,42 @@ class TestAthenaAdapter:
                 tags=[],
                 path="model4.sql",
                 original_file_path="model4.sql",
+                compiled=True,
+                extra_ctes_injected=False,
+                extra_ctes=[],
+                checksum=FileHash.from_contents(""),
+                raw_code="select * from source_table",
+                language="",
+            ),
+            "model.root.model5": CompiledNode(
+                name="model5",
+                database=FEDERATED_QUERY_CATALOG_NAME,
+                schema="foo",
+                resource_type=NodeType.Model,
+                unique_id="model.root.model5",
+                alias="bar",
+                fqn=["root", "model5"],
+                package_name="root",
+                refs=[],
+                sources=[],
+                depends_on=DependsOn(),
+                config=NodeConfig.from_dict(
+                    {
+                        "enabled": True,
+                        "materialized": "table",
+                        "persist_docs": {},
+                        "post-hook": [],
+                        "pre-hook": [],
+                        "vars": {},
+                        "meta": {"owner": "data-engineers"},
+                        "quoting": {},
+                        "column_types": {},
+                        "tags": [],
+                    }
+                ),
+                tags=[],
+                path="model5.sql",
+                original_file_path="model5.sql",
                 compiled=True,
                 extra_ctes_injected=False,
                 extra_ctes=[],
@@ -612,9 +650,65 @@ class TestAthenaAdapter:
         for row in actual.rows.values():
             assert row.values() in expected_rows
 
+    @mock_athena
+    @mock.patch.object(AthenaAdapter, "execute_macro")
+    def test__get_one_catalog_federated_query_catalog(self, mock_execute, mock_aws_service):
+        column_names = (
+            "table_database",
+            "table_schema",
+            "table_name",
+            "table_type",
+            "table_comment",
+            "column_name",
+            "column_index",
+            "column_type",
+            "column_comment",
+        )
+
+        rows = [
+            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "id", 0, "string", None),
+            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "country", 1, "string", None),
+            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "dt", 2, "date", None),
+        ]
+
+        mock_execute.return_value = agate.Table(rows=rows, column_names=column_names)
+        mock_aws_service.create_data_catalog(catalog_name=FEDERATED_QUERY_CATALOG_NAME, catalog_type="LAMBDA")
+        mock_information_schema = mock.MagicMock()
+        mock_information_schema.path.database = FEDERATED_QUERY_CATALOG_NAME
+
+        self.adapter.acquire_connection("dummy")
+        actual = self.adapter._get_one_catalog(
+            mock_information_schema,
+            mock.MagicMock(),
+            self.mock_manifest,
+        )
+
+        expected_column_names = (
+            "table_database",
+            "table_schema",
+            "table_name",
+            "table_type",
+            "table_comment",
+            "column_name",
+            "column_index",
+            "column_type",
+            "column_comment",
+            "table_owner",
+        )
+        expected_rows = [
+            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
+            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
+            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
+        ]
+
+        assert actual.column_names == expected_column_names
+        assert len(actual.rows) == len(expected_rows)
+        for row in actual.rows.values():
+            assert row.values() in expected_rows
+
     def test__get_catalog_schemas(self):
         res = self.adapter._get_catalog_schemas(self.mock_manifest)
-        assert len(res.keys()) == 2
+        assert len(res.keys()) == 3
 
         information_schema_0 = list(res.keys())[0]
         assert information_schema_0.name == "INFORMATION_SCHEMA"
@@ -628,6 +722,14 @@ class TestAthenaAdapter:
         assert information_schema_1.name == "INFORMATION_SCHEMA"
         assert information_schema_1.schema is None
         assert information_schema_1.database == SHARED_DATA_CATALOG_NAME
+        relations = list(res.values())[1]
+        assert set(relations.keys()) == {"foo"}
+        assert list(relations.values()) == [{"bar"}]
+
+        information_schema_1 = list(res.keys())[2]
+        assert information_schema_1.name == "INFORMATION_SCHEMA"
+        assert information_schema_1.schema is None
+        assert information_schema_1.database == FEDERATED_QUERY_CATALOG_NAME
         relations = list(res.values())[1]
         assert set(relations.keys()) == {"foo"}
         assert list(relations.values()) == [{"bar"}]

@@ -43,6 +43,7 @@ from dbt.adapters.athena.relation import (
 from dbt.adapters.athena.s3 import S3DataNaming
 from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id, get_chunks
 from dbt.adapters.base import ConstraintSupport, available
+from dbt.adapters.base.impl import GET_CATALOG_MACRO_NAME
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
@@ -416,28 +417,38 @@ class AthenaAdapter(SQLAdapter):
     ) -> agate.Table:
         data_catalog = self._get_data_catalog(information_schema.path.database)
         catalog_id = get_catalog_id(data_catalog)
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-        with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
-        catalog = []
-        paginator = glue_client.get_paginator("get_tables")
-        for schema, relations in schemas.items():
-            kwargs = {
-                "DatabaseName": schema,
-                "MaxResults": 100,
-            }
-            # If the catalog is `awsdatacatalog` we don't need to pass CatalogId as boto3 infers it from the account Id.
-            if catalog_id:
-                kwargs["CatalogId"] = catalog_id
+        if data_catalog["Type"] == "GLUE":
+            conn = self.connections.get_thread_connection()
+            client = conn.handle
+            with boto3_client_lock:
+                glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
-            for page in paginator.paginate(**kwargs):
-                for table in page["TableList"]:
-                    if relations and table["Name"] in relations:
-                        catalog.extend(self._get_one_table_for_catalog(table, information_schema.path.database))
+            catalog = []
+            paginator = glue_client.get_paginator("get_tables")
+            for schema, relations in schemas.items():
+                kwargs = {
+                    "DatabaseName": schema,
+                    "MaxResults": 100,
+                }
+                # If the catalog is `awsdatacatalog` we don't need to pass CatalogId as boto3
+                # infers it from the account Id.
+                if catalog_id:
+                    kwargs["CatalogId"] = catalog_id
 
-        table = agate.Table.from_object(catalog)
+                for page in paginator.paginate(**kwargs):
+                    for table in page["TableList"]:
+                        if relations and table["Name"] in relations:
+                            catalog.extend(self._get_one_table_for_catalog(table, information_schema.path.database))
+            table = agate.Table.from_object(catalog)
+        else:
+            kwargs = {"information_schema": information_schema, "schemas": schemas}
+            table = self.execute_macro(
+                GET_CATALOG_MACRO_NAME,
+                kwargs=kwargs,
+                manifest=manifest,
+            )
+
         filtered_table = self._catalog_filter_table(table, manifest)
         return self._join_catalog_table_owners(filtered_table, manifest)
 
