@@ -115,7 +115,8 @@ _Additional information_
 ### Table Configuration
 
 * `external_location` (`default=none`)
-  * If set, the full S3 path in which the table will be saved. (Does not work with Iceberg table).
+  * If set, the full S3 path in which the table will be saved.
+  * Does not work with Iceberg table or Hive table with `ha` set to true.
 * `partitioned_by` (`default=none`)
   * An array list of columns by which the table will be partitioned
   * Limited to creation of 100 partitions (_currently_)
@@ -126,6 +127,9 @@ _Additional information_
 * `table_type` (`default='hive'`)
   * The type of table
   * Supports `hive` or `iceberg`
+* `ha` (`default=false`)
+  * If the table should be built using the high-availability method. This option is only available for Hive tables
+    since it is by default for Iceberg tables (see the section [below](#highly-available-table))
 * `format` (`default='parquet'`)
   * The data format for the table
   * Supports `ORC`, `PARQUET`, `AVRO`, `JSON`, `TEXTFILE`
@@ -152,7 +156,7 @@ The location in which a table is saved is determined by:
 3. If `s3_data_dir` is not defined, data is stored under `s3_staging_dir/tables/`
 
 Here all the options available for `s3_data_naming`:
-* `uuid`: `{s3_data_dir}/{uuid4()}/`
+* `unique`: `{s3_data_dir}/{uuid4()}/`
 * `table`: `{s3_data_dir}/{table}/`
 * `table_unique`: `{s3_data_dir}/{table}/{uuid4()}/`
 * `schema_table`: `{s3_data_dir}/{schema}/{table}/`
@@ -247,17 +251,19 @@ select
 	current_date as my_date
 ```
 
-### High availability table materialization
+### Highly available table
 The current implementation of the table materialization can lead to downtime, as target table is dropped and re-created.
-To have the less destructive behavior it's possible to use `table='table_hive_ha'` materialization.
-**table_hive_ha** leverages the table versions feature of Glue catalog, creating a temp table and swapping
-the target table to the location of the temp table.
-This materialization is only available for `table_type='hive'` and requires using unique locations.
+To have the less destructive behavior it's possible to use the `ha` config on your `table` materialized models.
+It leverages the table versions feature of glue catalog, creating a tmp table and swapping the target table to the
+location of the tmp table. This materialization is only available for `table_type=hive` and requires using unique
+locations. For iceberg, high availability is by default.
 
 ```sql
 {{ config(
-    materialized='table_hive_ha',
+    materialized='table',
+    ha=true,
     format='parquet',
+    table_type='hive',
     partition_by=['status'],
     s3_data_naming='table_unique'
 ) }}

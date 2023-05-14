@@ -213,7 +213,7 @@ class AthenaAdapter(SQLAdapter):
         table_prefix = self._s3_table_prefix(s3_data_dir)
 
         mapping = {
-            S3DataNaming.UUID: path.join(table_prefix, str(uuid4())),
+            S3DataNaming.UNIQUE: path.join(table_prefix, str(uuid4())),
             S3DataNaming.TABLE: path.join(table_prefix, s3_path_table_part),
             S3DataNaming.TABLE_UNIQUE: path.join(table_prefix, s3_path_table_part, str(uuid4())),
             S3DataNaming.SCHEMA_TABLE: path.join(table_prefix, schema_name, s3_path_table_part),
