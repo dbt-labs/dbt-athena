@@ -786,3 +786,11 @@ class AthenaAdapter(SQLAdapter):
                 drop_staging_sql.strip(),
             ]
         )
+
+    @available
+    def is_list(self, value: Any) -> bool:
+        """
+        This function is intended to test whether a Jinja object is
+        a list since this is complicated with purely Jinja syntax.
+        """
+        return isinstance(value, list)
