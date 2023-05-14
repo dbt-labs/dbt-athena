@@ -26,7 +26,7 @@ unit_test:  ## Run unit tests.
 	pytest --cov=dbt tests/unit
 
 functional_test: .env  ## Run functional tests.
-	pytest tests/functional
+	pytest -n auto tests/functional
 
 pre-commit:  ## check modified and added files (compared to last commit!) with pre-commit.
 	pre-commit run --files $(CHANGED_FILES)
