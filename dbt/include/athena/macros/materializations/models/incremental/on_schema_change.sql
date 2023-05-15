@@ -19,6 +19,13 @@
        {% if remove_from_target_arr | length > 0 %}
          {%- do alter_relation_drop_columns(target_relation, remove_from_target_arr) -%}
        {% endif %}
+       {% if new_target_types != [] %}
+         {% for ntt in new_target_types %}
+           {% set column_name = ntt['column_name'] %}
+           {% set new_type = ntt['new_type'] %}
+           {% do alter_column_type(target_relation, column_name, new_type) %}
+         {% endfor %}
+       {% endif %}
      {% else %}
        {%- set replace_with_target_arr = remove_partitions_from_columns(schema_changes_dict['source_columns'], partitioned_by) -%}
        {% if add_to_target_arr | length > 0 or remove_from_target_arr | length > 0 or new_target_types | length > 0 %}
@@ -34,4 +41,39 @@
         Data types changed: {{ new_target_types }}
   {% endset %}
   {% do log(schema_change_message) %}
+{% endmacro %}
+
+{% macro athena__alter_column_type(relation, column_name, new_column_type) -%}
+  {#
+    1. Create a new column (w/ temp name and correct type)
+    2. Copy data over to it
+    3. Drop the existing column
+    4. Rename the new column to existing column
+  #}
+  {%- set tmp_column = column_name + "__dbt_alter" -%}
+
+  {# Fix bug in Athena: systax error when using quoted table name #}
+  {%- set relation = relation.render_pure() -%}
+
+  {%- set add_column_query -%}
+    alter table {{ relation }} add columns({{ tmp_column }} {{ new_column_type }});
+  {%- endset -%}
+
+  {%- set update_query -%}
+    update {{ relation }} set {{ tmp_column }} = {{ column_name }};
+  {%- endset -%}
+
+  {%- set drop_column_query -%}
+    alter table {{ relation }} drop column {{ column_name }};
+  {%- endset -%}
+
+  {%- set rename_column_query -%}
+    alter table {{ relation }} change column {{ tmp_column }} {{ column_name }} {{ new_column_type }};
+  {%- endset -%}
+
+  {%- do run_query(add_column_query) -%}
+  {%- do run_query(update_query) -%}
+  {%- do run_query(drop_column_query) -%}
+  {%- do run_query(rename_column_query) -%}
+
 {% endmacro %}
