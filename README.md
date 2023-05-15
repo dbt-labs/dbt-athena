@@ -8,7 +8,7 @@
 
 ## Features
 
-* Supports dbt version `1.4.*`
+* Supports dbt version `1.5.*`
 * Supports [seeds][seeds]
 * Correctly detects views and their columns
 * Supports [table materialization][table]
@@ -411,6 +411,16 @@ The only way, from a dbt perspective, is to do a full-refresh of the incremental
   See https://github.com/dbt-athena/dbt-athena/issues/103 for more details.
 
 * Snapshot does not support dropping columns from the source table. If you drop a column make sure to drop the column from the snapshot as well. Another workaround is to NULL the column in the snapshot definition to preserve history
+
+
+## Contracts
+
+The adapter partly supports contract definition.
+* Concerning the `data_type`, it is supported but needs to be adjusted for complex types. They must be specified
+  entirely (for instance `array<int>`) even though they won't be checked. Indeed, as dbt recommends, we only compare
+  the broader type (array, map, int, varchar). The complete definition is used in order to check that the data types
+  defined in athena are ok (pre-flight check).
+* the adapter does not support the constraints since no constraints don't exist in Athena.
 
 
 ## Contributing
