@@ -55,10 +55,10 @@
   {# Fix bug in Athena: error when using quoted table name #}
   {%- set relation = relation.render_pure() -%}
 
-  {# Fix bug in Athena: iceberg alter statements work requires "string" column type instead of "varchar" #}
+  {# Fix bug in Athena: iceberg alter statements requires "string" column type instead of "varchar" #}
   {%- set new_iceberg_column_type = new_column_type | replace('varchar', 'string') -%}
 
-  {# Fix bug in Athena: iceberg alter statements work requires "timestamp" column type instead of "timestamp(X)" #}
+  {# Fix bug in Athena: iceberg alter statements requires "timestamp" column type instead of "timestamp(X)" #}
   {#
     Note: if it needs to convert varchar column type with timestamp values to date,
     you need to convert it to timestamp type or update with truncating timestamp values to date
