@@ -55,12 +55,24 @@
   {# Fix bug in Athena: error when using quoted table name #}
   {%- set relation = relation.render_pure() -%}
 
+  {# Fix bug in Athena: iceberg alter statements work requires "string" column type instead of "varchar" #}
+  {%- set new_iceberg_column_type = new_column_type | replace('varchar', 'string') -%}
+
+  {# Fix bug in Athena: iceberg alter statements work requires "timestamp" column type instead of "timestamp(X)" #}
+  {#
+    Note: if it needs to convert varchar column type with timestamp values to date,
+    you need to convert it to timestamp type or update with truncating timestamp values to date
+  #}
+  {%- if 'timestamp' in new_column_type -%}
+    {%- set new_iceberg_column_type = 'timestamp' -%}
+  {%- endif -%}
+
   {%- set add_column_query -%}
-    alter table {{ relation }} add columns({{ tmp_column }} {{ new_column_type }});
+    alter table {{ relation }} add columns({{ tmp_column }} {{ new_iceberg_column_type }});
   {%- endset -%}
 
   {%- set update_query -%}
-    update {{ relation }} set {{ tmp_column }} = {{ column_name }};
+    update {{ relation }} set {{ tmp_column }} = cast({{ column_name }} as {{ new_column_type }});
   {%- endset -%}
 
   {%- set drop_column_query -%}
@@ -68,7 +80,7 @@
   {%- endset -%}
 
   {%- set rename_column_query -%}
-    alter table {{ relation }} change column {{ tmp_column }} {{ column_name }} {{ new_column_type }};
+    alter table {{ relation }} change column {{ tmp_column }} {{ column_name }} {{ new_iceberg_column_type }};
   {%- endset -%}
 
   {%- do run_query(add_column_query) -%}
