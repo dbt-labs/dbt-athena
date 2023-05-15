@@ -16,7 +16,7 @@ env:
 jobs:
   functional-tests:
     name: Functional Test
-    if: ${{ github.event.label.name == 'functional-testing-trigger' }}
+    if: github.event.label.name == 'functional-testing-trigger'
     runs-on: ubuntu-latest
     strategy:
       matrix:
