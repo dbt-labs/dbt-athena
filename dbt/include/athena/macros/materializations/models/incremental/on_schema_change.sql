@@ -52,7 +52,7 @@
   #}
   {%- set tmp_column = column_name + "__dbt_alter" -%}
 
-  {# Fix bug in Athena: systax error when using quoted table name #}
+  {# Fix bug in Athena: error when using quoted table name #}
   {%- set relation = relation.render_pure() -%}
 
   {%- set add_column_query -%}
