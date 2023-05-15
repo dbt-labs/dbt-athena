@@ -41,7 +41,7 @@
   {%- if table_type == 'hive' -%}
 
     -- for ha tables that are not in full refresh mode and when the relation exists we use the swap behavior
-    {%- if is_ha and (not is_full_refresh_mode or old_relation is not none) -%}
+    {%- if is_ha and not is_full_refresh_mode and old_relation is not none -%}
       -- drop the tmp_relation
       {%- if tmp_relation is not none -%}
         {% call statement('drop_tmp_relation', auto_begin=False) -%}
