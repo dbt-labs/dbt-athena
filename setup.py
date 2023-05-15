@@ -30,7 +30,7 @@ def _get_package_version():
     return f'{parts["major"]}.{parts["minor"]}.{parts["patch"]}'
 
 
-dbt_version = "1.4"
+dbt_version = "1.5"
 package_version = _get_package_version()
 description = "The athena adapter plugin for dbt (data build tool)"
 
