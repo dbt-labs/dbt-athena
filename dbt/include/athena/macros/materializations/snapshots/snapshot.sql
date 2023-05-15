@@ -123,7 +123,7 @@
   {%- set config = model['config'] -%}
 
   {%- set target_table = model.get('alias', model.get('name')) -%}
-
+  {%- set lf_tags_config = config.get('lf_tags_config', default=none) -%}
   {%- set strategy_name = config.get('strategy') -%}
   {%- set file_format = config.get('file_format', 'parquet') -%}
   {%- set table_type = config.get('table_type', 'hive') -%}
@@ -229,6 +229,10 @@
 
   {% if new_snapshot_table is defined %}
       {% do adapter.drop_relation(new_snapshot_table) %}
+  {% endif %}
+
+  {% if lf_tags_config is not none %}
+    {{ adapter.add_lf_tags(target_relation, lf_tags_config) }}
   {% endif %}
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}

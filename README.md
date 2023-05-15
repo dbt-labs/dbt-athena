@@ -83,7 +83,6 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | aws_profile_name      | Profile to use from your AWS shared credentials file.                          | Optional  | `my-profile`                               |
 | work_group            | Identifier of Athena workgroup                                                 | Optional  | `my-custom-workgroup`                      |
 | num_retries           | Number of times to retry a failing query                                       | Optional  | `3`                                        |
-| lf_tags               | Default lf tags to apply to any database created by dbt                        | Optional  | `{"origin": "dbt", "team": "analytics"}`   |
 
 **Example profiles.yml entry:**
 ```yaml
@@ -100,9 +99,6 @@ athena:
       database: awsdatacatalog
       aws_profile_name: my-profile
       work_group: my-workgroup
-      lf_tags:
-        origin: dbt
-        team: analytics
 ```
 
 _Additional information_
@@ -138,12 +134,34 @@ _Additional information_
 * `field_delimiter` (`default=none`)
   * Custom field delimiter, for when format is set to `TEXTFILE`
 * `table_properties`: table properties to add to the table, valid for Iceberg only
-* `lf_tags` (`default=none`)
-  * lf tags to associate with the table
-  * format: `{"tag1": "value1", "tag2": "value2"}`
-* `lf_tags_columns` (`default=none`)
-  * lf tags to associate with the table columns
-  * format: `{"tag1": {"value1": ["column1": "column2"]}}`
+* `lf_tags_config` (`default=none`)
+  * [AWS lakeformation](#aws-lakeformation-integration) tags to associate with the table and columns
+  * format for model config:
+```json
+{
+  "enabled": true,
+  "tags": {
+    "tag1": "value1",
+    "tag2": "value2"
+  },
+  "tags_columns": {
+    "tag1": {
+      "value1": ["column1", "column2"]
+    }
+  }
+}
+```
+* format for `dbt_project.yml`:
+```yaml
+  +lf_tags_config:
+    enabled: true
+    tags:
+      tag1: value1
+      tag2: value2
+    tags_columns:
+      tag1:
+        value1: [ column1, column2 ]
+```
 
 [create-table-as]: https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html#ctas-table-properties
 
@@ -304,6 +322,24 @@ To use the check strategy refer to the [dbt docs](https://docs.getdbt.com/docs/b
 ### Hard-deletes
 
 The materialization also supports invalidating hard deletes. Check the [docs](https://docs.getdbt.com/docs/build/snapshots#hard-deletes-opt-in) to understand usage.
+
+### AWS Lakeformation integration
+
+The adapter implements AWS Lakeformation tags management in the following way:
+- you can enable or disable lf-tags management via [config](#table-configuration) (disabled by default)
+- once you enable the feature, lf-tags will be updated on every dbt run
+- first, all lf-tags for columns are removed to avoid inheritance issues
+- then all redundant lf-tags are removed from table and actual tags from config are applied
+- finally, lf-tags for columns are applied
+
+It's important to understand the following points:
+- dbt does not manage lf-tags for database
+- dbt does not manage lakeformation permissions
+
+That's why you should handle this by yourself manually or using some automation tools like terraform, AWS CDK etc.  
+You may find the following links useful to manage that:
+- [terraform aws_lakeformation_permissions](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_permissions)
+- [terraform aws_lakeformation_resource_lf_tags](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_resource_lf_tags)
 
 ### Working example
 
