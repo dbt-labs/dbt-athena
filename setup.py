@@ -55,7 +55,7 @@ setup(
         "boto3~=1.26",
         "boto3-stubs[athena,glue,lakeformation,sts]~=1.26",
         "dbt-core~=1.5.0",
-        "pyathena~=2.25",
+        "pyathena>=2.25,<4.0",
         "tenacity~=8.2",
     ],
     classifiers=[
