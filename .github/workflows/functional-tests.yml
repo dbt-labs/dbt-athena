@@ -2,7 +2,6 @@ name: functional-tests
 
 on:
   pull_request_target: # Please read https://securitylab.github.com/research/github-actions-preventing-pwn-requests/ before using
-    types: [ opened, edited ]
   push:
     branches: [main]
 
