@@ -275,7 +275,7 @@ class TestAthenaAdapter:
         ("s3_data_dir", "s3_data_naming", "s3_path_table_part", "external_location", "is_temporary_table", "expected"),
         (
             pytest.param(None, "table", None, None, False, "s3://my-bucket/test-dbt/tables/table", id="table naming"),
-            pytest.param(None, "uuid", None, None, False, "s3://my-bucket/test-dbt/tables/uuid", id="uuid naming"),
+            pytest.param(None, "unique", None, None, False, "s3://my-bucket/test-dbt/tables/uuid", id="unique naming"),
             pytest.param(
                 None,
                 "table_unique",

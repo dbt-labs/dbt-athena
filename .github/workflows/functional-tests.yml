@@ -1,0 +1,45 @@
+name: functional-tests
+
+on:
+  pull_request_target: # Please read https://securitylab.github.com/research/github-actions-preventing-pwn-requests/ before using
+  push:
+    branches: [main]
+
+env:
+  DBT_TEST_ATHENA_DATABASE: awsdatacatalog
+  DBT_TEST_ATHENA_SCHEMA: dbt-tests
+  DBT_TEST_ATHENA_WORK_GROUP: athena-dbt-tests
+  DBT_TEST_ATHENA_THREADS: 16
+  DBT_TEST_ATHENA_POLL_INTERVAL: 0.5
+
+jobs:
+  functional-tests:
+    name: Functional Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        aws-region: ['us-east-1', 'eu-west-1', 'eu-west-2', 'eu-central-1']
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      DBT_TEST_ATHENA_S3_STAGING_DIR: s3://dbt-athena-query-results-${{ matrix.aws-region }}
+      DBT_TEST_ATHENA_REGION_NAME: ${{ matrix.aws-region }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          make install_deps
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
+          aws-region: ${{ matrix.aws-region }}
+      - name: Functional Test
+        run: |
+          pytest -n 8 tests/functional
