@@ -124,7 +124,7 @@
   {% endif %}
 
   {% if lf_grants is not none %}
-    {{ adapter.apply_lf_grants(relation, lf_grants) }}
+    {{ adapter.apply_lf_grants(model, lf_grants) }}
   {% endif %}
 
   {{ return(sql_table) }}
