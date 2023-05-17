@@ -2,7 +2,6 @@ name: functional-tests
 
 on:
   pull_request_target: # Please read https://securitylab.github.com/research/github-actions-preventing-pwn-requests/ before using
-    types: [ labeled ]
   push:
     branches: [main]
 
@@ -16,7 +15,7 @@ env:
 jobs:
   functional-tests:
     name: Functional Test
-    if: github.event.label.name == 'enable-functional-tests' || github.ref == 'refs/heads/main'
+    if: contains(github.event.pull_request.labels.*.name, 'enable-functional-tests') || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     strategy:
       matrix:
