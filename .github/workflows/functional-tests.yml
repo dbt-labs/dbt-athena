@@ -17,7 +17,7 @@ jobs:
   functional-tests:
     name: Functional Test
     # trigger on PRs with label 'enable-ci' or on push to main branch
-    if: contains(github.event.pull_request.labels.*.name, 'enable-ci') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: contains(github.event.pull_request.labels.*.name, 'enable-functional-tests') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     strategy:
       matrix:
