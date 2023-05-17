@@ -49,12 +49,16 @@ Resources:
                     ],
                     "Effect": "Allow",
                     "Resource": "*",
-                    "Sid": "GlueViaAthenaPermissions",
-                    "Condition": {
-                        "ForAnyValue:StringEquals": {
-                            "aws:CalledVia": "athena.amazonaws.com"
-                        }
-                    }
+                    "Sid": "GlueAthenaPermissions"
+                },
+                {
+                    "Action": [
+                        "glue:CreateDatabase",
+                        "glue:DeleteDatabase"
+                    ],
+                    "Effect": "Allow",
+                    "Resource": "*",
+                    "Sid": "FuncTestPermissions"
                 },
                 {
                     "Action": [

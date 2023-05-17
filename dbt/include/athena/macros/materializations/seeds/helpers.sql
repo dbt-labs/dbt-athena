@@ -116,9 +116,6 @@
   -- drop tmp table
   {{ drop_relation(tmp_relation) }}
 
-  -- delete csv file from s3
-  {% do adapter.delete_from_s3(tmp_s3_location) %}
-
   {% if lf_tags is not none or lf_tags_columns is not none %}
     {{ adapter.add_lf_tags(model.schema, identifier, lf_tags, lf_tags_columns) }}
   {% endif %}
