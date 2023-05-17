@@ -146,15 +146,15 @@ _Additional information_
     table_type='iceberg',
     schema='test_schema',
     lf_tags_config={
-          "enabled": true,
-          "tags": {
-            "tag1": "value1",
-            "tag2": "value2"
+          'enabled': true,
+          'tags': {
+            'tag1': 'value1',
+            'tag2': 'value2'
           },
-          "tags_columns": {
-            "tag1": {
-              "value1": ["column1", "column2"],
-              "value2": ["column3", "column4"]
+          'tags_columns': {
+            'tag1': {
+              'value1': ['column1', 'column2'],
+              'value2': ['column3', 'column4']
             }
           }
     }
