@@ -17,3 +17,14 @@
 
   {{ return(data_type) }}
 {% endmacro %}
+
+{% macro dml_data_type(col_type) -%}
+  {%- set re = modules.re -%}
+  -- transform int to integer
+  {%- set data_type = re.sub('\bint\b', 'integer', col_type) -%}
+  -- transform string to varchar because string does not work in DML
+  {%- set data_type = re.sub('string', 'varchar', data_type) -%}
+  -- transform float to real because float does not work in DML
+  {%- set data_type = re.sub('float', 'real', data_type) -%}
+  {{ return(data_type) }}
+{% endmacro %}

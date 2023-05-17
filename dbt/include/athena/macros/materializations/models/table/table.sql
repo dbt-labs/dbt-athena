@@ -40,12 +40,11 @@
 
   {%- if table_type == 'hive' -%}
 
-    {%- if is_ha and not is_full_refresh_mode -%}
+    -- for ha tables that are not in full refresh mode and when the relation exists we use the swap behavior
+    {%- if is_ha and not is_full_refresh_mode and old_relation is not none -%}
       -- drop the tmp_relation
       {%- if tmp_relation is not none -%}
-        {% call statement('drop_tmp_relation', auto_begin=False) -%}
-          drop table if exists {{ tmp_relation.render_hive() }}
-        {%- endcall %}
+        {%- do adapter.delete_from_glue_catalog(tmp_relation) -%}
       {%- endif -%}
 
       -- create tmp table
@@ -58,9 +57,7 @@
                                               target_relation) -%}
 
       -- delete glue tmp table, do not use drop_relation, as it will remove data of the target table
-      {% call statement('drop_tmp_relation', auto_begin=False) -%}
-        drop table {{ tmp_relation.render_hive() }}
-      {%- endcall %}
+      {%- do adapter.delete_from_glue_catalog(tmp_relation) -%}
 
       {% do adapter.expire_glue_table_versions(target_relation,
                                                versions_to_keep,

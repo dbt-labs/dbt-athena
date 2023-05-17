@@ -21,6 +21,11 @@
                                                  external_location,
                                                  temporary) -%}
 
+  {%- set contract_config = config.get('contract') -%}
+  {%- if contract_config.enforced -%}
+    {{ get_assert_columns_equivalent(sql) }}
+  {%- endif -%}
+
   {%- if table_type == 'iceberg' -%}
     {%- set location_property = 'location' -%}
     {%- set partition_property = 'partitioning' -%}
