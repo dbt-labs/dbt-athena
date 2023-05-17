@@ -137,19 +137,29 @@ _Additional information_
 * `lf_tags_config` (`default=none`)
   * [AWS lakeformation](#aws-lakeformation-integration) tags to associate with the table and columns
   * format for model config:
-```json
-{
-  "enabled": true,
-  "tags": {
-    "tag1": "value1",
-    "tag2": "value2"
-  },
-  "tags_columns": {
-    "tag1": {
-      "value1": ["column1", "column2"]
+```sql
+{{
+  config(
+    materialized='incremental',
+    incremental_strategy='append',
+    on_schema_change='append_new_columns',
+    table_type='iceberg',
+    schema='test_schema',
+    lf_tags_config={
+          "enabled": true,
+          "tags": {
+            "tag1": "value1",
+            "tag2": "value2"
+          },
+          "tags_columns": {
+            "tag1": {
+              "value1": ["column1", "column2"],
+              "value2": ["column3", "column4"]
+            }
+          }
     }
-  }
-}
+  )
+}}
 ```
 * format for `dbt_project.yml`:
 ```yaml
