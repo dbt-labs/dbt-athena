@@ -23,7 +23,7 @@ test:  ## Run tests.
 	make functional_test
 
 unit_test:  ## Run unit tests.
-	pytest --cov=dbt --cov-report=html:coverage tests/unit
+	pytest --cov=dbt --cov-report=html:htmlcov tests/unit
 
 functional_test: .env  ## Run functional tests.
 	pytest -n auto tests/functional
