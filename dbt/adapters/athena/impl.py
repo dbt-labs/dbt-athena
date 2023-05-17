@@ -29,11 +29,11 @@ from dbt.adapters.athena.relation import (
 )
 from dbt.adapters.athena.s3 import S3DataNaming
 from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id
-from dbt.adapters.base import available
+from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import CompiledNode
+from dbt.contracts.graph.nodes import CompiledNode, ConstraintType
 from dbt.exceptions import DbtRuntimeError
 
 boto3_client_lock = Lock()
@@ -42,6 +42,15 @@ boto3_client_lock = Lock()
 class AthenaAdapter(SQLAdapter):
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
+
+    # There is no such concept as constraints in Athena
+    CONSTRAINT_SUPPORT = {
+        ConstraintType.check: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.not_null: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.primary_key: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.foreign_key: ConstraintSupport.NOT_SUPPORTED,
+    }
 
     @classmethod
     def date_function(cls) -> str:
