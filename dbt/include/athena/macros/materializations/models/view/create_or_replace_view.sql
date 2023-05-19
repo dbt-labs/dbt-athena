@@ -1,8 +1,7 @@
 {% macro create_or_replace_view(run_outside_transaction_hooks=True) %}
   {%- set identifier = model['alias'] -%}
 
-  {%- set lf_tags = config.get('lf_tags', default=none) -%}
-  {%- set lf_tags_columns = config.get('lf_tags_columns', default=none) -%}
+  {%- set lf_tags_config = config.get('lf_tags_config', default=none) -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set exists_as_view = (old_relation is not none and old_relation.is_view) -%}
   {%- set target_relation = api.Relation.create(
@@ -30,8 +29,8 @@
     {{ create_view_as(target_relation, sql) }}
   {%- endcall %}
 
-  {% if lf_tags is not none or lf_tags_columns is not none %}
-    {{ adapter.add_lf_tags(target_relation.schema, identifier, lf_tags, lf_tags_columns) }}
+  {% if lf_tags_config is not none %}
+    {{ adapter.add_lf_tags(target_relation, lf_tags_config) }}
   {% endif %}
 
   {{ run_hooks(post_hooks, inside_transaction=True) }}
