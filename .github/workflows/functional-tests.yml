@@ -33,7 +33,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ env.TARGET_BRANCH }}
+          # this is needed to checkout the PR branch
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
