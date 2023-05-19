@@ -123,7 +123,7 @@
   {%- set config = model['config'] -%}
 
   {%- set target_table = model.get('alias', model.get('name')) -%}
-  {%- set lf_tags_config = config.get('lf_tags_config') -%}
+  {%- set lf_tags_config = config.get('lf_tags_config', default=none) -%}
   {%- set strategy_name = config.get('strategy') -%}
   {%- set file_format = config.get('file_format', 'parquet') -%}
   {%- set table_type = config.get('table_type', 'hive') -%}
