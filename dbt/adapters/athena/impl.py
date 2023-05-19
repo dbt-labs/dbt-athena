@@ -21,7 +21,12 @@ from dbt.adapters.athena.exceptions import (
     S3LocationException,
     SnapshotMigrationRequired,
 )
-from dbt.adapters.athena.lakeformation import LfTagsConfig, LfTagsManager, LfGrantsConfig, LfPermissions
+from dbt.adapters.athena.lakeformation import (
+    LfGrantsConfig,
+    LfPermissions,
+    LfTagsConfig,
+    LfTagsManager,
+)
 from dbt.adapters.athena.relation import (
     RELATION_TYPE_MAP,
     AthenaRelation,
