@@ -235,14 +235,10 @@
       {% do adapter.drop_relation(new_snapshot_table) %}
   {% endif %}
 
-  {% if lf_tags_config is not none %}
-    {{ adapter.add_lf_tags(target_relation, lf_tags_config) }}
-  {% endif %}
-
   {{ run_hooks(post_hooks, inside_transaction=False) }}
 
-  {% if lf_tags is not none or lf_tags_columns is not none %}
-    {{ adapter.add_lf_tags(target_relation.schema, identifier, lf_tags, lf_tags_columns) }}
+  {% if lf_tags_config %}
+    {{ adapter.add_lf_tags(target_relation, lf_tags_config) }}
   {% endif %}
 
   {% if lf_grants is not none %}
