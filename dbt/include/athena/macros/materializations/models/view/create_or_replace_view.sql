@@ -1,8 +1,9 @@
 {% macro create_or_replace_view(run_outside_transaction_hooks=True) %}
   {%- set identifier = model['alias'] -%}
 
-  {%- set lf_tags_config = config.get('lf_tags_config', default=none) -%}
-  {%- set lf_grants = config.get('lf_grants', default=none) -%}
+  {%- set lf_tags_config = config.get('lf_tags_config') -%}
+  {%- set lf_grants = config.get('lf_grants') -%}
+
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set exists_as_view = (old_relation is not none and old_relation.is_view) -%}
   {%- set target_relation = api.Relation.create(

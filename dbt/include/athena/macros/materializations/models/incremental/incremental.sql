@@ -5,8 +5,8 @@
   {% set strategy = validate_get_incremental_strategy(raw_strategy, table_type) %}
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
 
-  {% set lf_tags_config = config.get('lf_tags_config', default=none) %}
-  {% set lf_grants = config.get('lf_grants', default=none) %}
+  {% set lf_tags_config = config.get('lf_tags_config') %}
+  {% set lf_grants = config.get('lf_grants') %}
   {% set partitioned_by = config.get('partitioned_by', default=none) %}
   {% set target_relation = this.incorporate(type='table') %}
   {% set existing_relation = load_relation(this) %}

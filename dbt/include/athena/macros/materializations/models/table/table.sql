@@ -2,8 +2,9 @@
 {% materialization table, adapter='athena' -%}
   {%- set identifier = model['alias'] -%}
 
-  {%- set lf_tags_config = config.get('lf_tags_config', default=none) -%}
-  {%- set lf_grants = config.get('lf_grants', default=none) -%}
+  {%- set lf_tags_config = config.get('lf_tags_config') -%}
+  {%- set lf_grants = config.get('lf_grants') -%}
+
   {%- set table_type = config.get('table_type', default='hive') | lower -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set is_ha = config.get('ha', default=false) -%}
