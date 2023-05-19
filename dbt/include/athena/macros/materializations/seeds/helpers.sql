@@ -120,11 +120,11 @@
   {% do adapter.delete_from_s3(tmp_s3_location) %}
 
   {% if lf_tags_config is not none %}
-    {{ adapter.add_lf_tags(model, lf_tags_config) }}
+    {{ adapter.add_lf_tags(relation, lf_tags_config) }}
   {% endif %}
 
   {% if lf_grants is not none %}
-    {{ adapter.apply_lf_grants(model, lf_grants) }}
+    {{ adapter.apply_lf_grants(relation, lf_grants) }}
   {% endif %}
 
   {{ return(sql_table) }}
