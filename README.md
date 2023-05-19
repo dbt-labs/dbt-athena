@@ -292,7 +292,7 @@ locations. For iceberg, high availability is by default.
     ha=true,
     format='parquet',
     table_type='hive',
-    partition_by=['status'],
+    partitioned_by=['status'],
     s3_data_naming='table_unique'
 ) }}
 
