@@ -5,6 +5,8 @@ from typing import Dict, List, Optional, Union
 from mypy_boto3_lakeformation import LakeFormationClient
 from mypy_boto3_lakeformation.type_defs import (
     AddLFTagsToResourceResponseTypeDef,
+    BatchPermissionsRequestEntryTypeDef,
+    DataCellsFilterTypeDef,
     GetResourceLFTagsResponseTypeDef,
     RemoveLFTagsFromResourceResponseTypeDef,
     ResourceTypeDef,
@@ -116,6 +118,8 @@ class LfTagsManager:
                 logger.error(f"Failed to {verb} {tag} for {self.database}.{self.table}" + f" - {error}")
             raise DbtRuntimeError(base_msg)
         return f"Success: {verb} LF tags: {lf_tags} to {self.database}.{self.table}" + columns_appendix
+
+
 class FilterConfig(BaseModel):
     row_filter: str
     column_names: List[str] = []
