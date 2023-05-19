@@ -1,7 +1,9 @@
 {% macro create_or_replace_view(run_outside_transaction_hooks=True) %}
   {%- set identifier = model['alias'] -%}
 
-  {%- set lf_tags_config = config.get('lf_tags_config', default=none) -%}
+  {%- set lf_tags_config = config.get('lf_tags_config') -%}
+  {%- set lf_grants = config.get('lf_grants') -%}
+
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set exists_as_view = (old_relation is not none and old_relation.is_view) -%}
   {%- set target_relation = api.Relation.create(
@@ -31,6 +33,10 @@
 
   {% if lf_tags_config is not none %}
     {{ adapter.add_lf_tags(target_relation, lf_tags_config) }}
+  {% endif %}
+
+  {% if lf_grants is not none %}
+    {{ adapter.apply_lf_grants(target_relation, lf_grants) }}
   {% endif %}
 
   {{ run_hooks(post_hooks, inside_transaction=True) }}

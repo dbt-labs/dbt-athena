@@ -66,8 +66,11 @@ id,name,some_date
 iceberg_cc_all_snapshot_sql = """
 {% snapshot cc_all_snapshot %}
     {{ config(
-        check_cols='all', unique_key='id', strategy='check',
-        target_database=database, target_schema=schema,
+        check_cols='all',
+        unique_key='id',
+        strategy='check',
+        target_database=database,
+        target_schema=schema,
         table_type='iceberg'
     ) }}
     select
@@ -82,8 +85,11 @@ iceberg_cc_all_snapshot_sql = """
 iceberg_cc_name_snapshot_sql = """
 {% snapshot cc_name_snapshot %}
     {{ config(
-        check_cols=['name'], unique_key='id', strategy='check',
-        target_database=database, target_schema=schema,
+        check_cols=['name'],
+        unique_key='id',
+        strategy='check',
+        target_database=database,
+        target_schema=schema,
         table_type='iceberg'
     ) }}
     select
@@ -98,8 +104,11 @@ iceberg_cc_name_snapshot_sql = """
 iceberg_cc_date_snapshot_sql = """
 {% snapshot cc_date_snapshot %}
     {{ config(
-        check_cols=['some_date'], unique_key='id', strategy='check',
-        target_database=database, target_schema=schema,
+        check_cols=['some_date'],
+        unique_key='id',
+        strategy='check',
+        target_database=database,
+        target_schema=schema,
         table_type='iceberg'
     ) }}
     select
