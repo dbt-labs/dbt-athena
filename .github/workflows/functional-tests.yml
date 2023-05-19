@@ -1,6 +1,7 @@
 name: functional-tests
 
 on:
+  # we use pull_request_target to run the CI also for forks
   pull_request_target: # Please read https://securitylab.github.com/research/github-actions-preventing-pwn-requests/ before using
     types: [opened, reopened, synchronize, labeled]
   push:
@@ -29,8 +30,21 @@ jobs:
       DBT_TEST_ATHENA_S3_STAGING_DIR: s3://dbt-athena-query-results-${{ matrix.aws-region }}
       DBT_TEST_ATHENA_REGION_NAME: ${{ matrix.aws-region }}
     steps:
+      # when triggering the pr using pull_request_target, GITHUB_REF is set to main branch
+      # this workaround allow to pick the correct branch name
+      - name: Set Target branch
+        run: |
+          if [ -n "${GITHUB_HEAD_REF}" ]; then
+            export TARGET_BRANCH=${GITHUB_HEAD_REF/refs\/heads\//}
+            echo "Running on PR branch ${TARGET_BRANCH}"
+          else
+            export TARGET_BRANCH=${GITHUB_REF_NAME}
+            echo "Running on branch ${TARGET_BRANCH}"
+          fi
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
