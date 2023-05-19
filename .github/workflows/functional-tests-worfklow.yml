@@ -1,5 +1,5 @@
 # reusable workflow to be called from the main workflow
-name: functional-tests
+name: functional-tests-workflow
 
 on:
   workflow_call:

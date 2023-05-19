@@ -1,4 +1,4 @@
-name: example-ci
+name: functional-tests
 
 on:
   # we use pull_request_target to run the CI also for forks
