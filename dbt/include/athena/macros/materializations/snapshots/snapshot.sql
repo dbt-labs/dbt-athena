@@ -234,7 +234,7 @@
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
 
-  {% if lf_tags_config %}
+  {% if lf_tags_config is not none %}
     {{ adapter.add_lf_tags(target_relation, lf_tags_config) }}
   {% endif %}
 
