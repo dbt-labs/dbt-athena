@@ -15,10 +15,10 @@ env:
   DBT_TEST_ATHENA_POLL_INTERVAL: 0.5
 
 jobs:
-  functional-tests:
-    name: Functional Test
-    # trigger on PRs with label 'enable-ci' or on push to main branch
-    if: contains(github.event.pull_request.labels.*.name, 'enable-functional-tests') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+  functional-tests-pr:
+    name: Functional Test - PR
+    # trigger on PRs with label 'enable-ci'
+    if: contains(github.event.pull_request.labels.*.name, 'enable-functional-tests')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -30,21 +30,46 @@ jobs:
       DBT_TEST_ATHENA_S3_STAGING_DIR: s3://dbt-athena-query-results-${{ matrix.aws-region }}
       DBT_TEST_ATHENA_REGION_NAME: ${{ matrix.aws-region }}
     steps:
-      # when triggering the pr using pull_request_target, GITHUB_REF is set to main branch
-      # this workaround allow to pick the correct branch name
-      - name: Set Target branch
-        run: |
-          if [ -n "${GITHUB_HEAD_REF}" ]; then
-            export TARGET_BRANCH=${GITHUB_HEAD_REF/refs\/heads\//}
-            echo "Running on PR branch ${TARGET_BRANCH}"
-          else
-            export TARGET_BRANCH=${GITHUB_REF_NAME}
-            echo "Running on branch ${TARGET_BRANCH}"
-          fi
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ env.TARGET_BRANCH }}
+          # this is needed to checkout the PR branch
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          make install_deps
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
+          aws-region: ${{ matrix.aws-region }}
+      - name: Functional Test
+        run: |
+          pytest -n 8 tests/functional
+
+  # TODO: this is a workaround for now, we should use the same job for PR and main branch
+  functional-tests-main:
+    name: Functional Test - main
+    # trigger push to main branch
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        aws-region: [ 'us-east-1', 'eu-west-1', 'eu-west-2', 'eu-central-1' ]
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      DBT_TEST_ATHENA_S3_STAGING_DIR: s3://dbt-athena-query-results-${{ matrix.aws-region }}
+      DBT_TEST_ATHENA_REGION_NAME: ${{ matrix.aws-region }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
