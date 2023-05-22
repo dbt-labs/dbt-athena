@@ -2,8 +2,6 @@
   {%- call statement('create_schema') -%}
     create schema if not exists {{ relation.without_identifier().render_hive() }}
   {% endcall %}
-
-  {{ adapter.add_lf_tags(relation.schema) }}
 {% endmacro %}
 
 

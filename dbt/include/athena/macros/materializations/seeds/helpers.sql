@@ -34,8 +34,9 @@
 {% macro athena__create_csv_table(model, agate_table) %}
   {%- set identifier = model['alias'] -%}
 
-  {%- set lf_tags = config.get('lf_tags', default=none) -%}
-  {%- set lf_tags_columns = config.get('lf_tags_columns', default=none) -%}
+  {%- set lf_tags_config = config.get('lf_tags_config') -%}
+  {%- set lf_grants = config.get('lf_grants') -%}
+
   {%- set column_override = config.get('column_types', {}) -%}
   {%- set quote_seed_column = config.get('quote_columns', None) -%}
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
@@ -116,8 +117,15 @@
   -- drop tmp table
   {{ drop_relation(tmp_relation) }}
 
-  {% if lf_tags is not none or lf_tags_columns is not none %}
-    {{ adapter.add_lf_tags(model.schema, identifier, lf_tags, lf_tags_columns) }}
+  -- delete csv file from s3
+  {% do adapter.delete_from_s3(tmp_s3_location) %}
+
+  {% if lf_tags_config is not none %}
+    {{ adapter.add_lf_tags(relation, lf_tags_config) }}
+  {% endif %}
+
+  {% if lf_grants is not none %}
+    {{ adapter.apply_lf_grants(relation, lf_grants) }}
   {% endif %}
 
   {{ return(sql_table) }}
