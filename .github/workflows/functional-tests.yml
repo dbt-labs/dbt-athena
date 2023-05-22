@@ -16,7 +16,7 @@ jobs:
     secrets: inherit
     strategy:
       matrix:
-        aws-region: ['us-east-1', 'eu-west-1', 'eu-west-2', 'eu-central-1']
+        aws-region: ['us-east-1', 'eu-central-1']
     permissions:
       id-token: write
       contents: read
@@ -35,7 +35,7 @@ jobs:
     secrets: inherit
     strategy:
       matrix:
-        aws-region: ['us-east-1', 'eu-west-1', 'eu-west-2', 'eu-central-1']
+        aws-region: ['us-east-1', 'eu-central-1']
     permissions:
       id-token: write
       contents: read
