@@ -30,19 +30,19 @@ from dbt.tests.adapter.basic.test_incremental import BaseIncremental
 from dbt.tests.adapter.basic.test_snapshot_check_cols import BaseSnapshotCheckCols
 from dbt.tests.adapter.basic.test_snapshot_timestamp import BaseSnapshotTimestamp
 
-iceberg_config_materialized_table = """
-  {{ config(materialized="table", table_type="iceberg", native_drop="True") }}
+modified_config_materialized_table = """
+  {{ config(materialized="table", table_type="hive", native_drop="True") }}
 """
 
-iceberg_config_materialized_incremental = """
+modified_config_materialized_incremental = """
   {{ config(materialized="incremental",
-        table_type="iceberg",
-        incremental_strategy="merge",
+        table_type="hive",
+        incremental_strategy="append",
         unique_key="id",
         native_drop="True") }}
 """
 
-iceberg_model_base = """
+modified_model_base = """
   select
       id,
       name,
@@ -50,7 +50,7 @@ iceberg_model_base = """
   from {{ source('raw', 'seed') }}
 """
 
-iceberg_model_ephemeral = """
+modified_model_ephemeral = """
   select
       id,
       name,
@@ -62,10 +62,10 @@ iceberg_model_ephemeral = """
 def configure_single_model_to_use_iceberg(model):
     """Adjust a given model configuration to use iceberg instead of hive."""
     replacements = [
-        (config_materialized_table, iceberg_config_materialized_table),
-        (config_materialized_incremental, iceberg_config_materialized_incremental),
-        (model_base, iceberg_model_base),
-        (model_ephemeral, iceberg_model_ephemeral),
+        (config_materialized_table, modified_config_materialized_table),
+        (config_materialized_incremental, modified_config_materialized_incremental),
+        (model_base, modified_model_base),
+        (model_ephemeral, modified_model_ephemeral),
     ]
     for original, new in replacements:
         model = model.replace(original.strip(), new.strip())
@@ -108,7 +108,6 @@ class TestEphemeralIceberg(BaseEphemeral):
         )
 
 
-@pytest.mark.skip(reason="The native drop will usually time out in the test")
 class TestIncrementalIceberg(BaseIncremental):
     @pytest.fixture(scope="class")
     def models(self):

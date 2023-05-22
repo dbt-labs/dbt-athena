@@ -180,11 +180,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                 session=get_boto3_session(connection),
                 retry_config=RetryConfig(
                     attempt=creds.num_retries,
-                    exceptions=(
-                        "ThrottlingException",
-                        "TooManyRequestsException",
-                        "InternalServerException",
-                    ),
+                    exceptions=("ThrottlingException", "TooManyRequestsException", "InternalServerException"),
                 ),
                 config=get_boto3_config(),
             )

@@ -1,7 +1,8 @@
 {% macro athena__drop_relation(relation) -%}
-  {%- set native_drop = config.get('native_drop', default='False') | as_bool -%}
+  {%- set native_drop = config.get('drop', default='False') | as_bool -%}
+  {%- set natively_droppable = config.get('table_type', default='hive') == 'iceberg' or relation.type == 'view' -%}
 
-  {%- if native_drop -%}
+  {%- if native_drop and natively_droppable -%}
     {%- do drop_relation_sql(relation) -%}
   {%- else -%}
     {%- do drop_relation_glue(relation) -%}
@@ -15,6 +16,7 @@
 {% endmacro %}
 
 {% macro drop_relation_sql(relation) -%}
+
   {%- do log('Dropping relation via SQL only') -%}
   {% call statement('drop_relation', auto_begin=False) -%}
     {%- if relation.type == 'view' -%}

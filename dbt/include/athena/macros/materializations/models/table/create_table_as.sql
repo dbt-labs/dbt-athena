@@ -48,7 +48,7 @@
     {%- endif -%}
   {%- endif %}
 
-  {%- if native_drop -%}
+  {%- if native_drop and table_type == 'iceberg' -%}
     {% do log('Config native_drop enabled, skipping direct S3 delete') %}
   {%- else -%}
     {% do adapter.delete_from_s3(location) %}
