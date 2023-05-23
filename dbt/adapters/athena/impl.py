@@ -31,6 +31,7 @@ from dbt.adapters.athena.relation import (
     RELATION_TYPE_MAP,
     AthenaRelation,
     AthenaSchemaSearchMap,
+    TableType,
     get_table_type,
 )
 from dbt.adapters.athena.s3 import S3DataNaming
@@ -786,3 +787,21 @@ class AthenaAdapter(SQLAdapter):
                 drop_staging_sql.strip(),
             ]
         )
+
+    @available
+    def get_table_type(self, db_name, table_name) -> TableType:
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+
+        try:
+            response = glue_client.get_table(DatabaseName=db_name, Name=table_name)
+            _type = get_table_type(response.get("Table", {}))
+            LOGGER.debug(f"adapter get_table_type returned {_type} for args {db_name}, {table_name}")
+
+            return _type
+
+        except glue_client.exceptions.EntityNotFoundException as e:
+            LOGGER.debug(f"Error calling Glue get_table: {e}")
