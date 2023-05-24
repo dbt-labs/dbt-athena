@@ -2,8 +2,9 @@
 {% materialization table, adapter='athena' -%}
   {%- set identifier = model['alias'] -%}
 
-  {%- set lf_tags = config.get('lf_tags', default=none) -%}
-  {%- set lf_tags_columns = config.get('lf_tags_columns', default=none) -%}
+  {%- set lf_tags_config = config.get('lf_tags_config') -%}
+  {%- set lf_grants = config.get('lf_grants') -%}
+
   {%- set table_type = config.get('table_type', default='hive') | lower -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set is_ha = config.get('ha', default=false) -%}
@@ -40,12 +41,11 @@
 
   {%- if table_type == 'hive' -%}
 
-    {%- if is_ha and not is_full_refresh_mode -%}
+    -- for ha tables that are not in full refresh mode and when the relation exists we use the swap behavior
+    {%- if is_ha and not is_full_refresh_mode and old_relation is not none -%}
       -- drop the tmp_relation
       {%- if tmp_relation is not none -%}
-        {% call statement('drop_tmp_relation', auto_begin=False) -%}
-          drop table if exists {{ tmp_relation.render_hive() }}
-        {%- endcall %}
+        {%- do adapter.delete_from_glue_catalog(tmp_relation) -%}
       {%- endif -%}
 
       -- create tmp table
@@ -58,9 +58,7 @@
                                               target_relation) -%}
 
       -- delete glue tmp table, do not use drop_relation, as it will remove data of the target table
-      {% call statement('drop_tmp_relation', auto_begin=False) -%}
-        drop table {{ tmp_relation.render_hive() }}
-      {%- endcall %}
+      {%- do adapter.delete_from_glue_catalog(tmp_relation) -%}
 
       {% do adapter.expire_glue_table_versions(target_relation,
                                                versions_to_keep,
@@ -111,8 +109,12 @@
 
   {{ run_hooks(post_hooks) }}
 
-  {% if lf_tags is not none or lf_tags_columns is not none %}
-    {{ adapter.add_lf_tags(target_relation.schema, identifier, lf_tags, lf_tags_columns) }}
+  {% if lf_tags_config is not none %}
+    {{ adapter.add_lf_tags(target_relation, lf_tags_config) }}
+  {% endif %}
+
+  {% if lf_grants is not none %}
+    {{ adapter.apply_lf_grants(target_relation, lf_grants) }}
   {% endif %}
 
   {% do persist_docs(target_relation, model) %}

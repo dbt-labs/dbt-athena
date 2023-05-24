@@ -123,11 +123,12 @@
   {%- set config = model['config'] -%}
 
   {%- set target_table = model.get('alias', model.get('name')) -%}
-
   {%- set strategy_name = config.get('strategy') -%}
   {%- set file_format = config.get('file_format', 'parquet') -%}
   {%- set table_type = config.get('table_type', 'hive') -%}
 
+  {%- set lf_tags_config = config.get('lf_tags_config') -%}
+  {%- set lf_grants = config.get('lf_grants') -%}
 
   {{ log('Checking if target table exists') }}
   {% set target_relation_exists, target_relation = get_or_create_relation(
@@ -232,6 +233,14 @@
   {% endif %}
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
+
+  {% if lf_tags_config is not none %}
+    {{ adapter.add_lf_tags(target_relation, lf_tags_config) }}
+  {% endif %}
+
+  {% if lf_grants is not none %}
+    {{ adapter.apply_lf_grants(target_relation, lf_grants) }}
+  {% endif %}
 
   {% do persist_docs(target_relation, model) %}
 

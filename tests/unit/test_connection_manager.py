@@ -24,3 +24,9 @@ class TestAthenaConnectionManager:
         assert isinstance(response, AdapterResponse)
         assert response.code == result
         assert response.rows_affected == 1
+
+    def test_data_type_code_to_name(self):
+        cm = AthenaConnectionManager(mock.MagicMock())
+        assert cm.data_type_code_to_name("array<string>") == "ARRAY"
+        assert cm.data_type_code_to_name("map<int, boolean>") == "MAP"
+        assert cm.data_type_code_to_name("DECIMAL(3, 7)") == "DECIMAL"

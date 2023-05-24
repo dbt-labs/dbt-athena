@@ -1,9 +1,10 @@
+import hashlib
 from concurrent.futures.thread import ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, ContextManager, Dict, List, Optional, Tuple
+from typing import Any, ContextManager, Dict, List, Optional, Tuple, Union
 
 import tenacity
 from pyathena.connection import Connection as AthenaConnection
@@ -49,7 +50,6 @@ class AthenaCredentials(Credentials):
     num_retries: Optional[int] = 5
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
-    lf_tags: Optional[Dict[str, str]] = None
 
     @property
     def type(self) -> str:
@@ -57,7 +57,7 @@ class AthenaCredentials(Credentials):
 
     @property
     def unique_field(self):
-        return self.host
+        return f"athena-{hashlib.md5(self.s3_staging_dir.encode()).hexdigest()}"
 
     def _connection_keys(self) -> Tuple[str, ...]:
         return (
@@ -101,6 +101,7 @@ class AthenaCursor(Cursor):
         endpoint_url: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
+        **kwargs,
     ):
         def inner():
             query_id = self._execute(
@@ -140,6 +141,16 @@ class AthenaCursor(Cursor):
 
 class AthenaConnectionManager(SQLConnectionManager):
     TYPE = "athena"
+
+    @classmethod
+    def data_type_code_to_name(cls, type_code: Union[int, str]) -> str:
+        """
+        Get the string representation of the data type from the Athena metadata. Dbt performs a
+        query to retrieve the types of the columns in the SQL query. Then these types are compared
+        to the types in the contract config, simplified because they need to match what is returned
+        by Athena metadata (we are only interested in the broader type, without subtypes nor granularity).
+        """
+        return type_code.split("(")[0].split("<")[0].upper()
 
     @contextmanager
     def exception_handler(self, sql: str) -> ContextManager:

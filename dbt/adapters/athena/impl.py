@@ -21,6 +21,12 @@ from dbt.adapters.athena.exceptions import (
     S3LocationException,
     SnapshotMigrationRequired,
 )
+from dbt.adapters.athena.lakeformation import (
+    LfGrantsConfig,
+    LfPermissions,
+    LfTagsConfig,
+    LfTagsManager,
+)
 from dbt.adapters.athena.relation import (
     RELATION_TYPE_MAP,
     AthenaRelation,
@@ -29,11 +35,11 @@ from dbt.adapters.athena.relation import (
 )
 from dbt.adapters.athena.s3 import S3DataNaming
 from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id
-from dbt.adapters.base import available
+from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import CompiledNode
+from dbt.contracts.graph.nodes import CompiledNode, ConstraintType
 from dbt.exceptions import DbtRuntimeError
 
 boto3_client_lock = Lock()
@@ -42,6 +48,15 @@ boto3_client_lock = Lock()
 class AthenaAdapter(SQLAdapter):
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
+
+    # There is no such concept as constraints in Athena
+    CONSTRAINT_SUPPORT = {
+        ConstraintType.check: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.not_null: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.primary_key: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.foreign_key: ConstraintSupport.NOT_SUPPORTED,
+    }
 
     @classmethod
     def date_function(cls) -> str:
@@ -60,84 +75,32 @@ class AthenaAdapter(SQLAdapter):
     def convert_datetime_type(cls, agate_table: agate.Table, col_idx: int) -> str:
         return "timestamp"
 
-    @classmethod
-    def parse_lf_response(
-        cls,
-        response: Dict[str, Any],
-        database: str,
-        table: Optional[str],
-        columns: Optional[List[str]],
-        lf_tags: Dict[str, str],
-    ) -> str:
-        failures = response.get("Failures", [])
-        tbl_appendix = f".{table}" if table else ""
-        columns_appendix = f" for columns {columns}" if columns else ""
-        msg_appendix = tbl_appendix + columns_appendix
-        if failures:
-            base_msg = f"Failed to add LF tags: {lf_tags} to {database}" + msg_appendix
-            for failure in failures:
-                tag = failure.get("LFTag", {}).get("TagKey")
-                error = failure.get("Error", {}).get("ErrorMessage")
-                LOGGER.error(f"Failed to set {tag} for {database}" + msg_appendix + f" - {error}")
-            raise DbtRuntimeError(base_msg)
-        return f"Added LF tags: {lf_tags} to {database}" + msg_appendix
-
-    @classmethod
-    def lf_tags_columns_is_valid(cls, lf_tags_columns: Dict[str, Dict[str, List[str]]]) -> Optional[bool]:
-        if not lf_tags_columns:
-            return False
-        for tag_key, tag_config in lf_tags_columns.items():
-            if isinstance(tag_config, Dict):
-                for tag_value, columns in tag_config.items():
-                    if not isinstance(columns, List):
-                        raise DbtRuntimeError(f"Not a list: {columns}. " + "Expected format: ['c1', 'c2']")
-            else:
-                raise DbtRuntimeError(f"Not a dict: {tag_config}. " + "Expected format: {'tag_value': ['c1', 'c2']}")
-        return True
-
-    # TODO: Add more lf-tag unit tests when moto supports lakeformation
-    # moto issue: https://github.com/getmoto/moto/issues/5964
     @available
-    def add_lf_tags(
-        self,
-        database: str,
-        table: str = None,
-        lf_tags: Optional[Dict[str, str]] = None,
-        lf_tags_columns: Optional[Dict[str, Dict[str, List[str]]]] = None,
-    ):
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        lf_tags = lf_tags or conn.credentials.lf_tags
-
-        if not lf_tags and not lf_tags_columns:
-            LOGGER.debug("No LF tags configured")
-        else:
+    def add_lf_tags(self, relation: AthenaRelation, lf_tags_config: Dict[str, Any]) -> None:
+        config = LfTagsConfig(**lf_tags_config)
+        if config.enabled:
+            conn = self.connections.get_thread_connection()
+            client = conn.handle
             with boto3_client_lock:
-                lf_client = client.session.client(
-                    "lakeformation", region_name=client.region_name, config=get_boto3_config()
-                )
+                lf_client = client.session.client("lakeformation", client.region_name, config=get_boto3_config())
+            manager = LfTagsManager(lf_client, relation, config)
+            manager.process_lf_tags()
+            return
+        LOGGER.debug(f"Lakeformation is disabled for {relation}")
 
-            if lf_tags:
-                resource = {"Database": {"Name": database}}
-                if table:
-                    resource = {"Table": {"DatabaseName": database, "Name": table}}
-
-                response = lf_client.add_lf_tags_to_resource(
-                    Resource=resource, LFTags=[{"TagKey": key, "TagValues": [value]} for key, value in lf_tags.items()]
-                )
-                LOGGER.debug(self.parse_lf_response(response, database, table, None, lf_tags))
-
-            if self.lf_tags_columns_is_valid(lf_tags_columns):
-                for tag_key, tag_config in lf_tags_columns.items():
-                    for tag_value, columns in tag_config.items():
-                        response = lf_client.add_lf_tags_to_resource(
-                            Resource={
-                                "TableWithColumns": {"DatabaseName": database, "Name": table, "ColumnNames": columns}
-                            },
-                            LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}],
-                        )
-                        LOGGER.debug(self.parse_lf_response(response, database, table, columns, {tag_key: tag_value}))
+    @available
+    def apply_lf_grants(self, relation: AthenaRelation, lf_grants_config: Dict[str, Any]) -> None:
+        lf_config = LfGrantsConfig(**lf_grants_config)
+        if lf_config.data_cell_filters.enabled:
+            conn = self.connections.get_thread_connection()
+            client = conn.handle
+            with boto3_client_lock:
+                lf = client.session.client("lakeformation", region_name=client.region_name, config=get_boto3_config())
+            catalog = self._get_data_catalog(relation.database)
+            catalog_id = get_catalog_id(catalog)
+            lf_permissions = LfPermissions(catalog_id, relation, lf)
+            lf_permissions.process_filters(lf_config)
+            lf_permissions.process_permissions(lf_config)
 
     @available
     def is_work_group_output_location_enforced(self) -> bool:
