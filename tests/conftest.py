@@ -8,7 +8,7 @@ import pytest
 import dbt
 from dbt.adapters.athena.connections import AthenaCredentials
 from dbt.events.base_types import EventLevel
-from dbt.events.eventmgr import NoFilter
+from dbt.events.eventmgr import LineFormat, NoFilter
 from dbt.events.functions import EVENT_MANAGER, _get_stdout_config
 
 from .unit.constants import (
@@ -35,9 +35,10 @@ def dbt_profile_target():
         "schema": os.getenv("DBT_TEST_ATHENA_SCHEMA"),
         "database": os.getenv("DBT_TEST_ATHENA_DATABASE"),
         "region_name": os.getenv("DBT_TEST_ATHENA_REGION_NAME"),
-        "threads": 1,
+        "threads": int(os.getenv("DBT_TEST_ATHENA_THREADS", "1")),
+        "poll_interval": float(os.getenv("DBT_TEST_ATHENA_POLL_INTERVAL", "1.0")),
         "num_retries": 0,
-        "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUND"),
+        "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUP"),
         "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME") or None,
         "spark_work_group": os.getenv("DBT_TEST_ATHENA_SPARK_WORK_GROUP"),
     }
@@ -54,7 +55,9 @@ def dbt_debug_caplog() -> StringIO:
 
 
 def _setup_custom_caplog(name: str, level: EventLevel):
-    capture_config = _get_stdout_config(level)
+    capture_config = _get_stdout_config(
+        line_format=LineFormat.PlainText, level=level, use_colors=False, debug=True, log_cache_events=True, quiet=False
+    )
     capture_config.name = name
     capture_config.filter = NoFilter
     stringbuf = StringIO()

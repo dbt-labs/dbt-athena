@@ -23,10 +23,10 @@ test:  ## Run tests.
 	make functional_test
 
 unit_test:  ## Run unit tests.
-	pytest --cov=dbt tests/unit
+	pytest --cov=dbt --cov-report=html:htmlcov tests/unit
 
 functional_test: .env  ## Run functional tests.
-	pytest tests/functional
+	pytest -n auto tests/functional
 
 pre-commit:  ## check modified and added files (compared to last commit!) with pre-commit.
 	pre-commit run --files $(CHANGED_FILES)

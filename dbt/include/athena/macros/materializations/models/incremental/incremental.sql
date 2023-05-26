@@ -6,8 +6,8 @@
   {% set strategy = validate_get_incremental_strategy(raw_strategy, table_type) %}
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
 
-  {% set lf_tags = config.get('lf_tags', default=none) %}
-  {% set lf_tags_columns = config.get('lf_tags_columns', default=none) %}
+  {% set lf_tags_config = config.get('lf_tags_config') %}
+  {% set lf_grants = config.get('lf_grants') %}
   {% set partitioned_by = config.get('partitioned_by', default=none) %}
   {% set target_relation = this.incorporate(type='table') %}
   {% set existing_relation = load_relation(this) %}
@@ -118,8 +118,12 @@
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
 
-  {% if lf_tags is not none or lf_tags_columns is not none %}
-    {{ adapter.add_lf_tags(target_relation.schema, target_relation.identifier, lf_tags, lf_tags_columns) }}
+  {% if lf_tags_config is not none %}
+    {{ adapter.add_lf_tags(target_relation, lf_tags_config) }}
+  {% endif %}
+
+  {% if lf_grants is not none %}
+    {{ adapter.apply_lf_grants(target_relation, lf_grants) }}
   {% endif %}
 
   {% do persist_docs(target_relation, model) %}

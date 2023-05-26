@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class S3DataNaming(Enum):
-    UUID = "uuid"
+    UNIQUE = "unique"
     TABLE = "table"
     TABLE_UNIQUE = "table_unique"
     SCHEMA_TABLE = "schema_table"
