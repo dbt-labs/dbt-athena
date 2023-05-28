@@ -630,7 +630,7 @@ class AthenaAdapter(SQLAdapter):
         glue_client.update_table(DatabaseName=relation.schema, TableInput=updated_table)
 
     def generate_python_submission_response(self, submission_result: Any) -> AdapterResponse:
-        if submission_result is None:
+        if not submission_result:
             return AdapterResponse(_message="ERROR")
         return AdapterResponse(_message="OK")
 

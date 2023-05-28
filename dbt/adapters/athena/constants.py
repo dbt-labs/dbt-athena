@@ -1,3 +1,3 @@
 from dbt.events import AdapterLogger
 
-LOGGER = AdapterLogger("Athena")
+LOGGER = AdapterLogger(__name__)
