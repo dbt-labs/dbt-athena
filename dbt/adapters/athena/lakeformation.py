@@ -1,13 +1,15 @@
 """AWS Lakeformation permissions management helper utilities."""
 
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Set, Union
 
 from mypy_boto3_lakeformation import LakeFormationClient
 from mypy_boto3_lakeformation.type_defs import (
     AddLFTagsToResourceResponseTypeDef,
     BatchPermissionsRequestEntryTypeDef,
+    ColumnLFTagTypeDef,
     DataCellsFilterTypeDef,
     GetResourceLFTagsResponseTypeDef,
+    LFTagPairTypeDef,
     RemoveLFTagsFromResourceResponseTypeDef,
     ResourceTypeDef,
 )
@@ -20,10 +22,42 @@ from dbt.exceptions import DbtRuntimeError
 logger = AdapterLogger("AthenaLakeFormation")
 
 
+def _column_tags_to_remove(
+    lf_tags_columns: List[ColumnLFTagTypeDef], lf_inherited_tags: Set[str]
+) -> dict[str, dict[str, List[str]]]:
+    to_remove = {}
+
+    for column in lf_tags_columns:
+        non_inherited_tags = [tag for tag in column["LFTags"] if not tag["TagKey"] in lf_inherited_tags]
+        for tag in non_inherited_tags:
+            tag_key = tag["TagKey"]
+            tag_value = tag["TagValues"][0]
+            if tag_key not in to_remove:
+                to_remove[tag_key] = {tag_value: [column["Name"]]}
+            elif tag_value not in to_remove[tag_key]:
+                to_remove[tag_key][tag_value] = [column["Name"]]
+            else:
+                to_remove[tag_key][tag_value].append(column["Name"])
+
+    return to_remove
+
+
+def _table_tags_to_remove(
+    lf_tags_table: list[LFTagPairTypeDef], lf_tags: Optional[Dict[str, str]], lf_inherited_tags: set[str]
+):
+    return {
+        tag["TagKey"]: tag["TagValues"]
+        for tag in lf_tags_table
+        if tag["TagKey"] not in (lf_tags or {})
+        if tag["TagKey"] not in lf_inherited_tags
+    }
+
+
 class LfTagsConfig(BaseModel):
     enabled: bool = False
     tags: Optional[Dict[str, str]] = None
     tags_columns: Optional[Dict[str, Dict[str, List[str]]]] = None
+    inherited_tags: Optional[List[str]] = []
 
 
 class LfTagsManager:
@@ -33,6 +67,7 @@ class LfTagsManager:
         self.table = relation.identifier
         self.lf_tags = lf_tags_config.tags
         self.lf_tags_columns = lf_tags_config.tags_columns
+        self.lf_inherited_tags = set(lf_tags_config.inherited_tags)
 
     def process_lf_tags_database(self) -> None:
         if self.lf_tags:
@@ -53,17 +88,7 @@ class LfTagsManager:
         lf_tags_columns = existing_lf_tags.get("LFTagsOnColumns", [])
         logger.debug(f"COLUMNS: {lf_tags_columns}")
         if lf_tags_columns:
-            to_remove = {}
-            for column in lf_tags_columns:
-                for tag in column["LFTags"]:
-                    tag_key = tag["TagKey"]
-                    tag_value = tag["TagValues"][0]
-                    if tag_key not in to_remove:
-                        to_remove[tag_key] = {tag_value: [column["Name"]]}
-                    elif tag_value not in to_remove[tag_key]:
-                        to_remove[tag_key][tag_value] = [column["Name"]]
-                    else:
-                        to_remove[tag_key][tag_value].append(column["Name"])
+            to_remove = _column_tags_to_remove(lf_tags_columns, self.lf_inherited_tags)
             logger.debug(f"TO REMOVE: {to_remove}")
             for tag_key, tag_config in to_remove.items():
                 for tag_value, columns in tag_config.items():
@@ -82,11 +107,8 @@ class LfTagsManager:
         logger.debug(f"EXISTING TABLE TAGS: {lf_tags_table}")
         logger.debug(f"CONFIG TAGS: {self.lf_tags}")
 
-        to_remove = {
-            tag["TagKey"]: tag["TagValues"]
-            for tag in lf_tags_table
-            if tag["TagKey"] not in self.lf_tags  # type: ignore
-        }
+        to_remove = _table_tags_to_remove(lf_tags_table, self.lf_tags, self.lf_inherited_tags)
+
         logger.debug(f"TAGS TO REMOVE: {to_remove}")
         if to_remove:
             response = self.lf_client.remove_lf_tags_from_resource(
