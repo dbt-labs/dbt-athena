@@ -1138,7 +1138,10 @@ class TestAthenaAdapter:
         mock_aws_service.create_database()
         mock_aws_service.create_table("test_table")
         self.adapter.acquire_connection("dummy")
-        table_type = self.adapter.get_table_type(DATABASE_NAME, "test_table")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="test_table"
+        )
+        table_type = self.adapter.get_glue_table_type(relation)
         assert table_type == TableType.TABLE
 
     @mock_glue
@@ -1149,9 +1152,11 @@ class TestAthenaAdapter:
         mock_aws_service.create_database()
         mock_aws_service.create_table_without_table_type("test_table")
         self.adapter.acquire_connection("dummy")
-
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="test_table"
+        )
         with pytest.raises(ValueError):
-            self.adapter.get_table_type(DATABASE_NAME, "test_table")
+            self.adapter.get_glue_table_type(relation)
 
     @mock_glue
     @mock_s3
@@ -1161,7 +1166,10 @@ class TestAthenaAdapter:
         mock_aws_service.create_database()
         mock_aws_service.create_view("test_view")
         self.adapter.acquire_connection("dummy")
-        table_type = self.adapter.get_table_type(DATABASE_NAME, "test_view")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="test_view"
+        )
+        table_type = self.adapter.get_glue_table_type(relation)
         assert table_type == TableType.VIEW
 
     @mock_glue
@@ -1172,7 +1180,10 @@ class TestAthenaAdapter:
         mock_aws_service.create_database()
         mock_aws_service.create_iceberg_table("test_iceberg")
         self.adapter.acquire_connection("dummy")
-        table_type = self.adapter.get_table_type(DATABASE_NAME, "test_iceberg")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="test_iceberg"
+        )
+        table_type = self.adapter.get_glue_table_type(relation)
         assert table_type == TableType.ICEBERG
 
     @pytest.mark.parametrize(

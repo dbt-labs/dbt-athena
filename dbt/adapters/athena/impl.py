@@ -187,10 +187,9 @@ class AthenaAdapter(SQLAdapter):
         return mapping[s3_data_naming]
 
     @available
-    def get_glue_table_location(self, relation: AthenaRelation) -> Optional[str]:
+    def get_glue_table(self, relation: AthenaRelation) -> Optional[str]:
         """
-        Helper function to get location of a relation in S3.
-        Will return None if the table does not exist or does not have a location (views)
+        Helper function to get a relation via Glue
         """
         conn = self.connections.get_thread_connection()
         client = conn.handle
@@ -204,6 +203,30 @@ class AthenaAdapter(SQLAdapter):
                 LOGGER.debug(f"Table {relation.render()} does not exists - Ignoring")
                 return None
             raise e
+        return table
+
+    @available
+    def get_glue_table_type(self, relation: AthenaRelation) -> TableType:
+        """
+        Get the table type of the relation from Glue
+        """
+        table = self.get_glue_table(relation)
+        if not table:
+            LOGGER.debug(f"Table {relation.render()} does not exist - Ignoring")
+            return None
+
+        return get_table_type(table["Table"])
+
+    @available
+    def get_glue_table_location(self, relation: AthenaRelation) -> Optional[str]:
+        """
+        Helper function to get location of a relation in S3.
+        Will return None if the table does not exist or does not have a location (views)
+        """
+        table = self.get_glue_table(relation)
+        if not table:
+            LOGGER.debug(f"Table {relation.render()} does not exist - Ignoring")
+            return None
 
         table_type = get_table_type(table["Table"])
         table_location = table["Table"].get("StorageDescriptor", {}).get("Location")
@@ -787,21 +810,3 @@ class AthenaAdapter(SQLAdapter):
                 drop_staging_sql.strip(),
             ]
         )
-
-    @available
-    def get_table_type(self, db_name, table_name) -> TableType:
-        conn = self.connections.get_thread_connection()
-        client = conn.handle
-
-        with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
-
-        try:
-            response = glue_client.get_table(DatabaseName=db_name, Name=table_name)
-            _type = get_table_type(response.get("Table", {}))
-            LOGGER.debug(f"adapter get_table_type returned {_type} for args {db_name}, {table_name}")
-
-            return _type
-
-        except glue_client.exceptions.EntityNotFoundException as e:
-            LOGGER.debug(f"Error calling Glue get_table: {e}")
