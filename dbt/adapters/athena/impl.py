@@ -187,7 +187,7 @@ class AthenaAdapter(SQLAdapter):
         return mapping[s3_data_naming]
 
     @available
-    def get_glue_table(self, relation: AthenaRelation) -> Optional[str]:
+    def get_glue_table(self, relation: AthenaRelation) -> Optional[GetTableResponseTypeDef]:
         """
         Helper function to get a relation via Glue
         """
