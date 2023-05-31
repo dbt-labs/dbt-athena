@@ -206,7 +206,7 @@ class AthenaAdapter(SQLAdapter):
         return table
 
     @available
-    def get_glue_table_type(self, relation: AthenaRelation) -> TableType:
+    def get_glue_table_type(self, relation: AthenaRelation) -> Optional[TableType]:
         """
         Get the table type of the relation from Glue
         """
