@@ -134,6 +134,7 @@ _Additional information_
 * `field_delimiter` (`default=none`)
   * Custom field delimiter, for when format is set to `TEXTFILE`
 * `table_properties`: table properties to add to the table, valid for Iceberg only
++ `native_drop`: Relation drop operations will be performed with SQL, not direct Glue API calls. No S3 calls will be made to manage data in S3. Data in S3 will only be cleared up for Iceberg tables [see AWS docs](https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-managing-tables.html). Note that Iceberg DROP TABLE operations may timeout if they take longer than 60 seconds.
 * `lf_tags_config` (`default=none`)
   * [AWS lakeformation](#aws-lakeformation-integration) tags to associate with the table and columns
   * format for model config:
