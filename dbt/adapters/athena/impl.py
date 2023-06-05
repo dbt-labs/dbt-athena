@@ -535,7 +535,11 @@ class AthenaAdapter(SQLAdapter):
                     DatabaseName=target_relation.schema,
                     TableName=target_relation.identifier,
                     PartitionInputList=[
-                        {"Values": partition["Values"], "StorageDescriptor": partition["StorageDescriptor"], "Parameters": partition["Parameters"]}
+                        {
+                            "Values": partition["Values"],
+                            "StorageDescriptor": partition["StorageDescriptor"],
+                            "Parameters": partition["Parameters"],
+                        }
                         for partition in partition_batch
                     ],
                 )
