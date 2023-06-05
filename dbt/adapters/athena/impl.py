@@ -522,7 +522,7 @@ class AthenaAdapter(SQLAdapter):
         # if source table has partitions we need to delete and add partitions
         # it source table hasn't any partitions we need to delete target table partitions
         if target_table_partitions:
-            for partition_batch in get_chunks(target_table_partitions, 100):
+            for partition_batch in get_chunks(target_table_partitions, 25):
                 glue_client.batch_delete_partition(
                     DatabaseName=target_relation.schema,
                     TableName=target_relation.identifier,
