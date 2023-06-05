@@ -13,7 +13,7 @@ def get_catalog_id(catalog: Optional[DataCatalogTypeDef]) -> Optional[str]:
         return catalog["Parameters"]["catalog-id"]
 
 
-def chunks(lst, n):
+def get_chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
