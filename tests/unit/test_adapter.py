@@ -836,7 +836,7 @@ class TestAthenaAdapter:
         ).get("Partitions")
 
         assert self.adapter.get_glue_table_location(target_relation) == f"s3://{BUCKET}/tables/{source_table}"
-        assert len(target_table_partitions_after) == 3
+        assert len(target_table_partitions_after) == 26
 
     @mock_athena
     @mock_glue
