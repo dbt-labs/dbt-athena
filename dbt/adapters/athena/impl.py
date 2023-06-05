@@ -530,14 +530,15 @@ class AthenaAdapter(SQLAdapter):
                 )
 
         if src_table_partitions:
-            glue_client.batch_create_partition(
-                DatabaseName=target_relation.schema,
-                TableName=target_relation.identifier,
-                PartitionInputList=[
-                    {"Values": p["Values"], "StorageDescriptor": p["StorageDescriptor"], "Parameters": p["Parameters"]}
-                    for p in src_table_partitions
-                ],
-            )
+            for partition_batch in chunks(src_table_partitions, 100):
+                glue_client.batch_create_partition(
+                    DatabaseName=target_relation.schema,
+                    TableName=target_relation.identifier,
+                    PartitionInputList=[
+                        {"Values": partition["Values"], "StorageDescriptor": partition["StorageDescriptor"], "Parameters": partition["Parameters"]}
+                        for partition in partition_batch
+                    ],
+                )
 
     def _get_glue_table_versions_to_expire(self, relation: AthenaRelation, to_keep: int):
         """
