@@ -34,7 +34,7 @@ from dbt.adapters.athena.relation import (
     get_table_type,
 )
 from dbt.adapters.athena.s3 import S3DataNaming
-from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id
+from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id, chunks
 from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
@@ -522,11 +522,12 @@ class AthenaAdapter(SQLAdapter):
         # if source table has partitions we need to delete and add partitions
         # it source table hasn't any partitions we need to delete target table partitions
         if target_table_partitions:
-            glue_client.batch_delete_partition(
-                DatabaseName=target_relation.schema,
-                TableName=target_relation.identifier,
-                PartitionsToDelete=[{"Values": i["Values"]} for i in target_table_partitions],
-            )
+            for partition_batch in chunks(target_table_partitions, 25):
+                glue_client.batch_delete_partition(
+                    DatabaseName=target_relation.schema,
+                    TableName=target_relation.identifier,
+                    PartitionsToDelete=[{"Values": partition["Values"]} for partition in partition_batch],
+                )
 
         if src_table_partitions:
             glue_client.batch_create_partition(

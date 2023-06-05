@@ -11,3 +11,9 @@ def clean_sql_comment(comment: str) -> str:
 def get_catalog_id(catalog: Optional[DataCatalogTypeDef]) -> Optional[str]:
     if catalog:
         return catalog["Parameters"]["catalog-id"]
+
+
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
