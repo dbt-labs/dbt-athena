@@ -180,7 +180,7 @@
 
 {% macro athena__create_csv_table(model, agate_table) %}
 
-  {%- set seed_by_insert = target.seed_by_insert -%}
+  {%- set seed_by_insert = config.get('seed_by_insert', False) | as_bool -%}
 
   {%- if seed_by_insert -%}
     {% do log('seed by insert...') %}
@@ -206,7 +206,8 @@
 
 {# Overwrite to satisfy dbt-core logic #}
 {% macro athena__load_csv_rows(model, agate_table) %}
-  {%- if target.seed_by_insert %}
+    {%- set seed_by_insert = config.get('seed_by_insert', False) | as_bool -%}
+  {%- if seed_by_insert %}
     {{ default__load_csv_rows(model, agate_table) }}
   {%- else -%}
     select 1
