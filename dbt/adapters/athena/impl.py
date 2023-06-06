@@ -216,8 +216,7 @@ class AthenaAdapter(SQLAdapter):
                     f"but no location returned by Glue."
                 )
             LOGGER.debug(f"{relation.render()} is stored in {table_location}")
-            return table_location  # type: ignore
-
+            return str(table_location)
         return None
 
     @available
@@ -406,7 +405,7 @@ class AthenaAdapter(SQLAdapter):
 
             for page in paginator.paginate(**kwargs):
                 for table in page["TableList"]:
-                    if table["Name"] in relations:  # type: ignore
+                    if relations and table["Name"] in relations:
                         catalog.extend(self._get_one_table_for_catalog(table, information_schema.path.database))
 
         table = agate.Table.from_object(catalog)
