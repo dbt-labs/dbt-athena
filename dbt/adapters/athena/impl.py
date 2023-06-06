@@ -46,6 +46,9 @@ boto3_client_lock = Lock()
 
 
 class AthenaAdapter(SQLAdapter):
+    BATCH_CREATE_PARTITION_API_LIMIT = 100
+    BATCH_DELETE_PARTITION_API_LIMIT = 25
+
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
 
@@ -522,7 +525,7 @@ class AthenaAdapter(SQLAdapter):
         # if source table has partitions we need to delete and add partitions
         # it source table hasn't any partitions we need to delete target table partitions
         if target_table_partitions:
-            for partition_batch in get_chunks(target_table_partitions, 25):
+            for partition_batch in get_chunks(target_table_partitions, AthenaAdapter.BATCH_DELETE_PARTITION_API_LIMIT):
                 glue_client.batch_delete_partition(
                     DatabaseName=target_relation.schema,
                     TableName=target_relation.identifier,
@@ -530,7 +533,7 @@ class AthenaAdapter(SQLAdapter):
                 )
 
         if src_table_partitions:
-            for partition_batch in get_chunks(src_table_partitions, 100):
+            for partition_batch in get_chunks(src_table_partitions, AthenaAdapter.BATCH_CREATE_PARTITION_API_LIMIT):
                 glue_client.batch_create_partition(
                     DatabaseName=target_relation.schema,
                     TableName=target_relation.identifier,
