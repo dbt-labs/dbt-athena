@@ -9,8 +9,7 @@ def clean_sql_comment(comment: str) -> str:
 
 
 def get_catalog_id(catalog: Optional[DataCatalogTypeDef]) -> Optional[str]:
-    if catalog:
-        return catalog["Parameters"]["catalog-id"]
+    return catalog["Parameters"]["catalog-id"] if catalog else None
 
 
 T = TypeVar("T")

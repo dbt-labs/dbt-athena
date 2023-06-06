@@ -74,7 +74,11 @@ class LfTagsManager:
         logger.debug(f"EXISTING TABLE TAGS: {lf_tags_table}")
         logger.debug(f"CONFIG TAGS: {self.lf_tags}")
 
-        to_remove = {tag["TagKey"]: tag["TagValues"] for tag in lf_tags_table if tag["TagKey"] not in self.lf_tags}
+        to_remove = {
+            tag["TagKey"]: tag["TagValues"]
+            for tag in lf_tags_table
+            if tag["TagKey"] not in self.lf_tags  # type: ignore
+        }
         logger.debug(f"TAGS TO REMOVE: {to_remove}")
         if to_remove:
             response = self.lf_client.remove_lf_tags_from_resource(
@@ -105,7 +109,7 @@ class LfTagsManager:
         self,
         response: Union[AddLFTagsToResourceResponseTypeDef, RemoveLFTagsFromResourceResponseTypeDef],
         columns: Optional[List[str]] = None,
-        lf_tags: Dict[str, str] = None,
+        lf_tags: Optional[Dict[str, str]] = None,
         verb: str = "add",
     ) -> str:
         failures = response.get("Failures", [])
@@ -195,7 +199,7 @@ class LfPermissions:
         for f in to_update:
             self.lf_client.update_data_cells_filter(TableData=f)
 
-    def process_permissions(self, config: LfGrantsConfig):
+    def process_permissions(self, config: LfGrantsConfig) -> None:
         for name, f in config.data_cell_filters.filters.items():
             logger.debug(f"Start processing permissions for filter: {name}")
             current_permissions = self.lf_client.list_permissions(
