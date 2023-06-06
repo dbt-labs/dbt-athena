@@ -45,7 +45,7 @@ class AthenaRelation(BaseRelation):
         object.__setattr__(self, "quote_character", "`")  # Hive quote char
         rendered = self.render()
         object.__setattr__(self, "quote_character", old_value)
-        return rendered  # type: ignore
+        return str(rendered)
 
     def render_pure(self) -> str:
         """
@@ -56,7 +56,7 @@ class AthenaRelation(BaseRelation):
         object.__setattr__(self, "quote_character", "")
         rendered = self.render()
         object.__setattr__(self, "quote_character", old_value)
-        return rendered  # type: ignore
+        return str(rendered)
 
 
 class AthenaSchemaSearchMap(Dict[InformationSchema, Dict[str, Set[Optional[str]]]]):
