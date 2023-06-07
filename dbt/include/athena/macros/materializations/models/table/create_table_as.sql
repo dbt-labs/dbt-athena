@@ -20,7 +20,7 @@
                                                  s3_data_naming,
                                                  external_location,
                                                  temporary) -%}
-  {%- set native_drop = config.get('native_drop', 'False') | as_bool -%}
+  {%- set native_drop = config.get('native_drop', 'False') == 'True' -%}
 
   {%- set contract_config = config.get('contract') -%}
   {%- if contract_config.enforced -%}
