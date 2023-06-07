@@ -1,9 +1,6 @@
 {% macro athena__drop_relation(relation) -%}
-  {%- do log('drop_relation') -%}
-  {%- set native_drop = config.get('native_drop', default='False') | as_bool -%}
-  {%- do log('native_drop ' ~ native_drop) -%}
+  {%- set native_drop = config.get('native_drop', 'False') == 'True' -%}
   {%- set rel_type_object = adapter.get_glue_table_type(relation) -%}
-  {%- do log('rel_type_object ' ~ rel_type_object) -%}
   {%- set rel_type = none if rel_type_object == none else rel_type_object.value -%}
   {%- set natively_droppable = rel_type == 'iceberg_table' or relation.type == 'view' -%}
 
