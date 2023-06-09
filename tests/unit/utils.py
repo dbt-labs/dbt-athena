@@ -450,7 +450,7 @@ class MockAWSService:
                 },
                 "Parameters": {"compressionType": "snappy", "classification": "parquet"},
             }
-            for dt in ["2022-01-01", "2022-01-02", "2022-01-03"]
+            for dt in [f"2022-01-{day:02d}" for day in range(1, 27)]
         ]
         glue = boto3.client("glue", region_name=AWS_REGION)
         glue.batch_create_partition(
