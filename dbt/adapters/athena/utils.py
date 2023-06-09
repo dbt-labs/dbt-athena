@@ -1,4 +1,4 @@
-from typing import Collection, List, Optional, TypeVar
+from typing import Generator, List, Optional, TypeVar
 
 from mypy_boto3_athena.type_defs import DataCatalogTypeDef
 
@@ -15,7 +15,7 @@ def get_catalog_id(catalog: Optional[DataCatalogTypeDef]) -> Optional[str]:
 T = TypeVar("T")
 
 
-def get_chunks(lst: Collection[T], n: int) -> Collection[List[T]]:
+def get_chunks(lst: List[T], n: int) -> Generator[List[T], None, None]:
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
