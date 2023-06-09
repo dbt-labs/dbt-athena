@@ -728,7 +728,7 @@ class TestAthenaAdapter:
         mock_aws_service.create_table(source_table)
         mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
         mock_aws_service.create_table(target_table)
-        mock_aws_service.add_partitions_to_table(DATABASE_NAME, source_table)
+        mock_aws_service.add_partitions_to_table(DATABASE_NAME, target_table)
         source_relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -836,7 +836,7 @@ class TestAthenaAdapter:
         ).get("Partitions")
 
         assert self.adapter.get_glue_table_location(target_relation) == f"s3://{BUCKET}/tables/{source_table}"
-        assert len(target_table_partitions_after) == 3
+        assert len(target_table_partitions_after) == 26
 
     @mock_athena
     @mock_glue
