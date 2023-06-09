@@ -34,7 +34,7 @@ from dbt.adapters.athena.relation import (
     get_table_type,
 )
 from dbt.adapters.athena.s3 import S3DataNaming
-from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id
+from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id, get_chunks
 from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
@@ -46,6 +46,9 @@ boto3_client_lock = Lock()
 
 
 class AthenaAdapter(SQLAdapter):
+    BATCH_CREATE_PARTITION_API_LIMIT = 100
+    BATCH_DELETE_PARTITION_API_LIMIT = 25
+
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
 
@@ -522,21 +525,27 @@ class AthenaAdapter(SQLAdapter):
         # if source table has partitions we need to delete and add partitions
         # it source table hasn't any partitions we need to delete target table partitions
         if target_table_partitions:
-            glue_client.batch_delete_partition(
-                DatabaseName=target_relation.schema,
-                TableName=target_relation.identifier,
-                PartitionsToDelete=[{"Values": i["Values"]} for i in target_table_partitions],
-            )
+            for partition_batch in get_chunks(target_table_partitions, AthenaAdapter.BATCH_DELETE_PARTITION_API_LIMIT):
+                glue_client.batch_delete_partition(
+                    DatabaseName=target_relation.schema,
+                    TableName=target_relation.identifier,
+                    PartitionsToDelete=[{"Values": partition["Values"]} for partition in partition_batch],
+                )
 
         if src_table_partitions:
-            glue_client.batch_create_partition(
-                DatabaseName=target_relation.schema,
-                TableName=target_relation.identifier,
-                PartitionInputList=[
-                    {"Values": p["Values"], "StorageDescriptor": p["StorageDescriptor"], "Parameters": p["Parameters"]}
-                    for p in src_table_partitions
-                ],
-            )
+            for partition_batch in get_chunks(src_table_partitions, AthenaAdapter.BATCH_CREATE_PARTITION_API_LIMIT):
+                glue_client.batch_create_partition(
+                    DatabaseName=target_relation.schema,
+                    TableName=target_relation.identifier,
+                    PartitionInputList=[
+                        {
+                            "Values": partition["Values"],
+                            "StorageDescriptor": partition["StorageDescriptor"],
+                            "Parameters": partition["Parameters"],
+                        }
+                        for partition in partition_batch
+                    ],
+                )
 
     def _get_glue_table_versions_to_expire(self, relation: AthenaRelation, to_keep: int):
         """
