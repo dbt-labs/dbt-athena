@@ -7,11 +7,10 @@ from uuid import UUID
 import boto3
 import boto3.session
 
-from dbt.adapters.athena.constants import LOGGER
+from dbt.adapters.athena.constants import DEFAULT_THREAD_COUNT, LOGGER
 from dbt.contracts.connection import Connection
 from dbt.exceptions import DbtRuntimeError
 
-DEFAULT_SESSION_COUNT = 4
 spark_session_locks: Dict[UUID, threading.Lock] = {}
 
 
@@ -36,6 +35,16 @@ class AthenaSparkSessionManager:
         self.engine_config = engine_config
         self.lock = threading.Lock()
         self.athena_client = self.get_athena_client()
+
+    def get_max_session_count(self):
+        if not self.credentials.threads:
+            return DEFAULT_THREAD_COUNT
+        return self.credentials.threads
+
+    def get_spark_work_group(self):
+        if not self.credentials.spark_work_group:
+            raise DbtRuntimeError("Expected spark_work_group in profile")
+        return self.credentials.spark_work_group
 
     def get_athena_client(self):
         """
@@ -110,7 +119,7 @@ class AthenaSparkSessionManager:
             time.sleep(polling_interval)
             polling_interval *= 2
 
-    def list_sessions(self, max_results: int = DEFAULT_SESSION_COUNT, state: str = "IDLE") -> List[UUID]:
+    def list_sessions(self, state: str = "IDLE") -> List[UUID]:
         """
         List athena spark sessions.
 
@@ -123,14 +132,17 @@ class AthenaSparkSessionManager:
             the list of the returned session id.
 
         """
+        max_results = self.get_max_session_count()
         response = self.athena_client.list_sessions(
-            WorkGroup=self.credentials.spark_work_group, MaxResults=max_results, StateFilter=state
+            WorkGroup=self.get_spark_work_group(),
+            MaxResults=max_results,
+            StateFilter=state,
         )
         if len(response.get("Sessions")) == 0 or response.get("Sessions") is None:
-            if len(spark_session_locks) < DEFAULT_SESSION_COUNT:
+            if len(spark_session_locks) < max_results:
                 return [self.start_session()]
             LOGGER.warning(
-                f"""Maximum spark session count: {DEFAULT_SESSION_COUNT} reached.
+                f"""Maximum spark session count: {max_results} reached.
             Cannot start new spark session."""
             )
         return [UUID(session_string["SessionId"]) for session_string in response.get("Sessions")]
