@@ -43,7 +43,11 @@ class AthenaSparkSessionManager:
 
     def get_spark_work_group(self):
         if not self.credentials.spark_work_group:
+<<<<<<< HEAD
             raise DbtRuntimeError("Expected spark_work_group in profile")
+=======
+            raise DbtRuntimeError(f"Expected spark_work_group in profile. Got: {self.credentials.spark_work_group}")
+>>>>>>> 5f40faf (Fixed readme. Moved some defaults to constants.)
         return self.credentials.spark_work_group
 
     def get_athena_client(self):
@@ -72,6 +76,17 @@ class AthenaSparkSessionManager:
         sessions = self.list_sessions()
         existing_sessions = set(spark_session_locks.keys())
         new_sessions = [session for session in sessions if session not in existing_sessions]
+<<<<<<< HEAD
+=======
+
+        if len(new_sessions) == 0:
+            if len(spark_session_locks) < self.spark_threads:
+                return [self.start_session()]
+            LOGGER.warning(
+                f"""Maximum spark session count: {self.spark_threads} reached.
+            Cannot start new spark session."""
+            )
+>>>>>>> 5f40faf (Fixed readme. Moved some defaults to constants.)
         LOGGER.debug(f"Setting sessions: {new_sessions}")
         return new_sessions
 
@@ -138,6 +153,7 @@ class AthenaSparkSessionManager:
             MaxResults=max_results,
             StateFilter=state,
         )
+<<<<<<< HEAD
         if len(response.get("Sessions")) == 0 or response.get("Sessions") is None:
             if len(spark_session_locks) < max_results:
                 return [self.start_session()]
@@ -145,6 +161,10 @@ class AthenaSparkSessionManager:
                 f"""Maximum spark session count: {max_results} reached.
             Cannot start new spark session."""
             )
+=======
+        if response.get("Sessions") is None:
+            return []
+>>>>>>> 5f40faf (Fixed readme. Moved some defaults to constants.)
         return [UUID(session_string["SessionId"]) for session_string in response.get("Sessions")]
 
     def start_session(self) -> UUID:

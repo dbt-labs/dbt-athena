@@ -16,35 +16,23 @@ SUBMISSION_LANGUAGE = "python"
 
 class AthenaPythonJobHelper(PythonJobHelper):
     """
-     A helper class for executing Python jobs on AWS Athena.
-
-    This class extends the base `PythonJobHelper` class and provides additional functionality
-    specific to executing jobs on Athena. It takes a parsed model and credentials as inputs
-    during initialization, and provides methods for executing Athena jobs, setting timeout,
-    polling interval, region name, AWS profile name, and Spark work group.
+    Default helper to execute python models with Athena Spark.
 
     Args:
-        parsed_model (Dict): A dictionary representing the parsed model of the Athena job.
-            It should contain keys such as 'alias' for job identifier and 'schema' for
-            job schema.
-        credentials (AthenaCredentials): An instance of the `AthenaCredentials` class
-            containing AWS credentials for accessing Athena.
-
-    Attributes:
-        identifier (str): A string representing the alias or identifier of the Athena job.
-        schema (str): A string representing the schema of the Athena job.
-        parsed_model (Dict): A dictionary representing the parsed model of the Athena job.
-        timeout (int): An integer representing the timeout value in seconds for the Athena job.
-        polling_interval (int): An integer representing the polling interval in seconds for
-            checking the status of the Athena job.
-        region_name (str): A string representing the AWS region name for executing the Athena job.
-        profile_name (str): A string representing the AWS profile name for accessing Athena.
-        spark_work_group (str): A string representing the Spark work group for executing the Athena job.
-
+        PythonJobHelper (PythonJobHelper): The base python helper class
     """
 
+<<<<<<< HEAD
     def __init__(self, parsed_model: Dict, credentials: AthenaCredentials) -> None:
         self.config = AthenaSparkSessionConfig(parsed_model.get("config", {}))
+=======
+    def __init__(self, parsed_model: Dict[Any, Any], credentials: AthenaCredentials) -> None:
+        self.config = AthenaSparkSessionConfig(
+            parsed_model.get("config", {}),
+            polling_interval=credentials.poll_interval,
+            retry_attempts=credentials.num_retries,
+        )
+>>>>>>> 5f40faf (Fixed readme. Moved some defaults to constants.)
         self.spark_connection = AthenaSparkSessionManager(
             credentials, self.timeout, self.polling_interval, self.engine_config
         )
@@ -70,7 +58,15 @@ class AthenaPythonJobHelper(PythonJobHelper):
     def engine_config(self) -> Dict[str, int]:
         return self.config.set_engine_config()
 
+<<<<<<< HEAD
     def get_current_session_status(self) -> Dict[str, Any]:
+=======
+    @cached_property
+    def athena_client(self) -> Any:
+        return self.spark_connection.athena_client
+
+    def get_current_session_status(self) -> Any:
+>>>>>>> 5f40faf (Fixed readme. Moved some defaults to constants.)
         """
         Get the current session status.
 

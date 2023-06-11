@@ -6,13 +6,6 @@
     <a href="https://github.com/python/mypy"><img src="https://www.mypy-lang.org/static/mypy_badge.svg" /></a>
     <a href="https://pepy.tech/project/dbt-athena-community"><img src="https://pepy.tech/badge/dbt-athena-community/month" /></a>
 </p>
-<p align="center">
-    <img src="https://raw.githubusercontent.com/dbt-athena/dbt-athena/main/static/images/dbt-athena-long.png" />
-    <a href="https://pypi.org/project/dbt-athena-community/"><img src="https://badge.fury.io/py/dbt-athena-community.svg" /></a>
-    <a href="https://pycqa.github.io/isort/"><img src="https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336" /></a>
-    <a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" /></a>
-    <a href="https://pepy.tech/project/dbt-athena-community"><img src="https://pepy.tech/badge/dbt-athena-community/month" /></a>
-</p>
 
 ## Features
 
@@ -91,8 +84,8 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | aws_profile_name      | Profile to use from your AWS shared credentials file.                          | Optional  | `my-profile`                               |
 | work_group            | Identifier of Athena workgroup                                                 | Optional  | `my-custom-workgroup`                      |
 | num_retries           | Number of times to retry a failing query                                       | Optional  | `3`                                        |
-| lf_tags               | Default lf tags to apply to any database created by dbt                        | Optional  | `{"origin": "dbt", "team": "analytics"}`   |
-| spark_work_group      | Identifier of athena spark workgroup                                           | Optional  | `my-spark-workgroup`                       |
+| spark_work_group      | Identifier of Athena Spark workgroup                                           | Optional  | `my-spark-workgroup`                       |
+| spark_threads         | Number of spark sessions to create. Recommended to be same as threads.         | Optional  | `4`                                        |
 
 **Example profiles.yml entry:**
 ```yaml
@@ -107,12 +100,11 @@ athena:
       region_name: eu-west-1
       schema: dbt
       database: awsdatacatalog
+      threads: 4
       aws_profile_name: my-profile
       work_group: my-workgroup
       spark_work_group: my-spark-workgroup
-      lf_tags:
-        origin: dbt
-        team: analytics
+      spark_threads: 4
 ```
 
 _Additional information_
@@ -391,6 +383,90 @@ You may find the following links useful to manage that:
 - [terraform aws_lakeformation_permissions](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_permissions)
 - [terraform aws_lakeformation_resource_lf_tags](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_resource_lf_tags)
 
+## Python Models
+
+The adapter supports python models using [`spark`](https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark.html).
+
+#### Prerequisites
+
+* A spark enabled work group created in athena
+* Spark execution role granted access to Athena, Glue and S3
+* The spark work group is added to the ~/.dbt/profiles.yml file and the profile is referenced in dbt_project.yml
+* The spark_threads value is added to ~/.dbt/profiles.yml which determines the maximum number of parallel spark sessions that will be created. It is recommended to keep this same as threads.
+
+### Example models
+
+#### Simple pandas model
+
+```python
+import pandas as pd
+
+
+def model(dbt, session):
+    dbt.config(materialized="table")
+
+    model_df = pd.DataFrame({"A": [1, 2, 3, 4]})
+
+    return model_df
+```
+
+#### Simple spark
+
+```python
+def model(dbt, spark_session):
+    dbt.config(materialized="table")
+
+    data = [(1,), (2,), (3,), (4,)]
+
+    df = spark_session.createDataFrame(data, ["A"])
+
+    return df
+```
+
+#### Spark incremental
+
+```python
+def model(dbt, spark_session):
+    dbt.config(materialized="incremental")
+    df = dbt.ref("model")
+
+    if dbt.is_incremental:
+        max_from_this = (
+            f"select max(run_date) from {dbt.this.schema}.{dbt.this.identifier}"
+        )
+        df = df.filter(df.run_date >= spark_session.sql(max_from_this).collect()[0][0])
+
+    return df
+```
+
+#### Config spark model
+
+```python
+def model(dbt, spark_session):
+    dbt.config(
+        materialized="table",
+        engine_config={
+            "CoordinatorDpuSize": 1,
+            "MaxConcurrentDpus": 3,
+            "DefaultExecutorDpuSize": 1,
+        },
+        polling_interval=15,
+        timeout=120,
+    )
+
+    data = [(1,), (2,), (3,), (4,)]
+
+    df = spark_session.createDataFrame(data, ["A"])
+
+    return df
+```
+
+#### Known issues in python models
+
+* Incremental models do not fully utilize spark capabilities. They depend partially on existing sql based logic.
+* Snapshots materializations are not supported.
+* Spark can only reference tables within the same catalog.
+
 ### Working example
 
 seed file - employent_indicators_november_2022_csv_tables.csv
@@ -497,35 +573,6 @@ The only way, from a dbt perspective, is to do a full-refresh of the incremental
   See https://github.com/dbt-athena/dbt-athena/issues/103 for more details.
 
 * Snapshot does not support dropping columns from the source table. If you drop a column make sure to drop the column from the snapshot as well. Another workaround is to NULL the column in the snapshot definition to preserve history
-
-### Python Models
-
-The adapter supports python models using [`spark`](https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark.html).
-
-#### Prerequisites
-
-* A spark enabled work group created in athena
-* Spark execution role granted access to Athena, Glue and S3
-* The spark work group is added to the ~/.dbt/profiles.yml file and the profile is referenced in dbt_project.yml
-
-#### Example model
-
-```python
-import pandas as pd
-
-
-def model(dbt, session):
-    dbt.config(materialized="table")
-
-    model_df = pd.DataFrame({"A": [1, 2, 3, 4]})
-
-    return model_df
-```
-
-#### Known issues in python models
-
-* Incremental models do not fully utilize spark capabilities. They depend on existing sql based logic.
-* Snapshots materializations are not supported.
 
 
 ## Contracts

@@ -7,3 +7,4 @@ AWS_REGION = "eu-west-1"
 S3_STAGING_DIR = "s3://my-bucket/test-dbt/"
 ATHENA_WORKGROUP = "dbt-athena-adapter"
 SPARK_WORKGROUP = "spark"
+SPARK_THREADS = 4

@@ -17,6 +17,7 @@ from .unit.constants import (
     DATA_CATALOG_NAME,
     DATABASE_NAME,
     S3_STAGING_DIR,
+    SPARK_THREADS,
     SPARK_WORKGROUP,
 )
 
@@ -41,6 +42,7 @@ def dbt_profile_target():
         "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUP"),
         "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME") or None,
         "spark_work_group": os.getenv("DBT_TEST_ATHENA_SPARK_WORK_GROUP"),
+        "spark_threads": os.getenv("DBT_TEST_ATHENA_SPARK_THREADS"),
     }
 
 
@@ -82,4 +84,5 @@ def athena_credentials():
         region_name=AWS_REGION,
         work_group=ATHENA_WORKGROUP,
         spark_work_group=SPARK_WORKGROUP,
+        spark_threads=SPARK_THREADS,
     )

@@ -96,7 +96,11 @@ class TestAthenaSparkSessionManager:
                 {
                     "Sessions": [],
                 },
-                [UUID("635c1c6d-766c-408b-8bce-fae8ea7006f7")],
+                [],
+            ),
+            (
+                {},
+                [],
             ),
         ],
     )
@@ -238,12 +242,12 @@ class TestAthenaSparkSessionManager:
             (
                 [],
                 {},
-                [],
+                [UUID("39cb8fc0-f855-4b67-91f1-81f068499071")],
             ),
             (
                 [UUID("106d7aca-4b3f-468d-a81d-308120e7f73c")],
                 {UUID("106d7aca-4b3f-468d-a81d-308120e7f73c"): "lock"},
-                [],
+                [UUID("39cb8fc0-f855-4b67-91f1-81f068499071")],
             ),
         ],
     )
@@ -277,6 +281,8 @@ class TestAthenaSparkSessionManager:
         with patch.multiple(
             spark_session_manager,
             list_sessions=Mock(return_value=list_sessions_response),
+            poll_until_session_creation=Mock(return_value="IDLE"),
+            start_session=Mock(return_value=UUID("39cb8fc0-f855-4b67-91f1-81f068499071")),
         ):
             sessions = spark_session_manager.get_new_sessions()
             assert sessions == expected_new_sessions
