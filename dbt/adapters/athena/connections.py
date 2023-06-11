@@ -26,14 +26,12 @@ from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_exponential
 
 from dbt.adapters.athena.config import get_boto3_config
+from dbt.adapters.athena.constants import DEFAULT_THREAD_COUNT, LOGGER
 from dbt.adapters.athena.session import get_boto3_session
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import AdapterResponse, Connection, ConnectionState
-from dbt.events import AdapterLogger
 from dbt.exceptions import ConnectionError, DbtRuntimeError
-
-logger = AdapterLogger("Athena")
 
 
 @dataclass
@@ -51,6 +49,7 @@ class AthenaCredentials(Credentials):
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
     spark_work_group: Optional[str] = None
+    spark_threads: Optional[int] = DEFAULT_THREAD_COUNT
     lf_tags: Optional[Dict[str, str]] = None
 
     @property
@@ -77,6 +76,7 @@ class AthenaCredentials(Credentials):
             "s3_data_naming",
             "lf_tags",
             "spark_work_group",
+            "spark_threads",
         )
 
 
@@ -160,13 +160,13 @@ class AthenaConnectionManager(SQLConnectionManager):
         try:
             yield
         except Exception as e:
-            logger.debug(f"Error running SQL: {sql}")
+            LOGGER.debug(f"Error running SQL: {sql}")
             raise DbtRuntimeError(str(e)) from e
 
     @classmethod
     def open(cls, connection: Connection) -> Connection:
         if connection.state == "open":
-            logger.debug("Connection is already open, skipping open.")
+            LOGGER.debug("Connection is already open, skipping open.")
             return connection
 
         try:
@@ -196,7 +196,7 @@ class AthenaConnectionManager(SQLConnectionManager):
             connection.handle = handle
 
         except Exception as exc:
-            logger.exception(f"Got an error when attempting to open a Athena connection due to {exc}")
+            LOGGER.exception(f"Got an error when attempting to open a Athena connection due to {exc}")
             connection.handle = None
             connection.state = ConnectionState.FAIL
             raise ConnectionError(str(exc))

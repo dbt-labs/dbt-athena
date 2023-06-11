@@ -1,6 +1,7 @@
 import threading
 import time
 from datetime import datetime, timedelta, timezone
+from functools import cached_property
 from typing import Any, Dict, List
 from uuid import UUID
 
@@ -28,29 +29,31 @@ class AthenaSparkSessionManager:
     A helper class to manage Athena Spark Sessions.
     """
 
-    def __init__(self, credentials, timeout: int, polling_interval: float, engine_config: Dict[str, int]):
+    def __init__(self, credentials: Any, timeout: int, polling_interval: float, engine_config: Dict[str, int]) -> None:
         self.credentials = credentials
         self.timeout = timeout
         self.polling_interval = polling_interval
         self.engine_config = engine_config
         self.lock = threading.Lock()
-        self.athena_client = self.get_athena_client()
 
-    def get_max_session_count(self):
-        if not self.credentials.threads:
+    @cached_property
+    def spark_threads(self) -> Any:
+        if not self.credentials.spark_threads:
+            LOGGER.debug(
+                f"""Spark threads not found in profile. Got: {self.credentials.spark_threads}.
+                Using default count: {DEFAULT_THREAD_COUNT}"""
+            )
             return DEFAULT_THREAD_COUNT
-        return self.credentials.threads
+        return self.credentials.spark_threads
 
-    def get_spark_work_group(self):
+    @cached_property
+    def spark_work_group(self) -> Any:
         if not self.credentials.spark_work_group:
-<<<<<<< HEAD
-            raise DbtRuntimeError("Expected spark_work_group in profile")
-=======
             raise DbtRuntimeError(f"Expected spark_work_group in profile. Got: {self.credentials.spark_work_group}")
->>>>>>> 5f40faf (Fixed readme. Moved some defaults to constants.)
         return self.credentials.spark_work_group
 
-    def get_athena_client(self):
+    @cached_property
+    def athena_client(self) -> Any:
         """
         Get the AWS Athena client.
 
@@ -76,8 +79,6 @@ class AthenaSparkSessionManager:
         sessions = self.list_sessions()
         existing_sessions = set(spark_session_locks.keys())
         new_sessions = [session for session in sessions if session not in existing_sessions]
-<<<<<<< HEAD
-=======
 
         if len(new_sessions) == 0:
             if len(spark_session_locks) < self.spark_threads:
@@ -86,7 +87,6 @@ class AthenaSparkSessionManager:
                 f"""Maximum spark session count: {self.spark_threads} reached.
             Cannot start new spark session."""
             )
->>>>>>> 5f40faf (Fixed readme. Moved some defaults to constants.)
         LOGGER.debug(f"Setting sessions: {new_sessions}")
         return new_sessions
 
@@ -147,24 +147,13 @@ class AthenaSparkSessionManager:
             the list of the returned session id.
 
         """
-        max_results = self.get_max_session_count()
         response = self.athena_client.list_sessions(
-            WorkGroup=self.get_spark_work_group(),
-            MaxResults=max_results,
+            WorkGroup=self.spark_work_group,
+            MaxResults=self.spark_threads,
             StateFilter=state,
         )
-<<<<<<< HEAD
-        if len(response.get("Sessions")) == 0 or response.get("Sessions") is None:
-            if len(spark_session_locks) < max_results:
-                return [self.start_session()]
-            LOGGER.warning(
-                f"""Maximum spark session count: {max_results} reached.
-            Cannot start new spark session."""
-            )
-=======
         if response.get("Sessions") is None:
             return []
->>>>>>> 5f40faf (Fixed readme. Moved some defaults to constants.)
         return [UUID(session_string["SessionId"]) for session_string in response.get("Sessions")]
 
     def start_session(self) -> UUID:
@@ -187,7 +176,7 @@ class AthenaSparkSessionManager:
             self.poll_until_session_creation(response["SessionId"])
         return UUID(response["SessionId"])
 
-    def poll_until_session_creation(self, session_id) -> None:
+    def poll_until_session_creation(self, session_id: str) -> None:
         """
         Polls the status of an Athena session creation until it is completed or reaches the timeout.
 
@@ -238,7 +227,7 @@ class AthenaSparkSessionManager:
             LOGGER.debug(f"Releasing lock for session: {session_id}")
             spark_session_locks[UUID(session_id)].release()
 
-    def get_session_status(self, session_id) -> Dict[str, Any]:
+    def get_session_status(self, session_id: str) -> Any:
         """
         Get the session status.
 

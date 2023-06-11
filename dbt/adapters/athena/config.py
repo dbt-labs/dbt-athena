@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Any, Dict
 
 import pkg_resources
 from botocore import config
@@ -23,11 +24,7 @@ class AthenaSparkSessionConfig:
     A helper class to manage Athena Spark Session Configuration.
     """
 
-<<<<<<< HEAD
-    def __init__(self, config: dict) -> None:
-=======
     def __init__(self, config: Dict[str, Any], **session_kwargs: Any) -> None:
->>>>>>> 5f40faf (Fixed readme. Moved some defaults to constants.)
         self.config = config
         self.session_kwargs = session_kwargs
 
@@ -89,10 +86,6 @@ class AthenaSparkSessionConfig:
         LOGGER.debug(f"Setting polling_interval: {polling_interval}")
         return float(polling_interval)
 
-<<<<<<< HEAD
-    def set_engine_config(self) -> dict:
-        engine_config = self.config.get("engine_config", DEFAULT_ENGINE_CONFIG)
-=======
     def set_engine_config(self) -> Dict[str, Any]:
         """Set the engine configuration.
 
@@ -104,7 +97,6 @@ class AthenaSparkSessionConfig:
             KeyError: If the keys of the engine configuration dictionary do not match the expected format.
         """
         engine_config = self.config.get("engine_config", DEFAULT_SPARK_ENGINE_CONFIG)
->>>>>>> 5f40faf (Fixed readme. Moved some defaults to constants.)
         if not isinstance(engine_config, dict):
             raise TypeError("Engine configuration has to be of type dict")
 

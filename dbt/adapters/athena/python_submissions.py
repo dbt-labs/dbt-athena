@@ -1,5 +1,5 @@
 import time
-from functools import lru_cache
+from functools import cached_property
 from typing import Any, Dict
 
 import botocore
@@ -22,51 +22,74 @@ class AthenaPythonJobHelper(PythonJobHelper):
         PythonJobHelper (PythonJobHelper): The base python helper class
     """
 
-<<<<<<< HEAD
-    def __init__(self, parsed_model: Dict, credentials: AthenaCredentials) -> None:
-        self.config = AthenaSparkSessionConfig(parsed_model.get("config", {}))
-=======
     def __init__(self, parsed_model: Dict[Any, Any], credentials: AthenaCredentials) -> None:
+        """
+        _summary_
+
+        Args:
+            parsed_model (Dict[Any, Any]): _description_
+            credentials (AthenaCredentials): _description_
+        """
         self.config = AthenaSparkSessionConfig(
             parsed_model.get("config", {}),
             polling_interval=credentials.poll_interval,
             retry_attempts=credentials.num_retries,
         )
->>>>>>> 5f40faf (Fixed readme. Moved some defaults to constants.)
         self.spark_connection = AthenaSparkSessionManager(
             credentials, self.timeout, self.polling_interval, self.engine_config
         )
-        self.athena_client = self.spark_connection.get_athena_client()
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def timeout(self) -> int:
+        """
+        _summary_
+
+        Returns:
+            int: _description_
+        """
         return self.config.set_timeout()
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def session_id(self) -> str:
+        """
+        _summary_
+
+        Returns:
+            str: _description_
+        """
         return str(self.spark_connection.get_session_id())
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def polling_interval(self) -> float:
+        """
+        _summary_
+
+        Returns:
+            float: _description_
+        """
         return self.config.set_polling_interval()
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def engine_config(self) -> Dict[str, int]:
+        """
+        _summary_
+
+        Returns:
+            Dict[str, int]: _description_
+        """
         return self.config.set_engine_config()
 
-<<<<<<< HEAD
-    def get_current_session_status(self) -> Dict[str, Any]:
-=======
     @cached_property
     def athena_client(self) -> Any:
+        """
+        _summary_
+
+        Returns:
+            Any: _description_
+        """
         return self.spark_connection.athena_client
 
     def get_current_session_status(self) -> Any:
->>>>>>> 5f40faf (Fixed readme. Moved some defaults to constants.)
         """
         Get the current session status.
 
@@ -88,7 +111,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
             if polling_interval > self.timeout:
                 raise DbtRuntimeError(f"Session {self.session_id} did not become free within {self.timeout} seconds.")
 
-    def submit(self, compiled_code: str) -> dict:
+    def submit(self, compiled_code: str) -> Any:
         """
         Submit a calculation to Athena.
 
@@ -138,7 +161,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         self.spark_connection.release_session_lock(self.session_id)
         return result
 
-    def poll_until_execution_completion(self, calculation_execution_id) -> str:
+    def poll_until_execution_completion(self, calculation_execution_id: str) -> Any:
         """
         Poll the status of a calculation execution until it is completed, failed, or cancelled.
 
