@@ -5,6 +5,7 @@ repos:
       # Identify invalid files
       - id: check-ast
       - id: check-yaml
+        args: ['--unsafe']
       - id: check-json
       - id: check-toml
 

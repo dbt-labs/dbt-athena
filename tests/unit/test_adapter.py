@@ -1130,6 +1130,62 @@ class TestAthenaAdapter:
         error_msg = f"Table {relation.render()} does not exist and will not be deleted, ignoring"
         assert error_msg in dbt_debug_caplog.getvalue()
 
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test__get_relation_type_table(self, dbt_debug_caplog, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
+        mock_aws_service.create_table("test_table")
+        self.adapter.acquire_connection("dummy")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="test_table"
+        )
+        table_type = self.adapter.get_glue_table_type(relation)
+        assert table_type == TableType.TABLE
+
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test__get_relation_type_with_no_type(self, dbt_debug_caplog, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
+        mock_aws_service.create_table_without_table_type("test_table")
+        self.adapter.acquire_connection("dummy")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="test_table"
+        )
+        with pytest.raises(ValueError):
+            self.adapter.get_glue_table_type(relation)
+
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test__get_relation_type_view(self, dbt_debug_caplog, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
+        mock_aws_service.create_view("test_view")
+        self.adapter.acquire_connection("dummy")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="test_view"
+        )
+        table_type = self.adapter.get_glue_table_type(relation)
+        assert table_type == TableType.VIEW
+
+    @mock_glue
+    @mock_s3
+    @mock_athena
+    def test__get_relation_type_iceberg(self, dbt_debug_caplog, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database()
+        mock_aws_service.create_iceberg_table("test_iceberg")
+        self.adapter.acquire_connection("dummy")
+        relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="test_iceberg"
+        )
+        table_type = self.adapter.get_glue_table_type(relation)
+        assert table_type == TableType.ICEBERG
+
     @pytest.mark.parametrize(
         "column,expected",
         [
