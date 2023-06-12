@@ -34,13 +34,13 @@
 {% macro create_csv_table_insert(model, agate_table) %}
   {%- set identifier = model['alias'] -%}
 
-{%- set lf_tags_config = config.get('lf_tags_config') -%}
-{%- set lf_grants = config.get('lf_grants') -%}
+  {%- set lf_tags_config = config.get('lf_tags_config') -%}
+  {%- set lf_grants = config.get('lf_grants') -%}
   {%- set column_override = config.get('column_types', {}) -%}
-  {%- set quote_seed_column = config.get('quote_columns', None) -%}
-  {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
+  {%- set quote_seed_column = config.get('quote_columns') -%}
+  {%- set s3_data_dir = config.get('s3_data_dir', target.s3_data_dir) -%}
   {%- set s3_data_naming = config.get('s3_data_naming', target.s3_data_naming) -%}
-  {%- set external_location = config.get('external_location', default=none) -%}
+  {%- set external_location = config.get('external_location') -%}
 
   {%- set relation = api.Relation.create(
     identifier=identifier,
