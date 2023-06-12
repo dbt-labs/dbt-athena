@@ -12,7 +12,12 @@ from uuid import uuid4
 import agate
 from botocore.exceptions import ClientError
 from mypy_boto3_athena.type_defs import DataCatalogTypeDef
-from mypy_boto3_glue.type_defs import ColumnTypeDef, GetTableResponseTypeDef, TableTypeDef, TableVersionTypeDef
+from mypy_boto3_glue.type_defs import (
+    ColumnTypeDef,
+    GetTableResponseTypeDef,
+    TableTypeDef,
+    TableVersionTypeDef,
+)
 
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
