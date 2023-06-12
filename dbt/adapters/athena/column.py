@@ -37,19 +37,17 @@ class AthenaColumn(Column):
     def string_size(self) -> int:
         if not self.is_string():
             raise DbtRuntimeError("Called string_size() on non-string field!")
-        if not self.char_size:
-            # Handle error: '>' not supported between instances of 'NoneType' and 'NoneType' for union relations macro
-            return 0
-        return self.char_size
+        # Handle error: '>' not supported between instances of 'NoneType' and 'NoneType' for union relations macro
+        return self.char_size or 0
 
     @property
     def data_type(self) -> str:
         if self.is_string():
             return self.string_type(self.string_size())
         elif self.is_numeric():
-            return self.numeric_type(self.dtype, self.numeric_precision, self.numeric_scale)
+            return self.numeric_type(self.dtype, self.numeric_precision, self.numeric_scale)  # type: ignore
         elif self.is_binary():
             return self.binary_type()
         elif self.is_timestamp():
             return self.timestamp_type()
-        return self.dtype
+        return self.dtype  # type: ignore
