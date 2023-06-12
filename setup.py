@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import re
+from typing import Any, Dict
 
 from setuptools import find_namespace_packages, setup
 
@@ -13,7 +14,7 @@ package_name = "dbt-athena-community"
 
 
 # get version from a separate file
-def _get_plugin_version_dict():
+def _get_plugin_version_dict() -> Dict[str, Any]:
     _version_path = os.path.join(this_directory, "dbt", "adapters", "athena", "__version__.py")
     _semver = r"""(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"""
     _pre = r"""((?P<prekind>a|b|rc)(?P<pre>\d+))?"""
@@ -25,7 +26,7 @@ def _get_plugin_version_dict():
         return match.groupdict()
 
 
-def _get_package_version():
+def _get_package_version() -> str:
     parts = _get_plugin_version_dict()
     return f'{parts["major"]}.{parts["minor"]}.{parts["patch"]}'
 
