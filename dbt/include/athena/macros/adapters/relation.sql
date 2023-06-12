@@ -1,6 +1,32 @@
 {% macro athena__drop_relation(relation) -%}
+  {%- set native_drop = config.get('native_drop', default=false) -%}
+  {%- set rel_type_object = adapter.get_glue_table_type(relation) -%}
+  {%- set rel_type = none if rel_type_object == none else rel_type_object.value -%}
+  {%- set natively_droppable = rel_type == 'iceberg_table' or relation.type == 'view' -%}
+
+  {%- if native_drop and natively_droppable -%}
+    {%- do drop_relation_sql(relation) -%}
+  {%- else -%}
+    {%- do drop_relation_glue(relation) -%}
+  {%- endif -%}
+{% endmacro %}
+
+{% macro drop_relation_glue(relation) -%}
+  {%- do log('Dropping relation via Glue and S3 APIs') -%}
   {%- do adapter.clean_up_table(relation) -%}
   {%- do adapter.delete_from_glue_catalog(relation) -%}
+{% endmacro %}
+
+{% macro drop_relation_sql(relation) -%}
+
+  {%- do log('Dropping relation via SQL only') -%}
+  {% call statement('drop_relation', auto_begin=False) -%}
+    {%- if relation.type == 'view' -%}
+      drop {{ relation.type }} if exists {{ relation.render() }}
+    {%- else -%}
+      drop {{ relation.type }} if exists {{ relation.render_hive() }}
+    {% endif %}
+  {%- endcall %}
 {% endmacro %}
 
 {% macro set_table_classification(relation) -%}

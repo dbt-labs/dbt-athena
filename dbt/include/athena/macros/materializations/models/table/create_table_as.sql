@@ -20,6 +20,7 @@
                                                  s3_data_naming,
                                                  external_location,
                                                  temporary) -%}
+  {%- set native_drop = config.get('native_drop', default=false) -%}
 
   {%- set contract_config = config.get('contract') -%}
   {%- if contract_config.enforced -%}
@@ -47,7 +48,11 @@
     {%- endif -%}
   {%- endif %}
 
-  {% do adapter.delete_from_s3(location) %}
+  {%- if native_drop and table_type == 'iceberg' -%}
+    {% do log('Config native_drop enabled, skipping direct S3 delete') %}
+  {%- else -%}
+    {% do adapter.delete_from_s3(location) %}
+  {%- endif -%}
 
   create table {{ relation }}
   with (
