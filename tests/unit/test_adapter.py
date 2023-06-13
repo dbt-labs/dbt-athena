@@ -706,6 +706,24 @@ class TestAthenaAdapter:
         for row in actual.rows.values():
             assert row.values() in expected_rows
 
+    @mock_athena
+    def test__get_one_catalog_unsupported_type(self, mock_aws_service):
+        catalog_name = "example_hive_catalog"
+        catalog_type = "HIVE"
+        mock_aws_service.create_data_catalog(catalog_name=catalog_name, catalog_type=catalog_type)
+        mock_information_schema = mock.MagicMock()
+        mock_information_schema.path.database = catalog_name
+
+        self.adapter.acquire_connection("dummy")
+
+        with pytest.raises(NotImplementedError) as exc:
+            self.adapter._get_one_catalog(
+                mock_information_schema,
+                mock.MagicMock(),
+                self.mock_manifest,
+            )
+            assert exc.message == f"Type of catalog {catalog_type} not supported: {catalog_name}"
+
     def test__get_catalog_schemas(self):
         res = self.adapter._get_catalog_schemas(self.mock_manifest)
         assert len(res.keys()) == 3

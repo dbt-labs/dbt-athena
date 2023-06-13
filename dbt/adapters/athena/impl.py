@@ -41,7 +41,13 @@ from dbt.adapters.athena.relation import (
     get_table_type,
 )
 from dbt.adapters.athena.s3 import S3DataNaming
-from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id, get_chunks
+from dbt.adapters.athena.utils import (
+    AthenaCatalogType,
+    clean_sql_comment,
+    get_catalog_id,
+    get_catalog_type,
+    get_chunks,
+)
 from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.impl import GET_CATALOG_MACRO_NAME
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
@@ -416,9 +422,9 @@ class AthenaAdapter(SQLAdapter):
         manifest: Manifest,
     ) -> agate.Table:
         data_catalog = self._get_data_catalog(information_schema.path.database)
-        catalog_id = get_catalog_id(data_catalog)
+        data_catalog_type = get_catalog_type(data_catalog)
 
-        if data_catalog["Type"] == "GLUE":
+        if data_catalog_type == AthenaCatalogType.GLUE:
             conn = self.connections.get_thread_connection()
             client = conn.handle
             with boto3_client_lock:
@@ -433,6 +439,7 @@ class AthenaAdapter(SQLAdapter):
                 }
                 # If the catalog is `awsdatacatalog` we don't need to pass CatalogId as boto3
                 # infers it from the account Id.
+                catalog_id = get_catalog_id(data_catalog)
                 if catalog_id:
                     kwargs["CatalogId"] = catalog_id
 
@@ -441,13 +448,15 @@ class AthenaAdapter(SQLAdapter):
                         if relations and table["Name"] in relations:
                             catalog.extend(self._get_one_table_for_catalog(table, information_schema.path.database))
             table = agate.Table.from_object(catalog)
-        else:
+        elif data_catalog_type == AthenaCatalogType.LAMBDA:
             kwargs = {"information_schema": information_schema, "schemas": schemas}
             table = self.execute_macro(
                 GET_CATALOG_MACRO_NAME,
                 kwargs=kwargs,
                 manifest=manifest,
             )
+        else:
+            raise NotImplementedError(f"Type of catalog {data_catalog_type} not supported.")
 
         filtered_table = self._catalog_filter_table(table, manifest)
         return self._join_catalog_table_owners(filtered_table, manifest)
