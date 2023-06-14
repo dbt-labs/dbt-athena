@@ -31,7 +31,61 @@
     ) as {{ col }}
 {% endmacro %}
 
-{% macro athena__create_csv_table(model, agate_table) %}
+{% macro create_csv_table_insert(model, agate_table) %}
+  {%- set identifier = model['alias'] -%}
+
+  {%- set lf_tags_config = config.get('lf_tags_config') -%}
+  {%- set lf_grants = config.get('lf_grants') -%}
+  {%- set column_override = config.get('column_types', {}) -%}
+  {%- set quote_seed_column = config.get('quote_columns') -%}
+  {%- set s3_data_dir = config.get('s3_data_dir', target.s3_data_dir) -%}
+  {%- set s3_data_naming = config.get('s3_data_naming', target.s3_data_naming) -%}
+  {%- set external_location = config.get('external_location') -%}
+
+  {%- set relation = api.Relation.create(
+    identifier=identifier,
+    schema=model.schema,
+    database=model.database,
+    type='table'
+  ) -%}
+
+  {%- set location = adapter.generate_s3_location(relation,
+                                                 s3_data_dir,
+                                                 s3_data_naming,
+                                                 external_location,
+                                                 temporary) -%}
+
+  {% set sql_table %}
+    create external table {{ relation.render_hive() }} (
+        {%- for col_name in agate_table.column_names -%}
+          {%- set inferred_type = adapter.convert_type(agate_table, loop.index0) -%}
+          {%- set type = column_override.get(col_name, inferred_type) -%}
+          {%- set type = type if type != "string" else "varchar" -%}
+          {%- set column_name = (col_name | string) -%}
+          {{ adapter.quote_seed_column(column_name, quote_seed_column) }} {{ ddl_data_type(type) }} {%- if not loop.last -%}, {% endif -%}
+        {%- endfor -%}
+    )
+    location '{{ location }}'
+
+  {% endset %}
+
+  {% call statement('_') -%}
+    {{ sql_table }}
+  {%- endcall %}
+
+  {% if lf_tags_config is not none %}
+    {{ adapter.add_lf_tags(relation, lf_tags_config) }}
+  {% endif %}
+
+  {% if lf_grants is not none %}
+    {{ adapter.apply_lf_grants(relation, lf_grants) }}
+  {% endif %}
+
+  {{ return(sql) }}
+{% endmacro %}
+
+
+{% macro create_csv_table_upload(model, agate_table) %}
   {%- set identifier = model['alias'] -%}
 
   {%- set lf_tags_config = config.get('lf_tags_config') -%}
@@ -131,7 +185,38 @@
   {{ return(sql_table) }}
 {% endmacro %}
 
+{% macro athena__create_csv_table(model, agate_table) %}
+
+  {%- set seed_by_insert = config.get('seed_by_insert', False) | as_bool -%}
+
+  {%- if seed_by_insert -%}
+    {% do log('seed by insert...') %}
+    {%- set sql_table = create_csv_table_insert(model, agate_table) -%}
+  {%- else -%}
+    {% do log('seed by upload...') %}
+    {%- set sql_table = create_csv_table_upload(model, agate_table) -%}
+  {%- endif -%}
+
+  {%- set lf_tags_config = config.get('lf_tags_config') -%}
+  {%- set lf_grants = config.get('lf_grants') -%}
+
+  {% if lf_tags_config is not none %}
+    {{ adapter.add_lf_tags(relation, lf_tags_config) }}
+  {% endif %}
+
+  {% if lf_grants is not none %}
+    {{ adapter.apply_lf_grants(relation, lf_grants) }}
+  {% endif %}
+
+  {{ return(sql_table) }}
+{% endmacro %}
+
 {# Overwrite to satisfy dbt-core logic #}
 {% macro athena__load_csv_rows(model, agate_table) %}
+    {%- set seed_by_insert = config.get('seed_by_insert', False) | as_bool -%}
+  {%- if seed_by_insert %}
+    {{ default__load_csv_rows(model, agate_table) }}
+  {%- else -%}
     select 1
+  {% endif %}
 {% endmacro %}
