@@ -14,6 +14,7 @@ from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.connections import AthenaCursor, AthenaParameterFormatter
 from dbt.adapters.athena.exceptions import S3LocationException
 from dbt.adapters.athena.relation import AthenaRelation, TableType
+from dbt.adapters.athena.utils import AthenaCatalogType
 from dbt.clients import agate_helper
 from dbt.contracts.connection import ConnectionState
 from dbt.contracts.files import FileHash
@@ -672,7 +673,9 @@ class TestAthenaAdapter:
         ]
 
         mock_execute.return_value = agate.Table(rows=rows, column_names=column_names)
-        mock_aws_service.create_data_catalog(catalog_name=FEDERATED_QUERY_CATALOG_NAME, catalog_type="LAMBDA")
+        mock_aws_service.create_data_catalog(
+            catalog_name=FEDERATED_QUERY_CATALOG_NAME, catalog_type=AthenaCatalogType.LAMBDA
+        )
         mock_information_schema = mock.MagicMock()
         mock_information_schema.path.database = FEDERATED_QUERY_CATALOG_NAME
 
@@ -709,7 +712,7 @@ class TestAthenaAdapter:
     @mock_athena
     def test__get_one_catalog_unsupported_type(self, mock_aws_service):
         catalog_name = "example_hive_catalog"
-        catalog_type = "HIVE"
+        catalog_type = AthenaCatalogType.HIVE
         mock_aws_service.create_data_catalog(catalog_name=catalog_name, catalog_type=catalog_type)
         mock_information_schema = mock.MagicMock()
         mock_information_schema.path.database = catalog_name
@@ -722,7 +725,7 @@ class TestAthenaAdapter:
                 mock.MagicMock(),
                 self.mock_manifest,
             )
-            assert exc.message == f"Type of catalog {catalog_type} not supported: {catalog_name}"
+            assert exc.message == f"Type of catalog {catalog_type.value} not supported: {catalog_name}"
 
     def test__get_catalog_schemas(self):
         res = self.adapter._get_catalog_schemas(self.mock_manifest)
@@ -816,7 +819,7 @@ class TestAthenaAdapter:
         self, parent_list_relations_without_caching, mock_aws_service
     ):
         data_catalog_name = "other_data_catalog"
-        mock_aws_service.create_data_catalog(data_catalog_name, "HIVE")
+        mock_aws_service.create_data_catalog(data_catalog_name, AthenaCatalogType.HIVE)
         schema_relation = self.adapter.Relation.create(
             database=data_catalog_name,
             schema=DATABASE_NAME,
