@@ -32,9 +32,9 @@ class AthenaRelation(BaseRelation):
     include_policy: Policy = field(default_factory=lambda: AthenaIncludePolicy())
     s3_path_table_part: Optional[str] = None
 
-    def render_hive(self):
+    def render_hive(self) -> str:
         """
-        Render relation with Hive format. Athena uses Hive format for some DDL statements.
+        Render relation with Hive format. Athena uses a Hive format for some DDL statements.
 
         See:
         - https://aws.amazon.com/athena/faqs/ "Q: How do I create tables and schemas for my data on Amazon S3?"
@@ -45,9 +45,9 @@ class AthenaRelation(BaseRelation):
         object.__setattr__(self, "quote_character", "`")  # Hive quote char
         rendered = self.render()
         object.__setattr__(self, "quote_character", old_value)
-        return rendered
+        return str(rendered)
 
-    def render_pure(self):
+    def render_pure(self) -> str:
         """
         Render relation without quotes characters.
         This is needed for not standard executions like optimize and vacuum
@@ -56,20 +56,19 @@ class AthenaRelation(BaseRelation):
         object.__setattr__(self, "quote_character", "")
         rendered = self.render()
         object.__setattr__(self, "quote_character", old_value)
-        return rendered
+        return str(rendered)
 
 
 class AthenaSchemaSearchMap(Dict[InformationSchema, Dict[str, Set[Optional[str]]]]):
     """A utility class to keep track of what information_schema tables to
     search for what schemas and relations. The schema and relation values are all
-    lowercased to avoid duplication.
+    lowercase to avoid duplication.
     """
 
-    def add(self, relation: AthenaRelation):
+    def add(self, relation: AthenaRelation) -> None:
         key = relation.information_schema_only()
         if key not in self:
             self[key] = {}
-        schema: Optional[str] = None
         if relation.schema is not None:
             schema = relation.schema.lower()
             relation_name = relation.name.lower()

@@ -5,6 +5,7 @@ repos:
       # Identify invalid files
       - id: check-ast
       - id: check-yaml
+        args: ['--unsafe']
       - id: check-json
       - id: check-toml
 
@@ -59,3 +60,16 @@ repos:
           - 'Flake8-pyproject~=1.1'
         args:
           - '.'
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.3.0
+    hooks:
+      - id: mypy
+        args:
+          - --strict
+          - --ignore-missing-imports
+          - --install-types
+          - --allow-subclassing-any
+          - --allow-untyped-decorators
+        additional_dependencies:
+          - types-setuptools==67.8.0.0
+        exclude: ^tests/

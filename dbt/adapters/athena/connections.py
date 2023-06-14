@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, ContextManager, Dict, List, Optional, Tuple, Union
+from typing import Any, ContextManager, Dict, List, Optional, Tuple
 
 import tenacity
 from pyathena.connection import Connection as AthenaConnection
@@ -56,7 +56,7 @@ class AthenaCredentials(Credentials):
         return "athena"
 
     @property
-    def unique_field(self):
+    def unique_field(self) -> str:
         return f"athena-{hashlib.md5(self.s3_staging_dir.encode()).hexdigest()}"
 
     def _connection_keys(self) -> Tuple[str, ...]:
@@ -78,7 +78,7 @@ class AthenaCredentials(Credentials):
 
 
 class AthenaCursor(Cursor):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:  # type: ignore
         super().__init__(**kwargs)
         self._executor = ThreadPoolExecutor()
 
@@ -92,7 +92,7 @@ class AthenaCursor(Cursor):
             retry_config=self._retry_config,
         )
 
-    def execute(
+    def execute(  # type: ignore
         self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
@@ -103,7 +103,7 @@ class AthenaCursor(Cursor):
         cache_expiration_time: int = 0,
         **kwargs,
     ):
-        def inner():
+        def inner() -> AthenaCursor:
             query_id = self._execute(
                 operation,
                 parameters=parameters,
@@ -143,7 +143,7 @@ class AthenaConnectionManager(SQLConnectionManager):
     TYPE = "athena"
 
     @classmethod
-    def data_type_code_to_name(cls, type_code: Union[int, str]) -> str:
+    def data_type_code_to_name(cls, type_code: str) -> str:
         """
         Get the string representation of the data type from the Athena metadata. Dbt performs a
         query to retrieve the types of the columns in the SQL query. Then these types are compared
@@ -152,8 +152,8 @@ class AthenaConnectionManager(SQLConnectionManager):
         """
         return type_code.split("(")[0].split("<")[0].upper()
 
-    @contextmanager
-    def exception_handler(self, sql: str) -> ContextManager:
+    @contextmanager  # type: ignore
+    def exception_handler(self, sql: str) -> ContextManager:  # type: ignore
         try:
             yield
         except Exception as e:
@@ -180,11 +180,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                 session=get_boto3_session(connection),
                 retry_config=RetryConfig(
                     attempt=creds.num_retries,
-                    exceptions=(
-                        "ThrottlingException",
-                        "TooManyRequestsException",
-                        "InternalServerException",
-                    ),
+                    exceptions=("ThrottlingException", "TooManyRequestsException", "InternalServerException"),
                 ),
                 config=get_boto3_config(),
             )
@@ -201,23 +197,23 @@ class AthenaConnectionManager(SQLConnectionManager):
         return connection
 
     @classmethod
-    def get_response(cls, cursor) -> AdapterResponse:
+    def get_response(cls, cursor: AthenaCursor) -> AdapterResponse:
         code = "OK" if cursor.state == AthenaQueryExecution.STATE_SUCCEEDED else "ERROR"
         return AdapterResponse(_message=f"{code} {cursor.rowcount}", rows_affected=cursor.rowcount, code=code)
 
-    def cancel(self, connection: Connection):
+    def cancel(self, connection: Connection) -> None:
         connection.handle.cancel()
 
-    def add_begin_query(self):
+    def add_begin_query(self) -> None:
         pass
 
-    def add_commit_query(self):
+    def add_commit_query(self) -> None:
         pass
 
-    def begin(self):
+    def begin(self) -> None:
         pass
 
-    def commit(self):
+    def commit(self) -> None:
         pass
 
 
