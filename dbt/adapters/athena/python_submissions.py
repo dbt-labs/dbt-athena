@@ -24,11 +24,11 @@ class AthenaPythonJobHelper(PythonJobHelper):
 
     def __init__(self, parsed_model: Dict[Any, Any], credentials: AthenaCredentials) -> None:
         """
-        _summary_
+        Initialize spark config and connection.
 
         Args:
-            parsed_model (Dict[Any, Any]): _description_
-            credentials (AthenaCredentials): _description_
+            parsed_model (Dict[Any, Any]): The parsed python model.
+            credentials (AthenaCredentials): Credentials for Athena connection.
         """
         self.config = AthenaSparkSessionConfig(
             parsed_model.get("config", {}),
@@ -42,50 +42,50 @@ class AthenaPythonJobHelper(PythonJobHelper):
     @cached_property
     def timeout(self) -> int:
         """
-        _summary_
+        Get the timeout value.
 
         Returns:
-            int: _description_
+            int: The timeout value in seconds.
         """
         return self.config.set_timeout()
 
     @cached_property
     def session_id(self) -> str:
         """
-        _summary_
+        Get the session ID.
 
         Returns:
-            str: _description_
+            str: The session ID as a string.
         """
         return str(self.spark_connection.get_session_id())
 
     @cached_property
     def polling_interval(self) -> float:
         """
-        _summary_
+        Get the polling interval.
 
         Returns:
-            float: _description_
+            float: The polling interval in seconds.
         """
         return self.config.set_polling_interval()
 
     @cached_property
     def engine_config(self) -> Dict[str, int]:
         """
-        _summary_
+        Get the engine configuration.
 
         Returns:
-            Dict[str, int]: _description_
+            Dict[str, int]: A dictionary containing the engine configuration.
         """
         return self.config.set_engine_config()
 
     @cached_property
     def athena_client(self) -> Any:
         """
-        _summary_
+        Get the Athena client.
 
         Returns:
-            Any: _description_
+            Any: The Athena client object.
         """
         return self.spark_connection.athena_client
 
@@ -94,11 +94,17 @@ class AthenaPythonJobHelper(PythonJobHelper):
         Get the current session status.
 
         Returns:
-            str: The status of the session
+            Any: The status of the session
         """
         return self.spark_connection.get_session_status(self.session_id)
 
     def poll_until_session_idle(self) -> None:
+        """
+        Polls the session status until it becomes idle or exceeds the timeout.
+
+        Raises:
+            DbtRuntimeError: If the session chosen is not available or if it does not become idle within the timeout.
+        """
         polling_interval = self.polling_interval
         while True:
             session_status = self.get_current_session_status()["State"]
@@ -117,7 +123,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
 
         This function submits a calculation to Athena for execution using the provided compiled code.
         It starts a calculation execution with the current session ID and the compiled code as the code block.
-        The function then polls until the calculation execution is completed, and retrieves the result S3 URI.
+        The function then polls until the calculation execution is completed, and retrieves the result.
         If the execution is successful and completed, the result S3 URI is returned. Otherwise, a DbtRuntimeError
         is raised with the execution status.
 

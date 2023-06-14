@@ -30,6 +30,16 @@ class AthenaSparkSessionManager:
     """
 
     def __init__(self, credentials: Any, timeout: int, polling_interval: float, engine_config: Dict[str, int]) -> None:
+        """
+        Initialize the AthenaSparkSessionManager instance.
+
+        Args:
+            credentials (Any): The credentials to be used.
+            timeout (int): The timeout value in seconds.
+            polling_interval (float): The polling interval in seconds.
+            engine_config (Dict[str, int]): The engine configuration.
+
+        """
         self.credentials = credentials
         self.timeout = timeout
         self.polling_interval = polling_interval
@@ -37,20 +47,32 @@ class AthenaSparkSessionManager:
         self.lock = threading.Lock()
 
     @cached_property
-    def spark_threads(self) -> Any:
+    def spark_threads(self) -> int:
+        """
+        Get the number of Spark threads.
+
+        Returns:
+            Any: The number of Spark threads. If not found in the profile, returns the default thread count.
+        """
         if not self.credentials.spark_threads:
             LOGGER.debug(
                 f"""Spark threads not found in profile. Got: {self.credentials.spark_threads}.
                 Using default count: {DEFAULT_THREAD_COUNT}"""
             )
             return DEFAULT_THREAD_COUNT
-        return self.credentials.spark_threads
+        return int(self.credentials.spark_threads)
 
     @cached_property
-    def spark_work_group(self) -> Any:
+    def spark_work_group(self) -> str:
+        """
+        Get the Spark work group.
+
+        Returns:
+            Any: The Spark work group. Raises an exception if not found in the profile.
+        """
         if not self.credentials.spark_work_group:
             raise DbtRuntimeError(f"Expected spark_work_group in profile. Got: {self.credentials.spark_work_group}")
-        return self.credentials.spark_work_group
+        return str(self.credentials.spark_work_group)
 
     @cached_property
     def athena_client(self) -> Any:
@@ -71,6 +93,8 @@ class AthenaSparkSessionManager:
     def get_new_sessions(self) -> List[UUID]:
         """
         Retrieves a list of new sessions by subtracting the existing sessions from the complete session list.
+        If no new sessions are found a new session is created provided the number of sessions is less than the
+        number of allowed spark threads.
 
         Returns:
             List[UUID]: A list of new session UUIDs.
@@ -95,8 +119,7 @@ class AthenaSparkSessionManager:
         Update session locks for each session.
 
         This function iterates over the existing sessions and ensures that a session lock is created for each session.
-        If a session lock already exists, it is left unchanged. After updating the session locks,
-        a debug log is generated to display the updated session locks.
+        If a session lock already exists, it is left unchanged.
 
         Args:
             self: The instance of the class.
@@ -110,13 +133,15 @@ class AthenaSparkSessionManager:
 
     def get_session_id(self) -> UUID:
         """
-        Get the session ID.
-
-        This function retrieves the session ID from the stored session information. If session information
-        is not available, a new session is started and its session ID is returned.
+        Get a session ID for the Spark session.
 
         Returns:
-            str: The session ID.
+            UUID: The session ID.
+
+        Notes:
+            This method acquires a lock on an existing available Spark session. If no session is available,
+            it waits for a certain period and retries until a session becomes available or a timeout is reached.
+            The session ID of the acquired session is returned.
 
         """
         polling_interval = self.polling_interval
@@ -136,15 +161,18 @@ class AthenaSparkSessionManager:
 
     def list_sessions(self, state: str = "IDLE") -> List[UUID]:
         """
-        List athena spark sessions.
+        List the sessions based on the specified state.
 
-        This function sends a request to the Athena service to list the sessions in the specified Spark workgroup.
-        It filters the sessions by state, only returning the first session that is in IDLE state. If no idle sessions
-        are found or if an error occurs, None is returned.
+        Args:
+            state (str, optional): The state to filter the sessions. Defaults to "IDLE".
 
         Returns:
-            List[UUID]: A list of session UUIDs if an idle sessions are found, else start a new session and return
-            the list of the returned session id.
+            List[UUID]: A list of session IDs matching the specified state.
+
+        Notes:
+            This method utilizes the Athena client to list sessions in the Spark work group.
+            The sessions are filtered based on the provided state.
+            If no sessions are found or the response does not contain any sessions, an empty list is returned.
 
         """
         response = self.athena_client.list_sessions(
@@ -232,6 +260,6 @@ class AthenaSparkSessionManager:
         Get the session status.
 
         Returns:
-            str: The status of the session
+            Any: The status of the session
         """
         return self.athena_client.get_session_status(SessionId=session_id)["Status"]
