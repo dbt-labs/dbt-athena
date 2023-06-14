@@ -47,7 +47,7 @@
     {{ "," if not is_last }}
 {%- endmacro -%}
 
-{% macro iceberg_merge(on_schema_change, tmp_relation, target_relation, unique_key, existing_relation, delete_condition, statement_name="main") %}
+{% macro iceberg_merge(on_schema_change, tmp_relation, target_relation, unique_key, incremental_predicates, existing_relation, delete_condition, statement_name="main") %}
     {%- set merge_update_columns = config.get('merge_update_columns') -%}
     {%- set merge_exclude_columns = config.get('merge_exclude_columns') -%}
     {%- set merge_update_columns_default_rule = config.get('merge_update_columns_default_rule', 'replace') -%}
@@ -79,6 +79,13 @@
         target.{{ key }} = src.{{ key }} {{ "and " if not loop.last }}
       {%- endfor %}
     )
+    {% if incremental_predicates is not none -%}
+    and (
+      {%- for inc_predicate in incremental_predicates %}
+        {{ inc_predicate }} {{ "and " if not loop.last }}
+      {%- endfor %}
+    )
+    {%- endif %}
     {% if delete_condition is not none -%}
     when matched and ({{ delete_condition }})
       then delete

@@ -12,7 +12,12 @@ from uuid import uuid4
 import agate
 from botocore.exceptions import ClientError
 from mypy_boto3_athena.type_defs import DataCatalogTypeDef
-from mypy_boto3_glue.type_defs import ColumnTypeDef, TableTypeDef, TableVersionTypeDef
+from mypy_boto3_glue.type_defs import (
+    ColumnTypeDef,
+    GetTableResponseTypeDef,
+    TableTypeDef,
+    TableVersionTypeDef,
+)
 
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
@@ -33,6 +38,7 @@ from dbt.adapters.athena.relation import (
     RELATION_TYPE_MAP,
     AthenaRelation,
     AthenaSchemaSearchMap,
+    TableType,
     get_table_type,
 )
 from dbt.adapters.athena.s3 import S3DataNaming
@@ -191,10 +197,9 @@ class AthenaAdapter(SQLAdapter):
         return mapping[self._s3_data_naming(s3_data_naming)]
 
     @available
-    def get_glue_table_location(self, relation: AthenaRelation) -> Optional[str]:
+    def get_glue_table(self, relation: AthenaRelation) -> Optional[GetTableResponseTypeDef]:
         """
-        Helper function to get location of a relation in S3.
-        Will return None if the table does not exist or does not have a location (views)
+        Helper function to get a relation via Glue
         """
         conn = self.connections.get_thread_connection()
         client = conn.handle
@@ -208,6 +213,30 @@ class AthenaAdapter(SQLAdapter):
                 LOGGER.debug(f"Table {relation.render()} does not exists - Ignoring")
                 return None
             raise e
+        return table
+
+    @available
+    def get_glue_table_type(self, relation: AthenaRelation) -> Optional[TableType]:
+        """
+        Get the table type of the relation from Glue
+        """
+        table = self.get_glue_table(relation)
+        if not table:
+            LOGGER.debug(f"Table {relation.render()} does not exist - Ignoring")
+            return None
+
+        return get_table_type(table["Table"])
+
+    @available
+    def get_glue_table_location(self, relation: AthenaRelation) -> Optional[str]:
+        """
+        Helper function to get location of a relation in S3.
+        Will return None if the table does not exist or does not have a location (views)
+        """
+        table = self.get_glue_table(relation)
+        if not table:
+            LOGGER.debug(f"Table {relation.render()} does not exist - Ignoring")
+            return None
 
         table_type = get_table_type(table["Table"])
         table_location = table["Table"].get("StorageDescriptor", {}).get("Location")
@@ -811,3 +840,11 @@ class AthenaAdapter(SQLAdapter):
                 drop_staging_sql.strip(),
             ]
         )
+
+    @available
+    def is_list(self, value: Any) -> bool:
+        """
+        This function is intended to test whether a Jinja object is
+        a list since this is complicated with purely Jinja syntax.
+        """
+        return isinstance(value, list)
