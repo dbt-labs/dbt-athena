@@ -282,13 +282,12 @@ Iceberg supports bucketing as hidden partitions, therefore use the `partitioned_
 Iceberg supports several table formats for data : `PARQUET`, `AVRO` and `ORC`.
 
 It is possible to use Iceberg in an incremental fashion, specifically two strategies are supported:
-* `append`: new records are appended to the table, this can lead to duplicates
-* `merge`: must be used in combination with `unique_key` and it's only available with Engine version 3.
-   It performs an upsert, new record are added, and record already existing are updated. If
-   `delete_condition` is provided in the model config, it can also delete records based on the
-   provided condition (SQL condition). You can use any column of the incremental table (`src`) or
-   the final table (`target`). You must prefix the column by the name of the table to prevent
-   `Column is ambiguous` error.
+* `append`: New records are appended to the table, this can lead to duplicates.
+* `merge`: Performs an upsert (and optional delete), where new records are added and existing records are updated. Only available with Athena engine version 3.
+    - `unique_key` **(required)**: columns that define a unique record in the source and target tables.
+    - `incremental_predicates` (optional): SQL conditions that enable custom join clauses in the merge statement. This can be useful for improving performance via predicate pushdown on the target table.
+    - `delete_condition` (optional): SQL condition used to identify records that should be deleted.
+      - `delete_condition` and `incremental_predicates` can include any column of the incremental table (`src`) or the final table (`target`). Column names must be prefixed by either `src` or `target` to prevent a `Column is ambiguous` error.
 
 ```sql
 {{ config(
@@ -296,6 +295,7 @@ It is possible to use Iceberg in an incremental fashion, specifically two strate
     table_type='iceberg',
     incremental_strategy='merge',
     unique_key='user_id',
+    incremental_predicates=["src.quantity > 1", "target.my_date >= now() - interval '4' year"],
     delete_condition="src.status != 'active' and target.my_date < now() - interval '2' year",
     format='parquet'
 ) }}
