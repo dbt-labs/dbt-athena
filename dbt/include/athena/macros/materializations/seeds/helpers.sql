@@ -197,17 +197,6 @@
     {%- set sql_table = create_csv_table_upload(model, agate_table) -%}
   {%- endif -%}
 
-  {%- set lf_tags_config = config.get('lf_tags_config') -%}
-  {%- set lf_grants = config.get('lf_grants') -%}
-
-  {% if lf_tags_config is not none %}
-    {{ adapter.add_lf_tags(relation, lf_tags_config) }}
-  {% endif %}
-
-  {% if lf_grants is not none %}
-    {{ adapter.apply_lf_grants(relation, lf_grants) }}
-  {% endif %}
-
   {{ return(sql_table) }}
 {% endmacro %}
 
