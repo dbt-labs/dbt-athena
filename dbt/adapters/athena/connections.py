@@ -93,6 +93,18 @@ class AthenaCursor(Cursor):
             retry_config=self._retry_config,
         )
 
+    def _poll(self, query_id: str) -> AthenaQueryExecution:
+        try:
+            query_execution = self.__poll(query_id)
+        except KeyboardInterrupt as e:
+            if self._kill_on_interrupt:
+                logger.warning("Query canceled by user.")
+                self._cancel(query_id)
+                query_execution = self.__poll(query_id)
+            else:
+                raise e
+        return query_execution
+
     def __poll(self, query_id: str) -> AthenaQueryExecution:
         while True:
             query_execution = self._get_query_execution(query_id)
