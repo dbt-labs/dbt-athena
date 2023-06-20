@@ -1,4 +1,5 @@
 import hashlib
+import time
 from concurrent.futures.thread import ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
@@ -91,6 +92,31 @@ class AthenaCursor(Cursor):
             arraysize=self._arraysize,
             retry_config=self._retry_config,
         )
+
+    def _poll(self, query_id: str) -> AthenaQueryExecution:
+        try:
+            query_execution = self.__poll(query_id)
+        except KeyboardInterrupt as e:
+            if self._kill_on_interrupt:
+                logger.warning("Query canceled by user.")
+                self._cancel(query_id)
+                query_execution = self.__poll(query_id)
+            else:
+                raise e
+        return query_execution
+
+    def __poll(self, query_id: str) -> AthenaQueryExecution:
+        while True:
+            query_execution = self._get_query_execution(query_id)
+            if query_execution.state in [
+                AthenaQueryExecution.STATE_SUCCEEDED,
+                AthenaQueryExecution.STATE_FAILED,
+                AthenaQueryExecution.STATE_CANCELLED,
+            ]:
+                return query_execution
+            else:
+                logger.debug(f"Query state is: {query_execution.state}. Sleeping for {self._poll_interval}...")
+                time.sleep(self._poll_interval)
 
     def execute(  # type: ignore
         self,
