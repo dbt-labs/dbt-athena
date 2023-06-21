@@ -48,3 +48,11 @@
     {{ return(run_query(sql)) }}
   {% endif %}
 {% endmacro %}
+
+{% macro alter_relation_rename_column(relation, source_column, target_column, target_column_type) -%}
+  {% set sql -%}
+      alter {{ relation.type }} {{ relation.render_pure() }}
+          change column {{ source_column }} {{ target_column }} {{ ddl_data_type(target_column_type) }}
+  {%- endset -%}
+  {{ return(run_query(sql)) }}
+{% endmacro %}
