@@ -15,7 +15,7 @@
     If hive table then Recreate the snapshot table from the new_snapshot_table
     If iceberg table then Update the standard snapshot merge to include the DBT_INTERNAL_SOURCE prefix in the src_cols_csv
 #}
-{% macro hive_snapshot_merge_sql(target, source, insert_cols) -%}
+{% macro hive_snapshot_merge_sql(target, source) -%}
     {%- set target_relation = adapter.get_relation(database=target.database, schema=target.schema, identifier=target.identifier) -%}
     {%- if target_relation is not none -%}
       {% do adapter.drop_relation(target_relation) %}
