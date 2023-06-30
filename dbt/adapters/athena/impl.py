@@ -645,19 +645,19 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         # By default, there is no need to update Glue Table
-        need_udpate_table: bool = False
+        need_udpate_table = False
         # Get Table from Glue
-        table: Dict[str, Any] = glue_client.get_table(DatabaseName=relation.schema, Name=relation.name)["Table"]
+        table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.name)["Table"]
         # Prepare new version of Glue Table picking up significant fields
-        updated_table: Dict[str, Any] = self._get_table_input(table)
+        updated_table = self._get_table_input(table)
         # Update table description
         if persist_relation_docs:
             # Prepare dbt description
-            clean_table_description: str = clean_sql_comment(model["description"])
+            clean_table_description = clean_sql_comment(model["description"])
             # Get current description from Glue
-            current_table_description: str = table.get("Description", "")
+            current_table_description = table.get("Description", "")
             # Get current description parameter from Glue
-            current_table_comment: str = table["Parameters"].get("comment", "")
+            current_table_comment = table["Parameters"].get("comment", "")
             # Update description if it's different
             if clean_table_description != current_table_description or clean_table_description != current_table_comment:
                 updated_table["Description"] = clean_table_description
@@ -667,16 +667,15 @@ class AthenaAdapter(SQLAdapter):
         # Update column comments
         if persist_column_docs:
             # Process every column
-            col_obj: Dict[str, Any]
             for col_obj in updated_table["StorageDescriptor"]["Columns"]:
                 # Get column description from dbt
-                col_name: str = col_obj["Name"]
-                col_comment: Optional[str] = model["columns"].get(col_name, {}).get("description", None)
+                col_name = col_obj["Name"]
+                col_comment = model["columns"].get(col_name, {}).get("description", None)
                 if col_comment is not None:
                     # Get current column comment from Glue
-                    current_col_comment: str = col_obj.get("Comment", "")
+                    current_col_comment = col_obj.get("Comment", "")
                     # Prepare column description from dbt
-                    clean_col_comment: str = clean_sql_comment(col_comment)
+                    clean_col_comment = clean_sql_comment(col_comment)
                     # Update column description if it's different
                     if current_col_comment != clean_col_comment:
                         col_obj["Comment"] = clean_col_comment
@@ -856,7 +855,7 @@ class AthenaAdapter(SQLAdapter):
         return isinstance(value, list)
 
     @staticmethod
-    def _get_table_input(table: Dict[str, Any]) -> Dict[str, Any]:
+    def _get_table_input(table):
         """
         Prepare Glue Table dictionary to be a table_input argument of update_table() method.
 
@@ -864,7 +863,7 @@ class AthenaAdapter(SQLAdapter):
         returned by get_table() method.
         This code was derived from awswrangler==3.2.1.
         """
-        table_input: Dict[str, Any] = {}
+        table_input = {}
         for k, v in table.items():
             if k in [
                 "Name",
