@@ -855,7 +855,7 @@ class AthenaAdapter(SQLAdapter):
         return isinstance(value, list)
 
     @staticmethod
-    def _get_table_input(table):
+    def _get_table_input(table: Dict[str, Any]) -> Dict[str, Any]:
         """
         Prepare Glue Table dictionary to be a table_input argument of update_table() method.
 
@@ -863,7 +863,7 @@ class AthenaAdapter(SQLAdapter):
         returned by get_table() method.
         This code was derived from awswrangler==3.2.1.
         """
-        table_input = {}
+        table_input: Dict[str, Any] = {}
         for k, v in table.items():
             if k in [
                 "Name",
