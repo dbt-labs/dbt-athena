@@ -636,8 +636,15 @@ class AthenaAdapter(SQLAdapter):
         model: Dict[str, Any],
         persist_relation_docs: bool = False,
         persist_column_docs: bool = False,
-        skip_archive: bool = False,
+        skip_archive_table_version: bool = False,
     ) -> None:
+        """Save model/columns description to Glue Table metadata.
+
+        :param skip_archive_table_version: if True, current table version will not be archived before creating new one.
+            The purpose is to avoid creating redundant table version if it already was created during the same dbt run
+            after CREATE OR REPLACE VIEW or ALTER TABLE statements.
+            Every dbt run should create not more than one table version.
+        """
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
@@ -684,7 +691,9 @@ class AthenaAdapter(SQLAdapter):
         # Update Glue Table only if table/column description is modified.
         # It prevents redundant schema version creating after incremental runs.
         if need_udpate_table:
-            glue_client.update_table(DatabaseName=relation.schema, TableInput=updated_table, SkipArchive=skip_archive)
+            glue_client.update_table(
+                DatabaseName=relation.schema, TableInput=updated_table, SkipArchive=skip_archive_table_version
+            )
 
     @available
     def list_schemas(self, database: str) -> List[str]:
