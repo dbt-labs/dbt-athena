@@ -49,7 +49,6 @@ from dbt.adapters.athena.utils import (
     get_chunks,
 )
 from dbt.adapters.base import ConstraintSupport, available
-from dbt.adapters.base.impl import GET_CATALOG_MACRO_NAME
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
@@ -415,6 +414,29 @@ class AthenaAdapter(SQLAdapter):
             for idx, col in enumerate(table["StorageDescriptor"]["Columns"] + table.get("PartitionKeys", []))
         ]
 
+    def _get_one_table_for_non_glue_catalog(
+        self, table: TableTypeDef, schema: str, database: str
+    ) -> List[Dict[str, Any]]:
+        table_catalog = {
+            "table_database": database,
+            "table_schema": schema,
+            "table_name": table["Name"],
+            "table_type": RELATION_TYPE_MAP[table.get("TableType", "EXTERNAL_TABLE")].value,
+            "table_comment": table.get("Parameters", {}).get("comment", ""),
+        }
+        return [
+            {
+                **table_catalog,
+                **{
+                    "column_name": col["Name"],
+                    "column_index": idx,
+                    "column_type": col["Type"],
+                    "column_comment": col.get("Comment", ""),
+                },
+            }
+            for idx, col in enumerate(table["Columns"] + table.get("PartitionKeys", []))
+        ]
+
     def _get_one_catalog(
         self,
         information_schema: InformationSchema,
@@ -424,9 +446,9 @@ class AthenaAdapter(SQLAdapter):
         data_catalog = self._get_data_catalog(information_schema.path.database)
         data_catalog_type = get_catalog_type(data_catalog)
 
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
         if data_catalog_type == AthenaCatalogType.GLUE:
-            conn = self.connections.get_thread_connection()
-            client = conn.handle
             with boto3_client_lock:
                 glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
@@ -448,15 +470,28 @@ class AthenaAdapter(SQLAdapter):
                         if relations and table["Name"] in relations:
                             catalog.extend(self._get_one_table_for_catalog(table, information_schema.path.database))
             table = agate.Table.from_object(catalog)
-        elif data_catalog_type == AthenaCatalogType.LAMBDA:
-            kwargs = {"information_schema": information_schema, "schemas": schemas}
-            table = self.execute_macro(
-                GET_CATALOG_MACRO_NAME,
-                kwargs=kwargs,
-                manifest=manifest,
-            )
         else:
-            raise NotImplementedError(f"Type of catalog {data_catalog_type} not supported.")
+            with boto3_client_lock:
+                athena_client = client.session.client(
+                    "athena", region_name=client.region_name, config=get_boto3_config()
+                )
+
+            catalog = []
+            paginator = athena_client.get_paginator("list_table_metadata")
+            for schema, relations in schemas.items():
+                for page in paginator.paginate(
+                    CatalogName=information_schema.path.database,
+                    DatabaseName=schema,
+                    MaxResults=50,  # Limit supported by this operation
+                ):
+                    for table in page["TableMetadataList"]:
+                        if relations and table["Name"] in relations:
+                            catalog.extend(
+                                self._get_one_table_for_non_glue_catalog(
+                                    table, schema, information_schema.path.database
+                                )
+                            )
+            table = agate.Table.from_object(catalog)
 
         filtered_table = self._catalog_filter_table(table, manifest)
         return self._join_catalog_table_owners(filtered_table, manifest)

@@ -156,6 +156,8 @@ class MockAWSService:
         parameters = {}
         if catalog_type == AthenaCatalogType.GLUE:
             parameters = {"catalog-id": catalog_id}
+        else:
+            parameters = {"catalog": catalog_name}
         athena.create_data_catalog(Name=catalog_name, Type=catalog_type.value, Parameters=parameters)
 
     def create_database(self, name: str = DATABASE_NAME, catalog_id: str = CATALOG_ID):

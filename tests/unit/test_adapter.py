@@ -4,7 +4,10 @@ from unittest.mock import patch
 
 import agate
 import boto3
+import botocore
 import pytest
+
+# from botocore.client.BaseClient import _make_api_call
 from moto import mock_athena, mock_glue, mock_s3, mock_sts
 from moto.core import DEFAULT_ACCOUNT_ID
 
@@ -652,39 +655,56 @@ class TestAthenaAdapter:
             assert row.values() in expected_rows
 
     @mock_athena
-    @mock.patch.object(AthenaAdapter, "execute_macro")
-    def test__get_one_catalog_federated_query_catalog(self, mock_execute, mock_aws_service):
-        column_names = (
-            "table_database",
-            "table_schema",
-            "table_name",
-            "table_type",
-            "table_comment",
-            "column_name",
-            "column_index",
-            "column_type",
-            "column_comment",
-        )
-
-        rows = [
-            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "id", 0, "string", None),
-            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "country", 1, "string", None),
-            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "dt", 2, "date", None),
-        ]
-
-        mock_execute.return_value = agate.Table(rows=rows, column_names=column_names)
+    def test__get_one_catalog_federated_query_catalog(self, mock_aws_service):
         mock_aws_service.create_data_catalog(
             catalog_name=FEDERATED_QUERY_CATALOG_NAME, catalog_type=AthenaCatalogType.LAMBDA
         )
         mock_information_schema = mock.MagicMock()
         mock_information_schema.path.database = FEDERATED_QUERY_CATALOG_NAME
 
+        # Original botocore _make_api_call function
+        orig = botocore.client.BaseClient._make_api_call
+
+        # Mocking this as list_table_metadata and creating non glue tables is not supported by moto.
+        # Followed this guide: http://docs.getmoto.org/en/latest/docs/services/patching_other_services.html
+        def mock_athena_list_table_metadata(self, operation_name, kwarg):
+            if operation_name == "ListTableMetadata":
+                return {
+                    "TableMetadataList": [
+                        {
+                            "Name": "bar",
+                            "TableType": "EXTERNAL_TABLE",
+                            "Columns": [
+                                {
+                                    "Name": "id",
+                                    "Type": "string",
+                                },
+                                {
+                                    "Name": "country",
+                                    "Type": "string",
+                                },
+                            ],
+                            "PartitionKeys": [
+                                {
+                                    "Name": "dt",
+                                    "Type": "date",
+                                },
+                            ],
+                        }
+                    ],
+                }
+            # If we don't want to patch the API call
+            return orig(self, operation_name, kwarg)
+
         self.adapter.acquire_connection("dummy")
-        actual = self.adapter._get_one_catalog(
-            mock_information_schema,
-            mock.MagicMock(),
-            self.mock_manifest,
-        )
+        with patch("botocore.client.BaseClient._make_api_call", new=mock_athena_list_table_metadata):
+            actual = self.adapter._get_one_catalog(
+                mock_information_schema,
+                {
+                    "foo": {"bar"},
+                },
+                self.mock_manifest,
+            )
 
         expected_column_names = (
             "table_database",
@@ -708,24 +728,6 @@ class TestAthenaAdapter:
         assert len(actual.rows) == len(expected_rows)
         for row in actual.rows.values():
             assert row.values() in expected_rows
-
-    @mock_athena
-    def test__get_one_catalog_unsupported_type(self, mock_aws_service):
-        catalog_name = "example_hive_catalog"
-        catalog_type = AthenaCatalogType.HIVE
-        mock_aws_service.create_data_catalog(catalog_name=catalog_name, catalog_type=catalog_type)
-        mock_information_schema = mock.MagicMock()
-        mock_information_schema.path.database = catalog_name
-
-        self.adapter.acquire_connection("dummy")
-
-        with pytest.raises(NotImplementedError) as exc:
-            self.adapter._get_one_catalog(
-                mock_information_schema,
-                mock.MagicMock(),
-                self.mock_manifest,
-            )
-            assert exc.message == f"Type of catalog {catalog_type.value} not supported: {catalog_name}"
 
     def test__get_catalog_schemas(self):
         res = self.adapter._get_catalog_schemas(self.mock_manifest)
