@@ -38,6 +38,11 @@ logger = AdapterLogger("Athena")
 
 
 @dataclass
+class AthenaAdapterResponse(AdapterResponse):
+    data_scanned_in_bytes: Optional[int] = None
+
+
+@dataclass
 class AthenaCredentials(Credentials):
     s3_staging_dir: str
     region_name: str
@@ -223,9 +228,14 @@ class AthenaConnectionManager(SQLConnectionManager):
         return connection
 
     @classmethod
-    def get_response(cls, cursor: AthenaCursor) -> AdapterResponse:
+    def get_response(cls, cursor: AthenaCursor) -> AthenaAdapterResponse:
         code = "OK" if cursor.state == AthenaQueryExecution.STATE_SUCCEEDED else "ERROR"
-        return AdapterResponse(_message=f"{code} {cursor.rowcount}", rows_affected=cursor.rowcount, code=code)
+        return AthenaAdapterResponse(
+            _message=f"{code} {cursor.rowcount}",
+            rows_affected=cursor.rowcount,
+            code=code,
+            data_scanned_in_bytes=cursor.data_scanned_in_bytes,
+        )
 
     def cancel(self, connection: Connection) -> None:
         connection.handle.cancel()
