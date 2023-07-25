@@ -73,33 +73,67 @@
     {%- endfor -%}
     {%- set update_columns = get_merge_update_columns(merge_update_columns, merge_exclude_columns, dest_columns_wo_keys) -%}
     {%- set src_cols_csv = src_columns_quoted | join(', ') -%}
-    merge into {{ target_relation }} as target using {{ tmp_relation }} as src
-    on (
-      {%- for key in unique_key_cols %}
-        target.{{ key }} = src.{{ key }} {{ "and " if not loop.last }}
-      {%- endfor %}
-    )
-    {% if incremental_predicates is not none -%}
-    and (
-      {%- for inc_predicate in incremental_predicates %}
-        {{ inc_predicate }} {{ "and " if not loop.last }}
-      {%- endfor %}
-    )
-    {%- endif %}
-    {% if delete_condition is not none -%}
-    when matched and ({{ delete_condition }})
-      then delete
-    {%- endif %}
-    when matched
-      then update set
-        {%- for col in update_columns %}
-          {%- if merge_update_columns_rules and col.name in merge_update_columns_rules %}
-            {{ get_update_statement(col, merge_update_columns_rules[col.name], loop.last) }}
-          {%- else -%}
-            {{ get_update_statement(col, merge_update_columns_default_rule, loop.last) }}
-          {%- endif -%}
-        {%- endfor %}
-    when not matched
-      then insert ({{ dest_cols_csv }})
-       values ({{ src_cols_csv }});
+
+    {%- set src_part -%}
+        merge into {{ target_relation }} as target using {{ tmp_relation }} as src
+    {%- endset -%}
+
+    {%- set merge_part -%}
+      on (
+          {%- for key in unique_key_cols -%}
+            target.{{ key }} = src.{{ key }}
+            {{ " and " if not loop.last }}
+          {%- endfor -%}
+          {% if incremental_predicates is not none -%}
+          and (
+            {%- for inc_predicate in incremental_predicates %}
+              {{ inc_predicate }} {{ "and " if not loop.last }}
+          {%- endfor %}
+          )
+          {%- endif %}
+      )
+      {% if delete_condition is not none -%}
+          when matched and ({{ delete_condition }})
+          then delete
+      {%- endif %}
+      when matched
+        then update set
+          {%- for col in update_columns %}
+            {%- if merge_update_columns_rules and col.name in merge_update_columns_rules %}
+              {{ get_update_statement(col, merge_update_columns_rules[col.name], loop.last) }}
+            {%- else -%}
+              {{ get_update_statement(col, merge_update_columns_default_rule, loop.last) }}
+            {%- endif -%}
+          {%- endfor %}
+      when not matched
+        then insert ({{ dest_cols_csv }})
+         values ({{ src_cols_csv }})
+    {%- endset -%}
+
+    {%- set merge_full -%}
+        {{ src_part }}
+        {{ merge_part }}
+    {%- endset -%}
+
+    {%- set query_result =  adapter.safe_run_query(merge_full) -%}
+    {%- do log('QUERY RESULT: ' ~ query_result) -%}
+    {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
+      {% set partitions_batches = get_partition_batches(tmp_relation) %}
+      {% do log('BATCHES TO PROCESS: ' ~ partitions_batches | length) %}
+      {%- for batch in partitions_batches -%}
+          {%- do log('BATCH PROCESSING: ' ~ loop.index ~ ' OF ' ~ partitions_batches | length) -%}
+          {%- set src_batch_part -%}
+              merge into {{ target_relation }} as target
+              using (select * from {{ tmp_relation }} where {{ batch }}) as src
+          {%- endset -%}
+          {%- set merge_batch -%}
+            {{ src_batch_part }}
+            {{ merge_part }}
+          {%- endset -%}
+          {%- do run_query(merge_batch) -%}
+      {%- endfor -%}
+
+    {%- endif -%}
+
+    SELECT 'SUCCESSFULLY INSERTED DATA IN {{ target_relation }}'
 {%- endmacro %}

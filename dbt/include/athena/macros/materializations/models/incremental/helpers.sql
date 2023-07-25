@@ -22,18 +22,41 @@
 {% endmacro %}
 
 {% macro incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation, statement_name="main") %}
-    {% set dest_columns = process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
-    {% if not dest_columns %}
+    {%- set dest_columns = process_schema_changes(on_schema_change, tmp_relation, existing_relation) -%}
+    {%- if not dest_columns -%}
       {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
-    {% endif %}
+    {%- endif -%}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
-    insert into {{ target_relation }} ({{ dest_cols_csv }})
-    (
-       select {{ dest_cols_csv }}
-       from {{ tmp_relation }}
-    );
+    {%- set insert_full -%}
+        insert into {{ target_relation }} ({{ dest_cols_csv }})
+            (
+               select {{ dest_cols_csv }}
+               from {{ tmp_relation }}
+            );
+    {%- endset -%}
+
+    {%- set query_result =  adapter.safe_run_query(insert_full) -%}
+    {%- do log('QUERY RESULT: ' ~ query_result) -%}
+    {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
+        {% set partitions_batches = get_partition_batches(tmp_relation) %}
+        {% do log('BATCHES TO PROCESS: ' ~ partitions_batches | length) %}
+        {%- for batch in partitions_batches -%}
+            {%- do log('BATCH PROCESSING: ' ~ loop.index ~ ' OF ' ~ partitions_batches|length) -%}
+            {%- set insert_batch_partitions -%}
+                insert into {{ target_relation }} ({{ dest_cols_csv }})
+                    (
+                       select {{ dest_cols_csv }}
+                       from {{ tmp_relation }}
+                       where {{ batch }}
+                    );
+            {%- endset -%}
+            {%- do run_query(insert_batch_partitions) -%}
+        {%- endfor -%}
+    {%- endif -%}
+    SELECT 'SUCCESSFULLY INSERTED DATA IN {{ target_relation }}'
 {%- endmacro %}
+
 
 {% macro delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by) %}
   {%- set partitioned_keys = partitioned_by | tojson | replace('\"', '') | replace('[', '') | replace(']', '') -%}
