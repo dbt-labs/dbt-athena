@@ -1,7 +1,7 @@
 {% materialization incremental, adapter='athena' -%}
 
-  {% set raw_strategy = config.get('incremental_strategy', 'insert_overwrite') %}
-  {% set table_type = config.get('table_type', 'hive') | lower %}
+  {% set raw_strategy = config.get('incremental_strategy') or 'insert_overwrite' %}
+  {% set table_type = config.get('table_type', default='hive') | lower %}
   {% set strategy = validate_get_incremental_strategy(raw_strategy, table_type) %}
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
 
