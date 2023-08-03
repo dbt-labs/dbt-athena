@@ -47,7 +47,7 @@ from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import CompiledNode, ConstraintType, ParsedNode
+from dbt.contracts.graph.nodes import CompiledNode, ConstraintType
 from dbt.exceptions import DbtRuntimeError
 
 boto3_client_lock = Lock()
@@ -634,7 +634,7 @@ class AthenaAdapter(SQLAdapter):
     def persist_docs_to_glue(
         self,
         relation: AthenaRelation,
-        model: ParsedNode,
+        model: Dict[str, Any],
         persist_relation_docs: bool = False,
         persist_column_docs: bool = False,
         skip_archive_table_version: bool = False,
@@ -661,13 +661,13 @@ class AthenaAdapter(SQLAdapter):
         # Update table description
         if persist_relation_docs:
             # Prepare dbt description
-            clean_table_description = clean_sql_comment(model.description)
+            clean_table_description = clean_sql_comment(model["description"])
             # Get current description from Glue
-            current_table_description = table.get("Description", "")
+            glue_table_description = table.get("Description", "")
             # Get current description parameter from Glue
-            current_table_comment = table["Parameters"].get("comment", "")
+            glue_table_comment = table["Parameters"].get("comment", "")
             # Update description if it's different
-            if clean_table_description != current_table_description or clean_table_description != current_table_comment:
+            if clean_table_description != glue_table_description or clean_table_description != glue_table_comment:
                 updated_table["Description"] = clean_table_description
                 updated_table_parameters: Dict[str, str] = dict(updated_table["Parameters"])
                 updated_table_parameters["comment"] = clean_table_description
@@ -680,8 +680,8 @@ class AthenaAdapter(SQLAdapter):
             for col_obj in updated_table["StorageDescriptor"]["Columns"]:
                 # Get column description from dbt
                 col_name = col_obj["Name"]
-                if col_name in model.columns:
-                    col_comment = model.columns[col_name].description
+                if col_name in model["columns"]:
+                    col_comment = model["columns"][col_name]["description"]
                     # Prepare column description from dbt
                     clean_col_comment = clean_sql_comment(col_comment)
                     # Get current column comment from Glue
