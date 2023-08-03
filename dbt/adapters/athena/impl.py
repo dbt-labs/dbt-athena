@@ -685,7 +685,7 @@ class AthenaAdapter(SQLAdapter):
                     # Prepare column description from dbt
                     clean_col_comment = clean_sql_comment(col_comment)
                     # Get current column comment from Glue
-                    glue_col_comment = col_obj["Comment"]
+                    glue_col_comment = col_obj.get("Comment", "")
                     # Update column description if it's different
                     if glue_col_comment != clean_col_comment:
                         col_obj["Comment"] = clean_col_comment
