@@ -837,7 +837,7 @@ class AthenaAdapter(SQLAdapter):
         return isinstance(value, list)
 
     @available
-    def safe_run_query(self, sql: str) -> str:
+    def run_query_with_partitions_limit_catching(self, sql: str) -> str:
         conn = self.connections.get_thread_connection()
         cursor = conn.handle.cursor()
         try:

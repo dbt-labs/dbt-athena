@@ -36,7 +36,7 @@
             );
     {%- endset -%}
 
-    {%- set query_result =  adapter.safe_run_query(insert_full) -%}
+    {%- set query_result =  adapter.run_query_with_partitions_limit_catching(insert_full) -%}
     {%- do log('QUERY RESULT: ' ~ query_result) -%}
     {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
         {% set partitions_batches = get_partition_batches(tmp_relation) %}
