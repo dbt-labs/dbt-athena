@@ -15,6 +15,7 @@ from mypy_boto3_athena.type_defs import DataCatalogTypeDef
 from mypy_boto3_glue.type_defs import (
     ColumnTypeDef,
     GetTableResponseTypeDef,
+    TableInputTypeDef,
     TableTypeDef,
     TableVersionTypeDef,
 )
@@ -46,7 +47,7 @@ from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import CompiledNode, ConstraintType
+from dbt.contracts.graph.nodes import CompiledNode, ConstraintType, ParsedNode
 from dbt.exceptions import DbtRuntimeError
 
 boto3_client_lock = Lock()
@@ -633,7 +634,7 @@ class AthenaAdapter(SQLAdapter):
     def persist_docs_to_glue(
         self,
         relation: AthenaRelation,
-        model: Dict[str, Any],
+        model: ParsedNode,
         persist_relation_docs: bool = False,
         persist_column_docs: bool = False,
         skip_archive_table_version: bool = False,
@@ -660,7 +661,7 @@ class AthenaAdapter(SQLAdapter):
         # Update table description
         if persist_relation_docs:
             # Prepare dbt description
-            clean_table_description = clean_sql_comment(model["description"])
+            clean_table_description = clean_sql_comment(model.description)
             # Get current description from Glue
             current_table_description = table.get("Description", "")
             # Get current description parameter from Glue
@@ -668,7 +669,9 @@ class AthenaAdapter(SQLAdapter):
             # Update description if it's different
             if clean_table_description != current_table_description or clean_table_description != current_table_comment:
                 updated_table["Description"] = clean_table_description
-                updated_table["Parameters"]["comment"] = clean_table_description
+                updated_table_parameters: Dict[str, str] = dict(updated_table["Parameters"])
+                updated_table_parameters["comment"] = clean_table_description
+                updated_table["Parameters"] = updated_table_parameters
                 need_udpate_table = True
 
         # Update column comments
@@ -677,14 +680,14 @@ class AthenaAdapter(SQLAdapter):
             for col_obj in updated_table["StorageDescriptor"]["Columns"]:
                 # Get column description from dbt
                 col_name = col_obj["Name"]
-                col_comment = model["columns"].get(col_name, {}).get("description", None)
-                if col_comment is not None:
-                    # Get current column comment from Glue
-                    current_col_comment = col_obj.get("Comment", "")
+                if col_name in model.columns:
+                    col_comment = model.columns[col_name].description
                     # Prepare column description from dbt
                     clean_col_comment = clean_sql_comment(col_comment)
+                    # Get current column comment from Glue
+                    glue_col_comment = col_obj["Comment"]
                     # Update column description if it's different
-                    if current_col_comment != clean_col_comment:
+                    if glue_col_comment != clean_col_comment:
                         col_obj["Comment"] = clean_col_comment
                         need_udpate_table = True
 
@@ -864,30 +867,11 @@ class AthenaAdapter(SQLAdapter):
         return isinstance(value, list)
 
     @staticmethod
-    def _get_table_input(table: Dict[str, Any]) -> Dict[str, Any]:
+    def _get_table_input(table: TableTypeDef) -> TableInputTypeDef:
         """
         Prepare Glue Table dictionary to be a table_input argument of update_table() method.
 
         This is needed because update_table() does not accept some read-only fields of table dictionary
         returned by get_table() method.
-        This code was derived from awswrangler==3.2.1.
         """
-        table_input: Dict[str, Any] = {}
-        for k, v in table.items():
-            if k in [
-                "Name",
-                "Description",
-                "Owner",
-                "LastAccessTime",
-                "LastAnalyzedTime",
-                "Retention",
-                "StorageDescriptor",
-                "PartitionKeys",
-                "ViewOriginalText",
-                "ViewExpandedText",
-                "TableType",
-                "Parameters",
-                "TargetTable",
-            ]:
-                table_input[k] = v
-        return table_input
+        return {k: v for k, v in table.items() if k in TableInputTypeDef.__annotations__}
