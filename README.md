@@ -25,7 +25,6 @@
     * Does **not** support the use of `unique_key`
 * Supports [snapshots][snapshots]
 * Does not support [Python models][python-models]
-* Does not support [persist docs][persist-docs] for views
 
 [seeds]: https://docs.getdbt.com/docs/building-a-dbt-project/seeds
 [incremental]: https://docs.getdbt.com/docs/build/incremental-models
