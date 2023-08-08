@@ -203,6 +203,7 @@ class AthenaConnectionManager(SQLConnectionManager):
             handle = AthenaConnection(
                 s3_staging_dir=creds.s3_staging_dir,
                 endpoint_url=creds.endpoint_url,
+                catalog_name=creds.database,
                 schema_name=creds.schema,
                 work_group=creds.work_group,
                 cursor_class=AthenaCursor,
