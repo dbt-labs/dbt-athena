@@ -137,11 +137,6 @@
           identifier=target_table,
           type='table') -%}
 
-
-  {% if not adapter.check_schema_exists(model.database, model.schema) %}
-    {% do create_schema(model.database, model.schema) %}
-  {% endif %}
-
   {%- if not target_relation.is_table -%}
     {% do exceptions.relation_wrong_type(target_relation, 'table') %}
   {%- endif -%}
