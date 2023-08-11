@@ -202,11 +202,15 @@ class AthenaAdapter(SQLAdapter):
         """
         conn = self.connections.get_thread_connection()
         client = conn.handle
+
+        data_catalog = self._get_data_catalog(relation.database)
+        catalog_id = get_catalog_id(data_catalog)
+
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         try:
-            table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)
+            table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
                 LOGGER.debug(f"Table {relation.render()} does not exists - Ignoring")
@@ -758,11 +762,14 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
+        data_catalog = self._get_data_catalog(relation.database)
+        catalog_id = get_catalog_id(data_catalog)
+
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         try:
-            glue_client.delete_table(DatabaseName=schema_name, Name=table_name)
+            glue_client.delete_table(CatalogId=catalog_id, DatabaseName=schema_name, Name=table_name)
             LOGGER.debug(f"Deleted table from glue catalog: {relation.render()}")
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
