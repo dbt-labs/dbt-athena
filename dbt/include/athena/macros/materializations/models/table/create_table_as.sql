@@ -106,8 +106,9 @@
         {%- do log('BATCH PROCESSING: ' ~ loop.index ~ ' OF ' ~ partitions_batches | length) -%}
 
         {%- set insert_batch_partitions -%}
-            insert into {{ relation }}
-            select {{ dest_cols_csv }} from ({{ sql }})
+            insert into {{ relation }} ({{ dest_cols_csv }})
+            select {{ dest_cols_csv }}
+            from ({{ sql }})
             where {{ batch }}
         {%- endset -%}
 
