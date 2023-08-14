@@ -99,13 +99,15 @@
         limit 0
     {%- endset -%}
     {%- do run_query(create_empty_table_query) -%}
+    {%- set dest_columns = adapter.get_columns_in_relation(relation) -%}
+    {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
     {%- for batch in partitions_batches -%}
         {%- do log('BATCH PROCESSING: ' ~ loop.index ~ ' OF ' ~ partitions_batches | length) -%}
 
         {%- set insert_batch_partitions -%}
             insert into {{ relation }}
-            select * from ({{ sql }})
+            select {{ dest_cols_csv }} from ({{ sql }})
             where {{ batch }}
         {%- endset -%}
 
