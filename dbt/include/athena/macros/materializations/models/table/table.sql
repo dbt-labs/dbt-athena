@@ -74,25 +74,32 @@
     {%- if old_relation is none -%}
       {%- do safe_create_table_as(False, target_relation, sql) -%}
     {%- else -%}
-      {%- if tmp_relation is not none -%}
-        {%- do drop_relation(tmp_relation) -%}
-      {%- endif -%}
+      {%- if old_relation.is_view -%}
+        {%- do safe_create_table_as(False, tmp_relation, sql) -%}
+        {%- do drop_relation(old_relation) -%}
+        {%- do rename_relation(tmp_relation, target_relation) -%}
+      {%- else -%}
 
-      {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
-      -- If we have this, it means that at least the first renaming occurred but there was an issue
-      -- afterwards, therefore we are in weird state. The easiest and cleanest should be to remove
-      -- the backup relation. It won't have an impact because since we are in the else condition,
-      -- that means that old relation exists therefore no downtime yet.
-      {%- if old_relation_bkp is not none -%}
-        {%- do drop_relation(old_relation_bkp) -%}
-      {%- endif -%}
+        {%- if tmp_relation is not none -%}
+          {%- do drop_relation(tmp_relation) -%}
+        {%- endif -%}
+
+        {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
+        -- If we have this, it means that at least the first renaming occurred but there was an issue
+        -- afterwards, therefore we are in weird state. The easiest and cleanest should be to remove
+        -- the backup relation. It won't have an impact because since we are in the else condition,
+        -- that means that old relation exists therefore no downtime yet.
+        {%- if old_relation_bkp is not none -%}
+          {%- do drop_relation(old_relation_bkp) -%}
+        {%- endif -%}
 
       {%- do safe_create_table_as(False, tmp_relation, sql) -%}
 
-      {{ rename_relation(old_relation, old_relation_bkp) }}
-      {{ rename_relation(tmp_relation, target_relation) }}
+        {{ rename_relation(old_relation, old_relation_bkp) }}
+        {{ rename_relation(tmp_relation, target_relation) }}
 
-      {{ drop_relation(old_relation_bkp) }}
+        {{ drop_relation(old_relation_bkp) }}
+      {%- endif -%}
     {%- endif -%}
 
   {%- endif -%}
