@@ -1,7 +1,7 @@
 autoflake~=1.7
 black~=23.3
 dbt-tests-adapter~=1.5.4
-flake8~=5.0
+flake8~=6.1
 Flake8-pyproject~=1.2
 isort~=5.11
 moto~=4.1.14
