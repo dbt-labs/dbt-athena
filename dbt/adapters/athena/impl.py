@@ -1,6 +1,7 @@
 import csv
 import os
 import posixpath as path
+import re
 import tempfile
 from itertools import chain
 from textwrap import dedent
@@ -19,6 +20,7 @@ from mypy_boto3_glue.type_defs import (
     TableTypeDef,
     TableVersionTypeDef,
 )
+from pyathena.error import OperationalError
 
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
@@ -875,3 +877,26 @@ class AthenaAdapter(SQLAdapter):
         returned by get_table() method.
         """
         return {k: v for k, v in table.items() if k in TableInputTypeDef.__annotations__}
+
+    @available
+    def run_query_with_partitions_limit_catching(self, sql: str) -> str:
+        conn = self.connections.get_thread_connection()
+        cursor = conn.handle.cursor()
+        try:
+            cursor.execute(sql, catch_partitions_limit=True)
+        except OperationalError as e:
+            LOGGER.debug(f"CAUGHT EXCEPTION: {e}")
+            if "TOO_MANY_OPEN_PARTITIONS" in str(e):
+                return "TOO_MANY_OPEN_PARTITIONS"
+            raise e
+        return "SUCCESS"
+
+    @available
+    def format_partition_keys(self, partition_keys: List[str]) -> str:
+        return ", ".join([self.format_one_partition_key(k) for k in partition_keys])
+
+    @available
+    def format_one_partition_key(self, partition_key: str) -> str:
+        """Check if partition key uses Iceberg hidden partitioning"""
+        hidden = re.search(r"^(hour|day|month|year)\((.+)\)", partition_key.lower())
+        return f"date_trunc('{hidden.group(1)}', {hidden.group(2)})" if hidden else partition_key.lower()
