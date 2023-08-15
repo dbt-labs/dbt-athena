@@ -38,6 +38,11 @@ logger = AdapterLogger("Athena")
 
 
 @dataclass
+class AthenaAdapterResponse(AdapterResponse):
+    data_scanned_in_bytes: Optional[int] = None
+
+
+@dataclass
 class AthenaCredentials(Credentials):
     s3_staging_dir: str
     region_name: str
@@ -127,6 +132,7 @@ class AthenaCursor(Cursor):
         endpoint_url: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
+        catch_partitions_limit: bool = False,
         **kwargs,
     ):
         def inner() -> AthenaCursor:
@@ -153,7 +159,12 @@ class AthenaCursor(Cursor):
             return self
 
         retry = tenacity.Retrying(
-            retry=retry_if_exception(lambda _: True),
+            # No need to retry if TOO_MANY_OPEN_PARTITIONS occurs.
+            # Otherwise, Athena throws ICEBERG_FILESYSTEM_ERROR after retry,
+            # because not all files are removed immediately after first try to create table
+            retry=retry_if_exception(
+                lambda e: False if catch_partitions_limit and "TOO_MANY_OPEN_PARTITIONS" in str(e) else True
+            ),
             stop=stop_after_attempt(self._retry_config.attempt),
             wait=wait_exponential(
                 multiplier=self._retry_config.attempt,
@@ -198,6 +209,7 @@ class AthenaConnectionManager(SQLConnectionManager):
             handle = AthenaConnection(
                 s3_staging_dir=creds.s3_staging_dir,
                 endpoint_url=creds.endpoint_url,
+                catalog_name=creds.database,
                 schema_name=creds.schema,
                 work_group=creds.work_group,
                 cursor_class=AthenaCursor,
@@ -223,9 +235,14 @@ class AthenaConnectionManager(SQLConnectionManager):
         return connection
 
     @classmethod
-    def get_response(cls, cursor: AthenaCursor) -> AdapterResponse:
+    def get_response(cls, cursor: AthenaCursor) -> AthenaAdapterResponse:
         code = "OK" if cursor.state == AthenaQueryExecution.STATE_SUCCEEDED else "ERROR"
-        return AdapterResponse(_message=f"{code} {cursor.rowcount}", rows_affected=cursor.rowcount, code=code)
+        return AthenaAdapterResponse(
+            _message=f"{code} {cursor.rowcount}",
+            rows_affected=cursor.rowcount,
+            code=code,
+            data_scanned_in_bytes=cursor.data_scanned_in_bytes,
+        )
 
     def cancel(self, connection: Connection) -> None:
         connection.handle.cancel()
