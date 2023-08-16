@@ -24,12 +24,12 @@
 
   {% set to_drop = [] %}
   {% if existing_relation is none %}
-    {%- do safe_create_table_as(False, target_relation, sql) -%}
-    {% set build_sql = "select 'SUCCESSFULLY CREATED TABLE {{ target_relation }} from scratch'" -%}
+    {% set query_result = safe_create_table_as(False, target_relation, sql) -%}
+    {% set build_sql = "select '{{ query_result }}'" -%}
   {% elif existing_relation.is_view or should_full_refresh() %}
     {% do drop_relation(existing_relation) %}
-    {%- do safe_create_table_as(False, target_relation, sql) -%}
-    {% set build_sql = "select 'SUCCESSFULLY RECREATED TABLE {{ target_relation }}'" -%}
+    {% set query_result = safe_create_table_as(False, target_relation, sql) -%}
+    {% set build_sql = "select '{{ query_result }}'" -%}
   {% elif partitioned_by is not none and strategy == 'insert_overwrite' %}
     {% set tmp_relation = make_temp_relation(target_relation) %}
     {% if tmp_relation is not none %}

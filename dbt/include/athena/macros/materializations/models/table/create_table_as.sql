@@ -125,4 +125,5 @@
     {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
       {%- do create_table_as_with_partitions(temporary, relation, sql) -%}
     {%- endif -%}
+    {{ return(query_result) }}
 {%- endmacro %}

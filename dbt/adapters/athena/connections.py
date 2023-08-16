@@ -1,4 +1,6 @@
 import hashlib
+import json
+import re
 import time
 from concurrent.futures.thread import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -237,12 +239,26 @@ class AthenaConnectionManager(SQLConnectionManager):
     @classmethod
     def get_response(cls, cursor: AthenaCursor) -> AthenaAdapterResponse:
         code = "OK" if cursor.state == AthenaQueryExecution.STATE_SUCCEEDED else "ERROR"
+        rowcount, data_scanned_in_bytes = cls.process_query_stats(cursor)
         return AthenaAdapterResponse(
-            _message=f"{code} {cursor.rowcount}",
-            rows_affected=cursor.rowcount,
+            _message=f"{code} {rowcount}",
+            rows_affected=rowcount,
             code=code,
-            data_scanned_in_bytes=cursor.data_scanned_in_bytes,
+            data_scanned_in_bytes=data_scanned_in_bytes,
         )
+
+    @staticmethod
+    def process_query_stats(cursor) -> (int, int):
+        if all(map(cursor.query.__contains__, ["rowcount", "data_scanned_in_bytes"])):
+            print("QUERY " + cursor.query)
+            try:
+                query_split = cursor.query.lower().split("select")[-1]
+                query_stats = re.search("{(.*)}", query_split)
+                stats = json.loads("{" + query_stats.group(1) + "}")
+                return stats["rowcount"], stats["data_scanned_in_bytes"]
+            except Exception:
+                return -99, 0
+        return cursor.rowcount, cursor.data_scanned_in_bytes
 
     def cancel(self, connection: Connection) -> None:
         connection.handle.cancel()
