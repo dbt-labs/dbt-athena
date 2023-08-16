@@ -54,7 +54,7 @@
             {%- do run_query(insert_batch_partitions) -%}
         {%- endfor -%}
     {%- endif -%}
-    SELECT 'SUCCESSFULLY INSERTED DATA IN {{ target_relation }}'
+    SELECT '{{query_result}}'
 {%- endmacro %}
 
 
