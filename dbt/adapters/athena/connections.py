@@ -248,16 +248,17 @@ class AthenaConnectionManager(SQLConnectionManager):
         )
 
     @staticmethod
-    def process_query_stats(cursor) -> (int, int):
+    def process_query_stats(cursor: AthenaCursor) -> Tuple[int, int]:
         if all(map(cursor.query.__contains__, ["rowcount", "data_scanned_in_bytes"])):
-            print("QUERY " + cursor.query)
             try:
                 query_split = cursor.query.lower().split("select")[-1]
                 query_stats = re.search("{(.*)}", query_split)
-                stats = json.loads("{" + query_stats.group(1) + "}")
-                return stats["rowcount"], stats["data_scanned_in_bytes"]
-            except Exception:
-                return -99, 0
+                if query_stats:
+                    stats = json.loads("{" + query_stats.group(1) + "}")
+                    return stats["rowcount"], stats["data_scanned_in_bytes"]
+            except Exception as err:
+                logger.debug(f"There was an error parsing query stats {err}")
+                return -1, 0
         return cursor.rowcount, cursor.data_scanned_in_bytes
 
     def cancel(self, connection: Connection) -> None:
