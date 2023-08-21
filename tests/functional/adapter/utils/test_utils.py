@@ -3,6 +3,10 @@ from tests.functional.adapter.fixture_datediff import (
     models__test_datediff_sql,
     seeds__data_datediff_csv,
 )
+from tests.functional.adapter.fixture_split_parts import (
+    models__test_split_part_sql,
+    models__test_split_part_yml,
+)
 
 from dbt.tests.adapter.utils.fixture_datediff import models__test_datediff_yml
 from dbt.tests.adapter.utils.test_any_value import BaseAnyValue
@@ -100,7 +104,12 @@ class TestRight(BaseRight):
 
 
 class TestSplitPart(BaseSplitPart):
-    pass
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "test_split_part.yml": models__test_split_part_yml,
+            "test_split_part.sql": self.interpolate_macro_namespace(models__test_split_part_sql, "split_part"),
+        }
 
 
 class TestStringLiteral(BaseStringLiteral):
