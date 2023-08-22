@@ -79,6 +79,7 @@ class AthenaSchemaSearchMap(Dict[InformationSchema, Dict[str, Set[Optional[str]]
 
 RELATION_TYPE_MAP = {
     "EXTERNAL_TABLE": TableType.TABLE,
+    "EXTERNAL": TableType.TABLE,  # type returned by federated query tables
     "MANAGED_TABLE": TableType.TABLE,
     "VIRTUAL_VIEW": TableType.VIEW,
     "table": TableType.TABLE,
