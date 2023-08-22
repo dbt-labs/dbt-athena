@@ -249,13 +249,20 @@ class AthenaConnectionManager(SQLConnectionManager):
 
     @staticmethod
     def process_query_stats(cursor: AthenaCursor) -> Tuple[int, int]:
+        """
+        Helper function to parse query statistics from SELECT statements.
+        The function looks for all statements that contains rowcount or data_scanned_in_bytes,
+        then strip the SELECT statements, and pick the value between curly brackets.
+        """
         if all(map(cursor.query.__contains__, ["rowcount", "data_scanned_in_bytes"])):
             try:
                 query_split = cursor.query.lower().split("select")[-1]
+                # query statistics are in the format {"rowcount":1, "data_scanned_in_bytes": 3}
+                # the following statement extract the content between { and }
                 query_stats = re.search("{(.*)}", query_split)
                 if query_stats:
                     stats = json.loads("{" + query_stats.group(1) + "}")
-                    return stats["rowcount"], stats["data_scanned_in_bytes"]
+                    return stats.get("rowcount", -1), stats.get("data_scanned_in_bytes", 0)
             except Exception as err:
                 logger.debug(f"There was an error parsing query stats {err}")
                 return -1, 0
