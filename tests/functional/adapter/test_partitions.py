@@ -3,6 +3,7 @@ import pytest
 from dbt.contracts.results import RunStatus
 from dbt.tests.util import run_dbt
 
+# this query generates 212 records
 test_partitions_model_sql = """
 select
     random() as rnd,
