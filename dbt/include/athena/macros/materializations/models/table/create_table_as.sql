@@ -124,5 +124,7 @@
     {%- do log('QUERY RESULT: ' ~ query_result) -%}
     {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
       {%- do create_table_as_with_partitions(temporary, relation, sql) -%}
+      {%- set query_result = '{{ relation }} with many partitions created' -%}
     {%- endif -%}
+    {{ return(query_result) }}
 {%- endmacro %}

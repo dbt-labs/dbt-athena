@@ -944,7 +944,7 @@ class AthenaAdapter(SQLAdapter):
             if "TOO_MANY_OPEN_PARTITIONS" in str(e):
                 return "TOO_MANY_OPEN_PARTITIONS"
             raise e
-        return "SUCCESS"
+        return f'{{"rowcount":{cursor.rowcount},"data_scanned_in_bytes":{cursor.data_scanned_in_bytes}}}'
 
     @available
     def format_partition_keys(self, partition_keys: List[str]) -> str:

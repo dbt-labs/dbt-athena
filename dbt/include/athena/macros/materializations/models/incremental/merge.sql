@@ -132,8 +132,7 @@
           {%- endset -%}
           {%- do run_query(merge_batch) -%}
       {%- endfor -%}
-
     {%- endif -%}
 
-    SELECT 'SUCCESSFULLY INSERTED DATA IN {{ target_relation }}'
+    SELECT '{{query_result}}'
 {%- endmacro %}
