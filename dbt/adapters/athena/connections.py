@@ -269,7 +269,7 @@ class AthenaConnectionManager(SQLConnectionManager):
         return cursor.rowcount, cursor.data_scanned_in_bytes
 
     def cancel(self, connection: Connection) -> None:
-        connection.handle.cancel()
+        pass
 
     def add_begin_query(self) -> None:
         pass
