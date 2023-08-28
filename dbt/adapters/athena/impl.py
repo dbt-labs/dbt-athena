@@ -640,7 +640,7 @@ class AthenaAdapter(SQLAdapter):
                     CatalogId=catalog_id,
                     DatabaseName=relation.schema,
                     TableName=relation.identifier,
-                    VersionId=str(version)
+                    VersionId=str(version),
                 )
                 deleted_versions.append(version)
                 LOGGER.debug(f"Deleted version {version} of table {relation.render()} ")
@@ -724,7 +724,7 @@ class AthenaAdapter(SQLAdapter):
                 CatalogId=catalog_id,
                 DatabaseName=relation.schema,
                 TableInput=updated_table,
-                SkipArchive=skip_archive_table_version
+                SkipArchive=skip_archive_table_version,
             )
 
     @available
@@ -762,7 +762,9 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         try:
-            table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)["Table"]
+            table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)[
+                "Table"
+            ]
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
                 LOGGER.debug("table not exist, catching the error")
