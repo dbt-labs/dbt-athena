@@ -87,3 +87,44 @@
   as
     {{ sql }}
 {% endmacro %}
+
+{% macro create_table_as_with_partitions(temporary, relation, sql) -%}
+
+    {% set partitions_batches = get_partition_batches(sql) %}
+    {% do log('BATCHES TO PROCESS: ' ~ partitions_batches | length) %}
+
+    {%- do log('CREATE EMPTY TABLE: ' ~ relation) -%}
+    {%- set create_empty_table_query -%}
+        {{ create_table_as(temporary, relation, sql) }}
+        limit 0
+    {%- endset -%}
+    {%- do run_query(create_empty_table_query) -%}
+    {%- set dest_columns = adapter.get_columns_in_relation(relation) -%}
+    {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
+
+    {%- for batch in partitions_batches -%}
+        {%- do log('BATCH PROCESSING: ' ~ loop.index ~ ' OF ' ~ partitions_batches | length) -%}
+
+        {%- set insert_batch_partitions -%}
+            insert into {{ relation }} ({{ dest_cols_csv }})
+            select {{ dest_cols_csv }}
+            from ({{ sql }})
+            where {{ batch }}
+        {%- endset -%}
+
+        {%- do run_query(insert_batch_partitions) -%}
+    {%- endfor -%}
+
+    select 'SUCCESSFULLY CREATED TABLE {{ relation }}'
+
+{%- endmacro %}
+
+{% macro safe_create_table_as(temporary, relation, sql) -%}
+    {%- set query_result = adapter.run_query_with_partitions_limit_catching(create_table_as(temporary, relation, sql)) -%}
+    {%- do log('QUERY RESULT: ' ~ query_result) -%}
+    {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
+      {%- do create_table_as_with_partitions(temporary, relation, sql) -%}
+      {%- set query_result = '{{ relation }} with many partitions created' -%}
+    {%- endif -%}
+    {{ return(query_result) }}
+{%- endmacro %}
