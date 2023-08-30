@@ -524,6 +524,7 @@ class AthenaAdapter(SQLAdapter):
             return athena.get_data_catalog(Name=database)["DataCatalog"]
         return None
 
+    @available
     def list_relations_without_caching(self, schema_relation: AthenaRelation) -> List[BaseRelation]:
         data_catalog = self._get_data_catalog(schema_relation.database)
         catalog_id = get_catalog_id(data_catalog)
