@@ -18,27 +18,21 @@ cross join unnest(date_array) as t2(date_column)
 """
 
 test_null_valued_partitions_model_sql = """
-with date_sequence as (
+with data as (
     select
-        case
-            when random() < 0.1 then null
-            else from_iso8601_date('2023-01-01') + interval '1' day * cast(random() * 212 as integer)
-        end as date_column
+        random() as col_1,
+        row_number() over() as id
     from
-        unnest(sequence(1, 212)) -- adjust 211 to the number of days you want
+        unnest(sequence(1, 200))
 )
 
-, data as (
-    select
-        random() as rnd,
-        cast(date_column as date) as date_column,
-        doy(date_column) as doy,
-        case when random() < 0.1 then null else cast(uuid() as varchar) end as group_guid
-    from date_sequence
-)
-
-select *
+select
+    col_1, id
 from data
+union all
+select random() as col_1, NULL as id
+union all
+select random() as col_1, NULL as id
 """
 
 
@@ -180,4 +174,4 @@ class TestHiveNullValuedPartitions:
 
         records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
 
-        assert records_count_first_run == 212
+        assert records_count_first_run == 202
