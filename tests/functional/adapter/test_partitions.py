@@ -152,7 +152,7 @@ class TestHiveNullValuedPartitions:
             "models": {
                 "+table_type": "hive",
                 "+materialized": "table",
-                "+partitioned_by": ["date_column", "doy", "group_guid"],
+                "+partitioned_by": ["id"],
             }
         }
 
