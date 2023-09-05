@@ -1,4 +1,5 @@
 import csv
+import json
 import os
 import posixpath as path
 import re
@@ -93,6 +94,16 @@ class AthenaAdapter(SQLAdapter):
     @classmethod
     def convert_datetime_type(cls, agate_table: agate.Table, col_idx: int) -> str:
         return "timestamp"
+
+    @available
+    def get_lf_tags_database_from_manifest(self, relation: AthenaRelation):
+        from pathlib import Path
+
+        target_directory = Path(os.getenv("DBT_TARGET_PATH", "./target"))
+        with open(target_directory / "manifest.json") as f:
+            manifest = Manifest(**json.load(f))
+            nodes = manifest.nodes
+            return nodes
 
     @available
     def add_lf_tags_to_database(self, relation: AthenaRelation, lf_tags_database: Dict[str, Any]) -> None:
