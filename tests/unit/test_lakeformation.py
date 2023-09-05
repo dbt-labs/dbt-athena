@@ -59,4 +59,4 @@ class TestLfTagsManager:
         relation = AthenaRelation.create(database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="tbl_name")
         lf_client = boto3.client("lakeformation", region_name=AWS_REGION)
         manager = LfTagsManager(lf_client, relation, LfTagsConfig())
-        assert manager._parse_lf_response(response, columns, lf_tags, verb) == expected
+        assert manager._parse_and_log_lf_response(response, columns, lf_tags, verb) == expected
