@@ -34,7 +34,7 @@ class TestLfTagsManager:
                 None,
                 {"tag_key": "tag_value"},
                 "add",
-                "Success: add LF tags: {'tag_key': 'tag_value'} to test_dbt_athena.tbl_name",
+                "Success: add LF tags {'tag_key': 'tag_value'} to test_dbt_athena.tbl_name",
                 id="add lf_tag",
             ),
             pytest.param(
@@ -42,7 +42,7 @@ class TestLfTagsManager:
                 None,
                 {"tag_key": "tag_value"},
                 "remove",
-                "Success: remove LF tags: {'tag_key': 'tag_value'} to test_dbt_athena.tbl_name",
+                "Success: remove LF tags {'tag_key': 'tag_value'} to test_dbt_athena.tbl_name",
                 id="remove lf_tag",
             ),
             pytest.param(
@@ -50,13 +50,14 @@ class TestLfTagsManager:
                 ["c1", "c2"],
                 {"tag_key": "tag_value"},
                 "add",
-                "Success: add LF tags: {'tag_key': 'tag_value'} to test_dbt_athena.tbl_name for columns ['c1', 'c2']",
+                "Success: add LF tags {'tag_key': 'tag_value'} to test_dbt_athena.tbl_name for columns ['c1', 'c2']",
                 id="lf_tag database table and columns",
             ),
         ],
     )
-    def test__parse_lf_response(self, response, columns, lf_tags, verb, expected):
+    def test__parse_lf_response(self, dbt_debug_caplog, response, columns, lf_tags, verb, expected):
         relation = AthenaRelation.create(database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="tbl_name")
         lf_client = boto3.client("lakeformation", region_name=AWS_REGION)
         manager = LfTagsManager(lf_client, relation, LfTagsConfig())
-        assert manager._parse_and_log_lf_response(response, columns, lf_tags, verb) == expected
+        manager._parse_and_log_lf_response(response, columns, lf_tags, verb)
+        assert expected in dbt_debug_caplog.getvalue()
