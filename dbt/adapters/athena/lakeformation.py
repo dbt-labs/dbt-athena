@@ -41,6 +41,13 @@ class LfTagsManager:
         self._apply_lf_tags_table(table_resource, existing_lf_tags)
         self._apply_lf_tags_columns()
 
+    def process_lf_tags_database(self) -> None:
+        database_resource = {"Database": {"Name": self.database}}
+        response = self.lf_client.add_lf_tags_to_resource(
+            Resource=database_resource, LFTags=[{"TagKey": k, "TagValues": [v]} for k, v in self.lf_tags.items()]
+        )
+        logger.debug(self._parse_lf_response(response, None, self.lf_tags))
+
     def _remove_lf_tags_columns(self, existing_lf_tags: GetResourceLFTagsResponseTypeDef) -> None:
         lf_tags_columns = existing_lf_tags.get("LFTagsOnColumns", [])
         logger.debug(f"COLUMNS: {lf_tags_columns}")

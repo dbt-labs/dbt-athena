@@ -95,6 +95,19 @@ class AthenaAdapter(SQLAdapter):
         return "timestamp"
 
     @available
+    def add_lf_tags_to_database(self, relation: AthenaRelation, lf_tags_database: Dict[str, Any]) -> None:
+        config = LfTagsConfig(**lf_tags_database)
+        if config.enabled:
+            conn = self.connections.get_thread_connection()
+            client = conn.handle
+            with boto3_client_lock:
+                lf_client = client.session.client("lakeformation", client.region_name, config=get_boto3_config())
+            manager = LfTagsManager(lf_client, relation, config)
+            manager.process_lf_tags_database()
+            return
+        LOGGER.debug(f"Lakeformation is disabled for {relation.schema}")
+
+    @available
     def add_lf_tags(self, relation: AthenaRelation, lf_tags_config: Dict[str, Any]) -> None:
         config = LfTagsConfig(**lf_tags_config)
         if config.enabled:

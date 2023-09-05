@@ -2,6 +2,12 @@
   {%- call statement('create_schema') -%}
     create schema if not exists {{ relation.without_identifier().render_hive() }}
   {% endcall %}
+
+  {%- set lf_tags_database = config.get('lf_tags_database') -%}
+  {% if lf_tags_database is not none %}
+    {{ adapter.add_lf_tags_to_database(relation, lf_tags_database) }}
+  {% endif %}
+
 {% endmacro %}
 
 
