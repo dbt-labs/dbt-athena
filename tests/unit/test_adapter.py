@@ -359,6 +359,7 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
+    @mock_sts
     def test_get_table_location(self, dbt_debug_caplog, mock_aws_service):
         table_name = "test_table"
         self.adapter.acquire_connection("dummy")
@@ -375,6 +376,7 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
+    @mock_sts
     def test_get_table_location_raise_s3_location_exception(self, dbt_debug_caplog, mock_aws_service):
         table_name = "test_table"
         self.adapter.acquire_connection("dummy")
@@ -396,6 +398,7 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
+    @mock_sts
     def test_get_table_location_for_view(self, dbt_debug_caplog, mock_aws_service):
         view_name = "view"
         self.adapter.acquire_connection("dummy")
@@ -410,6 +413,7 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
+    @mock_sts
     def test_get_table_location_with_failure(self, dbt_debug_caplog, mock_aws_service):
         table_name = "test_table"
         self.adapter.acquire_connection("dummy")
@@ -458,6 +462,7 @@ class TestAthenaAdapter:
 
     @mock_glue
     @mock_athena
+    @mock_sts
     def test_clean_up_table_table_does_not_exist(self, dbt_debug_caplog, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -475,6 +480,7 @@ class TestAthenaAdapter:
 
     @mock_glue
     @mock_athena
+    @mock_sts
     def test_clean_up_table_view(self, dbt_debug_caplog, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -492,6 +498,7 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
+    @mock_sts
     def test_clean_up_table_delete_table(self, dbt_debug_caplog, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -719,6 +726,7 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
+    @mock_sts
     def test_swap_table_with_partitions(self, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -745,6 +753,7 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
+    @mock_sts
     def test_swap_table_without_partitions(self, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -769,6 +778,7 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
+    @mock_sts
     def test_swap_table_with_partitions_to_one_without(self, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -806,6 +816,7 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
+    @mock_sts
     def test_swap_table_with_no_partitions_to_one_with(self, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -865,6 +876,7 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
+    @mock_sts
     def test_expire_glue_table_versions(self, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -976,6 +988,7 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
+    @mock_sts
     def test_persist_docs_to_glue_no_comment(self, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -1017,6 +1030,7 @@ class TestAthenaAdapter:
     @mock_athena
     @mock_glue
     @mock_s3
+    @mock_sts
     def test_persist_docs_to_glue_comment(self, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -1069,6 +1083,7 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_glue
+    @mock_sts
     def test_get_columns_in_relation(self, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -1089,6 +1104,7 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_glue
+    @mock_sts
     def test_get_columns_in_relation_not_found_table(self, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -1104,6 +1120,7 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_glue
+    @mock_sts
     def test_delete_from_glue_catalog(self, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -1117,6 +1134,7 @@ class TestAthenaAdapter:
 
     @mock_athena
     @mock_glue
+    @mock_sts
     def test_delete_from_glue_catalog_not_found_table(self, dbt_debug_caplog, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -1133,6 +1151,7 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
+    @mock_sts
     def test__get_relation_type_table(self, dbt_debug_caplog, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -1147,6 +1166,7 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
+    @mock_sts
     def test__get_relation_type_with_no_type(self, dbt_debug_caplog, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -1161,6 +1181,7 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
+    @mock_sts
     def test__get_relation_type_view(self, dbt_debug_caplog, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
@@ -1175,6 +1196,7 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
+    @mock_sts
     def test__get_relation_type_iceberg(self, dbt_debug_caplog, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database()
