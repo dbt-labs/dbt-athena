@@ -18,8 +18,14 @@
   {%- endif -%}
 
   -- transform timestamp
-  {%- if table_type == 'iceberg' and 'timestamp' in data_type -%}
-    {% set data_type = 'timestamp' -%}
+  {%- if table_type == 'iceberg' -%}
+    {%- if 'timestamp' in data_type -%}
+        {% set data_type = 'timestamp' -%}
+    {%- endif -%}
+
+    {%- if 'binary' in data_type -%}
+        {% set data_type = 'binary' -%}
+    {%- endif -%}
   {%- endif -%}
 
   {{ return(data_type) }}

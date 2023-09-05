@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Generator, List, Optional, TypeVar
 
 from mypy_boto3_athena.type_defs import DataCatalogTypeDef
@@ -9,7 +10,17 @@ def clean_sql_comment(comment: str) -> str:
 
 
 def get_catalog_id(catalog: Optional[DataCatalogTypeDef]) -> Optional[str]:
-    return catalog["Parameters"]["catalog-id"] if catalog else None
+    return catalog["Parameters"]["catalog-id"] if catalog and catalog["Type"] == AthenaCatalogType.GLUE.value else None
+
+
+class AthenaCatalogType(Enum):
+    GLUE = "GLUE"
+    LAMBDA = "LAMBDA"
+    HIVE = "HIVE"
+
+
+def get_catalog_type(catalog: Optional[DataCatalogTypeDef]) -> Optional[AthenaCatalogType]:
+    return AthenaCatalogType(catalog["Type"]) if catalog else None
 
 
 T = TypeVar("T")

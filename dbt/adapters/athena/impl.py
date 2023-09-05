@@ -1,6 +1,7 @@
 import csv
 import os
 import posixpath as path
+import re
 import tempfile
 from itertools import chain
 from textwrap import dedent
@@ -19,6 +20,7 @@ from mypy_boto3_glue.type_defs import (
     TableTypeDef,
     TableVersionTypeDef,
 )
+from pyathena.error import OperationalError
 
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
@@ -42,7 +44,13 @@ from dbt.adapters.athena.relation import (
     get_table_type,
 )
 from dbt.adapters.athena.s3 import S3DataNaming
-from dbt.adapters.athena.utils import clean_sql_comment, get_catalog_id, get_chunks
+from dbt.adapters.athena.utils import (
+    AthenaCatalogType,
+    clean_sql_comment,
+    get_catalog_id,
+    get_catalog_type,
+    get_chunks,
+)
 from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
@@ -413,6 +421,29 @@ class AthenaAdapter(SQLAdapter):
             for idx, col in enumerate(table["StorageDescriptor"]["Columns"] + table.get("PartitionKeys", []))
         ]
 
+    def _get_one_table_for_non_glue_catalog(
+        self, table: TableTypeDef, schema: str, database: str
+    ) -> List[Dict[str, Any]]:
+        table_catalog = {
+            "table_database": database,
+            "table_schema": schema,
+            "table_name": table["Name"],
+            "table_type": RELATION_TYPE_MAP[table.get("TableType", "EXTERNAL_TABLE")].value,
+            "table_comment": table.get("Parameters", {}).get("comment", ""),
+        }
+        return [
+            {
+                **table_catalog,
+                **{
+                    "column_name": col["Name"],
+                    "column_index": idx,
+                    "column_type": col["Type"],
+                    "column_comment": col.get("Comment", ""),
+                },
+            }
+            for idx, col in enumerate(table["Columns"] + table.get("PartitionKeys", []))
+        ]
+
     def _get_one_catalog(
         self,
         information_schema: InformationSchema,
@@ -420,29 +451,55 @@ class AthenaAdapter(SQLAdapter):
         manifest: Manifest,
     ) -> agate.Table:
         data_catalog = self._get_data_catalog(information_schema.path.database)
-        catalog_id = get_catalog_id(data_catalog)
+        data_catalog_type = get_catalog_type(data_catalog)
+
         conn = self.connections.get_thread_connection()
         client = conn.handle
-        with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+        if data_catalog_type == AthenaCatalogType.GLUE:
+            with boto3_client_lock:
+                glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
-        catalog = []
-        paginator = glue_client.get_paginator("get_tables")
-        for schema, relations in schemas.items():
-            kwargs = {
-                "DatabaseName": schema,
-                "MaxResults": 100,
-            }
-            # If the catalog is `awsdatacatalog` we don't need to pass CatalogId as boto3 infers it from the account Id.
-            if catalog_id:
-                kwargs["CatalogId"] = catalog_id
+            catalog = []
+            paginator = glue_client.get_paginator("get_tables")
+            for schema, relations in schemas.items():
+                kwargs = {
+                    "DatabaseName": schema,
+                    "MaxResults": 100,
+                }
+                # If the catalog is `awsdatacatalog` we don't need to pass CatalogId as boto3
+                # infers it from the account Id.
+                catalog_id = get_catalog_id(data_catalog)
+                if catalog_id:
+                    kwargs["CatalogId"] = catalog_id
 
-            for page in paginator.paginate(**kwargs):
-                for table in page["TableList"]:
-                    if relations and table["Name"] in relations:
-                        catalog.extend(self._get_one_table_for_catalog(table, information_schema.path.database))
+                for page in paginator.paginate(**kwargs):
+                    for table in page["TableList"]:
+                        if relations and table["Name"] in relations:
+                            catalog.extend(self._get_one_table_for_catalog(table, information_schema.path.database))
+            table = agate.Table.from_object(catalog)
+        else:
+            with boto3_client_lock:
+                athena_client = client.session.client(
+                    "athena", region_name=client.region_name, config=get_boto3_config()
+                )
 
-        table = agate.Table.from_object(catalog)
+            catalog = []
+            paginator = athena_client.get_paginator("list_table_metadata")
+            for schema, relations in schemas.items():
+                for page in paginator.paginate(
+                    CatalogName=information_schema.path.database,
+                    DatabaseName=schema,
+                    MaxResults=50,  # Limit supported by this operation
+                ):
+                    for table in page["TableMetadataList"]:
+                        if relations and table["Name"] in relations:
+                            catalog.extend(
+                                self._get_one_table_for_non_glue_catalog(
+                                    table, schema, information_schema.path.database
+                                )
+                            )
+            table = agate.Table.from_object(catalog)
+
         filtered_table = self._catalog_filter_table(table, manifest)
         return self._join_catalog_table_owners(filtered_table, manifest)
 
@@ -912,3 +969,26 @@ class AthenaAdapter(SQLAdapter):
         returned by get_table() method.
         """
         return {k: v for k, v in table.items() if k in TableInputTypeDef.__annotations__}
+
+    @available
+    def run_query_with_partitions_limit_catching(self, sql: str) -> str:
+        conn = self.connections.get_thread_connection()
+        cursor = conn.handle.cursor()
+        try:
+            cursor.execute(sql, catch_partitions_limit=True)
+        except OperationalError as e:
+            LOGGER.debug(f"CAUGHT EXCEPTION: {e}")
+            if "TOO_MANY_OPEN_PARTITIONS" in str(e):
+                return "TOO_MANY_OPEN_PARTITIONS"
+            raise e
+        return f'{{"rowcount":{cursor.rowcount},"data_scanned_in_bytes":{cursor.data_scanned_in_bytes}}}'
+
+    @available
+    def format_partition_keys(self, partition_keys: List[str]) -> str:
+        return ", ".join([self.format_one_partition_key(k) for k in partition_keys])
+
+    @available
+    def format_one_partition_key(self, partition_key: str) -> str:
+        """Check if partition key uses Iceberg hidden partitioning"""
+        hidden = re.search(r"^(hour|day|month|year)\((.+)\)", partition_key.lower())
+        return f"date_trunc('{hidden.group(1)}', {hidden.group(2)})" if hidden else partition_key.lower()
