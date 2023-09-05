@@ -3,11 +3,7 @@
     create schema if not exists {{ relation.without_identifier().render_hive() }}
   {% endcall %}
 
-  {%- set lf_tags_database = adapter.get_lf_tags_database_from_manifest(relation) -%}
-  {%- do log('NODES: ' ~ lf_tags_database) -%}
-  {% if lf_tags_database is not none %}
-    {{ adapter.add_lf_tags_to_database(relation, lf_tags_database) }}
-  {% endif %}
+  {{ adapter.add_lf_tags_to_database(relation) }}
 
 {% endmacro %}
 
