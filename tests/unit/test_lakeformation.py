@@ -11,7 +11,7 @@ from dbt.adapters.athena.relation import AthenaRelation
 # get_resource_lf_tags
 class TestLfTagsManager:
     @pytest.mark.parametrize(
-        "response,columns,lf_tags,verb,expected",
+        "response,identifier,columns,lf_tags,verb,expected",
         [
             pytest.param(
                 {
@@ -22,6 +22,7 @@ class TestLfTagsManager:
                         }
                     ]
                 },
+                "tbl_name",
                 ["column1", "column2"],
                 {"tag_key": "tag_value"},
                 "add",
@@ -31,6 +32,7 @@ class TestLfTagsManager:
             ),
             pytest.param(
                 {"Failures": []},
+                "tbl_name",
                 None,
                 {"tag_key": "tag_value"},
                 "add",
@@ -40,6 +42,16 @@ class TestLfTagsManager:
             pytest.param(
                 {"Failures": []},
                 None,
+                None,
+                {"tag_key": "tag_value"},
+                "add",
+                "Success: add LF tags {'tag_key': 'tag_value'} to test_dbt_athena",
+                id="add lf_tag_to_database",
+            ),
+            pytest.param(
+                {"Failures": []},
+                "tbl_name",
+                None,
                 {"tag_key": "tag_value"},
                 "remove",
                 "Success: remove LF tags {'tag_key': 'tag_value'} to test_dbt_athena.tbl_name",
@@ -47,6 +59,7 @@ class TestLfTagsManager:
             ),
             pytest.param(
                 {"Failures": []},
+                "tbl_name",
                 ["c1", "c2"],
                 {"tag_key": "tag_value"},
                 "add",
@@ -55,8 +68,8 @@ class TestLfTagsManager:
             ),
         ],
     )
-    def test__parse_lf_response(self, dbt_debug_caplog, response, columns, lf_tags, verb, expected):
-        relation = AthenaRelation.create(database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier="tbl_name")
+    def test__parse_lf_response(self, dbt_debug_caplog, response, identifier, columns, lf_tags, verb, expected):
+        relation = AthenaRelation.create(database=DATA_CATALOG_NAME, schema=DATABASE_NAME, identifier=identifier)
         lf_client = boto3.client("lakeformation", region_name=AWS_REGION)
         manager = LfTagsManager(lf_client, relation, LfTagsConfig())
         manager._parse_and_log_lf_response(response, columns, lf_tags, verb)
