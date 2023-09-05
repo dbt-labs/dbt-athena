@@ -34,19 +34,19 @@ class LfTagsManager:
         self.lf_tags = lf_tags_config.tags
         self.lf_tags_columns = lf_tags_config.tags_columns
 
-    def process_lf_tags(self) -> None:
-        table_resource = {"Table": {"DatabaseName": self.database, "Name": self.table}}
-        existing_lf_tags = self.lf_client.get_resource_lf_tags(Resource=table_resource)
-        self._remove_lf_tags_columns(existing_lf_tags)
-        self._apply_lf_tags_table(table_resource, existing_lf_tags)
-        self._apply_lf_tags_columns()
-
     def process_lf_tags_database(self) -> None:
         database_resource = {"Database": {"Name": self.database}}
         response = self.lf_client.add_lf_tags_to_resource(
             Resource=database_resource, LFTags=[{"TagKey": k, "TagValues": [v]} for k, v in self.lf_tags.items()]
         )
         logger.debug(self._parse_lf_response(response, None, self.lf_tags))
+
+    def process_lf_tags(self) -> None:
+        table_resource = {"Table": {"DatabaseName": self.database, "Name": self.table}}
+        existing_lf_tags = self.lf_client.get_resource_lf_tags(Resource=table_resource)
+        self._remove_lf_tags_columns(existing_lf_tags)
+        self._apply_lf_tags_table(table_resource, existing_lf_tags)
+        self._apply_lf_tags_columns()
 
     def _remove_lf_tags_columns(self, existing_lf_tags: GetResourceLFTagsResponseTypeDef) -> None:
         lf_tags_columns = existing_lf_tags.get("LFTagsOnColumns", [])
@@ -91,7 +91,7 @@ class LfTagsManager:
             response = self.lf_client.remove_lf_tags_from_resource(
                 Resource=table_resource, LFTags=[{"TagKey": k, "TagValues": v} for k, v in to_remove.items()]
             )
-            logger.debug(self._parse_lf_response(response, None, self.lf_tags, "remove"))
+            logger.debug(self._parse_lf_response(response, None, self.lf_tags))
 
         if self.lf_tags:
             response = self.lf_client.add_lf_tags_to_resource(
@@ -117,18 +117,19 @@ class LfTagsManager:
         response: Union[AddLFTagsToResourceResponseTypeDef, RemoveLFTagsFromResourceResponseTypeDef],
         columns: Optional[List[str]] = None,
         lf_tags: Optional[Dict[str, str]] = None,
-        verb: str = "add",
     ) -> str:
-        failures = response.get("Failures", [])
+        table_appendix = f".{self.table}" if self.table else ""
         columns_appendix = f" for columns {columns}" if columns else ""
-        if failures:
-            base_msg = f"Failed to {verb} LF tags: {lf_tags} to {self.database}.{self.table}" + columns_appendix
+        resource_msg = self.database + table_appendix + columns_appendix
+        verb = "add" if isinstance(response, AddLFTagsToResourceResponseTypeDef) else "remove"
+        if failures := response.get("Failures", []):
+            base_msg = f"Failed to {verb} LF tags: {lf_tags} to " + resource_msg
             for failure in failures:
                 tag = failure.get("LFTag", {}).get("TagKey")
                 error = failure.get("Error", {}).get("ErrorMessage")
-                logger.error(f"Failed to {verb} {tag} for {self.database}.{self.table}" + f" - {error}")
+                logger.error(f"Failed to {verb} {tag} for " + resource_msg + f" - {error}")
             raise DbtRuntimeError(base_msg)
-        return f"Success: {verb} LF tags: {lf_tags} to {self.database}.{self.table}" + columns_appendix
+        return f"Success: {verb} LF tags {lf_tags} to " + resource_msg
 
 
 class FilterConfig(BaseModel):

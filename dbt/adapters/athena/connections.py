@@ -59,7 +59,9 @@ class AthenaCredentials(Credentials):
     num_retries: Optional[int] = 5
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
-    lf_tags_database: Optional[dict[str, Any]] = None
+    # Unfortunately we can not just use dict, must by Dict because we'll get the following error:
+    # Credentials in profile "athena", target "athena" invalid: Unable to create schema for 'dict'
+    lf_tags_database: Optional[Dict[str, str]] = None
 
     @property
     def type(self) -> str:

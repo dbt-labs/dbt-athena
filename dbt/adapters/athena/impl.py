@@ -98,8 +98,8 @@ class AthenaAdapter(SQLAdapter):
     def add_lf_tags_to_database(self, relation: AthenaRelation) -> None:
         conn = self.connections.get_thread_connection()
         client = conn.handle
-        config = LfTagsConfig(**conn.credentials.lf_tags)
-        if config.enabled:
+        if lf_tags := conn.credentials.lf_tags_database:
+            config = LfTagsConfig(enabled=True, tags=lf_tags)
             with boto3_client_lock:
                 lf_client = client.session.client("lakeformation", client.region_name, config=get_boto3_config())
             manager = LfTagsManager(lf_client, relation, config)
