@@ -91,7 +91,7 @@ class LfTagsManager:
             response = self.lf_client.remove_lf_tags_from_resource(
                 Resource=table_resource, LFTags=[{"TagKey": k, "TagValues": v} for k, v in to_remove.items()]
             )
-            logger.debug(self._parse_lf_response(response, None, self.lf_tags))
+            logger.debug(self._parse_lf_response(response, None, self.lf_tags, "remove"))
 
         if self.lf_tags:
             response = self.lf_client.add_lf_tags_to_resource(
@@ -117,11 +117,11 @@ class LfTagsManager:
         response: Union[AddLFTagsToResourceResponseTypeDef, RemoveLFTagsFromResourceResponseTypeDef],
         columns: Optional[List[str]] = None,
         lf_tags: Optional[Dict[str, str]] = None,
+        verb: str = "add"
     ) -> str:
         table_appendix = f".{self.table}" if self.table else ""
         columns_appendix = f" for columns {columns}" if columns else ""
         resource_msg = self.database + table_appendix + columns_appendix
-        verb = "add" if isinstance(response, AddLFTagsToResourceResponseTypeDef) else "remove"
         if failures := response.get("Failures", []):
             base_msg = f"Failed to {verb} LF tags: {lf_tags} to " + resource_msg
             for failure in failures:
