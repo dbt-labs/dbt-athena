@@ -59,6 +59,7 @@ class AthenaCredentials(Credentials):
     num_retries: Optional[int] = 5
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
+    extra_args: Optional[Dict[str, Any]] = None
 
     @property
     def type(self) -> str:
@@ -83,6 +84,7 @@ class AthenaCredentials(Credentials):
             "s3_data_dir",
             "s3_data_naming",
             "debug_query_state",
+            "extra_args"
         )
 
 

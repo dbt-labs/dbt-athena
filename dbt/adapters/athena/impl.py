@@ -297,6 +297,7 @@ class AthenaAdapter(SQLAdapter):
         s3_data_dir: Optional[str] = None,
         s3_data_naming: Optional[str] = None,
         external_location: Optional[str] = None,
+        extra_args: Optional[Dict[str, Any]] = None
     ) -> str:
         conn = self.connections.get_thread_connection()
         client = conn.handle
@@ -315,7 +316,7 @@ class AthenaAdapter(SQLAdapter):
             # This ensures cross-platform support, tempfile.NamedTemporaryFile does not
             tmpfile = os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
             table.to_csv(tmpfile, quoting=csv.QUOTE_NONNUMERIC)
-            s3_client.upload_file(tmpfile, bucket, object_name)
+            s3_client.upload_file(tmpfile, bucket, object_name, ExtraArgs=extra_args)
             os.remove(tmpfile)
 
         return str(s3_location)

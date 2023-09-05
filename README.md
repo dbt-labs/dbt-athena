@@ -88,6 +88,7 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | aws_profile_name      | Profile to use from your AWS shared credentials file.                          | Optional  | `my-profile`                               |
 | work_group            | Identifier of Athena workgroup                                                 | Optional  | `my-custom-workgroup`                      |
 | num_retries           | Number of times to retry a failing query                                       | Optional  | `3`                                        |
+| extra_args | Dictionary containing boto3 ExtraArgs when uploading to S3   | Optional  | `{"ACL": "bucket-owner-full-control"}`|
 
 **Example profiles.yml entry:**
 ```yaml
