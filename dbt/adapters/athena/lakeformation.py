@@ -34,6 +34,14 @@ class LfTagsManager:
         self.lf_tags = lf_tags_config.tags
         self.lf_tags_columns = lf_tags_config.tags_columns
 
+    def process_lf_tags_database(self) -> None:
+        if self.lf_tags:
+            database_resource = {"Database": {"Name": self.database}}
+            response = self.lf_client.add_lf_tags_to_resource(
+                Resource=database_resource, LFTags=[{"TagKey": k, "TagValues": [v]} for k, v in self.lf_tags.items()]
+            )
+            self._parse_and_log_lf_response(response, None, self.lf_tags)
+
     def process_lf_tags(self) -> None:
         table_resource = {"Table": {"DatabaseName": self.database, "Name": self.table}}
         existing_lf_tags = self.lf_client.get_resource_lf_tags(Resource=table_resource)
@@ -65,7 +73,7 @@ class LfTagsManager:
                     response = self.lf_client.remove_lf_tags_from_resource(
                         Resource=resource, LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}]
                     )
-                    logger.debug(self._parse_lf_response(response, columns, {tag_key: tag_value}, "remove"))
+                    self._parse_and_log_lf_response(response, columns, {tag_key: tag_value}, "remove")
 
     def _apply_lf_tags_table(
         self, table_resource: ResourceTypeDef, existing_lf_tags: GetResourceLFTagsResponseTypeDef
@@ -84,13 +92,13 @@ class LfTagsManager:
             response = self.lf_client.remove_lf_tags_from_resource(
                 Resource=table_resource, LFTags=[{"TagKey": k, "TagValues": v} for k, v in to_remove.items()]
             )
-            logger.debug(self._parse_lf_response(response, None, self.lf_tags, "remove"))
+            self._parse_and_log_lf_response(response, None, self.lf_tags, "remove")
 
         if self.lf_tags:
             response = self.lf_client.add_lf_tags_to_resource(
                 Resource=table_resource, LFTags=[{"TagKey": k, "TagValues": [v]} for k, v in self.lf_tags.items()]
             )
-            logger.debug(self._parse_lf_response(response, None, self.lf_tags))
+            self._parse_and_log_lf_response(response, None, self.lf_tags)
 
     def _apply_lf_tags_columns(self) -> None:
         if self.lf_tags_columns:
@@ -103,25 +111,26 @@ class LfTagsManager:
                         Resource=resource,
                         LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}],
                     )
-                    logger.debug(self._parse_lf_response(response, columns, {tag_key: tag_value}))
+                    self._parse_and_log_lf_response(response, columns, {tag_key: tag_value})
 
-    def _parse_lf_response(
+    def _parse_and_log_lf_response(
         self,
         response: Union[AddLFTagsToResourceResponseTypeDef, RemoveLFTagsFromResourceResponseTypeDef],
         columns: Optional[List[str]] = None,
         lf_tags: Optional[Dict[str, str]] = None,
         verb: str = "add",
-    ) -> str:
-        failures = response.get("Failures", [])
+    ) -> None:
+        table_appendix = f".{self.table}" if self.table else ""
         columns_appendix = f" for columns {columns}" if columns else ""
-        if failures:
-            base_msg = f"Failed to {verb} LF tags: {lf_tags} to {self.database}.{self.table}" + columns_appendix
+        resource_msg = self.database + table_appendix + columns_appendix
+        if failures := response.get("Failures", []):
+            base_msg = f"Failed to {verb} LF tags: {lf_tags} to " + resource_msg
             for failure in failures:
                 tag = failure.get("LFTag", {}).get("TagKey")
                 error = failure.get("Error", {}).get("ErrorMessage")
-                logger.error(f"Failed to {verb} {tag} for {self.database}.{self.table}" + f" - {error}")
+                logger.error(f"Failed to {verb} {tag} for " + resource_msg + f" - {error}")
             raise DbtRuntimeError(base_msg)
-        return f"Success: {verb} LF tags: {lf_tags} to {self.database}.{self.table}" + columns_appendix
+        logger.debug(f"Success: {verb} LF tags {lf_tags} to " + resource_msg)
 
 
 class FilterConfig(BaseModel):
