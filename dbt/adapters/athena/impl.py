@@ -1,5 +1,4 @@
 import csv
-import json
 import os
 import posixpath as path
 import re
