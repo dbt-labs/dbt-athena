@@ -82,11 +82,13 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | schema                | Specify the schema (Athena database) to build models into (lowercase **only**) | Required  | `dbt`                                      |
 | database              | Specify the database (Data catalog) to build models into (lowercase **only**)  | Required  | `awsdatacatalog`                           |
 | poll_interval         | Interval in seconds to use for polling the status of query results in Athena   | Optional  | `5`                                        |
+| debug_query_state     | Flag if debug message with Athena query state is needed                        | Optional  | `false`                                    |
 | aws_access_key_id     | Access key ID of the user performing requests.                                 | Optional  | `AKIAIOSFODNN7EXAMPLE`                     |
 | aws_secret_access_key | Secret access key of the user performing requests                              | Optional  | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
 | aws_profile_name      | Profile to use from your AWS shared credentials file.                          | Optional  | `my-profile`                               |
 | work_group            | Identifier of Athena workgroup                                                 | Optional  | `my-custom-workgroup`                      |
 | num_retries           | Number of times to retry a failing query                                       | Optional  | `3`                                        |
+| lf_tags_database      | Default LF tags for new database if it's created by dbt                        | Optional  | `tag_key: tag_value`                       |
 
 **Example profiles.yml entry:**
 ```yaml

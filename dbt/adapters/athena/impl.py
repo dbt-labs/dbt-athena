@@ -95,6 +95,19 @@ class AthenaAdapter(SQLAdapter):
         return "timestamp"
 
     @available
+    def add_lf_tags_to_database(self, relation: AthenaRelation) -> None:
+        conn = self.connections.get_thread_connection()
+        client = conn.handle
+        if lf_tags := conn.credentials.lf_tags_database:
+            config = LfTagsConfig(enabled=True, tags=lf_tags)
+            with boto3_client_lock:
+                lf_client = client.session.client("lakeformation", client.region_name, config=get_boto3_config())
+            manager = LfTagsManager(lf_client, relation, config)
+            manager.process_lf_tags_database()
+        else:
+            LOGGER.debug(f"Lakeformation is disabled for {relation}")
+
+    @available
     def add_lf_tags(self, relation: AthenaRelation, lf_tags_config: Dict[str, Any]) -> None:
         config = LfTagsConfig(**lf_tags_config)
         if config.enabled:
@@ -528,6 +541,7 @@ class AthenaAdapter(SQLAdapter):
             return athena.get_data_catalog(Name=database)["DataCatalog"]
         return None
 
+    @available
     def list_relations_without_caching(self, schema_relation: AthenaRelation) -> List[BaseRelation]:
         data_catalog = self._get_data_catalog(schema_relation.database)
         catalog_id = get_catalog_id(data_catalog)

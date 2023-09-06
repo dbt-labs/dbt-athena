@@ -18,8 +18,13 @@
         {%- set single_partition = [] -%}
         {%- for col in row -%}
 
+
             {%- set column_type = adapter.convert_type(table, loop.index0) -%}
-            {%- if column_type == 'integer' -%}
+            {%- set comp_func = '=' -%}
+            {%- if col is none -%}
+                {%- set value = 'null' -%}
+                {%- set comp_func = ' is ' -%}
+            {%- elif column_type == 'integer' -%}
                 {%- set value = col | string -%}
             {%- elif column_type == 'string' -%}
                 {%- set value = "'" + col + "'" -%}
@@ -31,7 +36,7 @@
                 {%- do exceptions.raise_compiler_error('Need to add support for column type ' + column_type) -%}
             {%- endif -%}
             {%- set partition_key = adapter.format_one_partition_key(partitioned_by[loop.index0]) -%}
-            {%- do single_partition.append(partition_key + '=' + value) -%}
+            {%- do single_partition.append(partition_key + comp_func + value) -%}
         {%- endfor -%}
 
         {%- set single_partition_expression = single_partition | join(' and ') -%}
