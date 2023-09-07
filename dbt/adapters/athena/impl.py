@@ -949,10 +949,12 @@ class AthenaAdapter(SQLAdapter):
 
     @available
     def run_query_with_partitions_limit_catching(self, sql: str) -> str:
+        query = self.connections._add_query_comment(sql)
         conn = self.connections.get_thread_connection()
         cursor = conn.handle.cursor()
+        LOGGER.debug(f"Running Athena query:\n{query}")
         try:
-            cursor.execute(sql, catch_partitions_limit=True)
+            cursor.execute(query, catch_partitions_limit=True)
         except OperationalError as e:
             LOGGER.debug(f"CAUGHT EXCEPTION: {e}")
             if "TOO_MANY_OPEN_PARTITIONS" in str(e):
