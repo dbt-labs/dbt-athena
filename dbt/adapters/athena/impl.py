@@ -954,7 +954,7 @@ class AthenaAdapter(SQLAdapter):
         cursor = conn.handle.cursor()
         LOGGER.debug(f"Running Athena query:\n{sql}")
         try:
-            conn.execute(sql, catch_partitions_limit=True)
+            cursor.execute(sql, catch_partitions_limit=True)
         except OperationalError as e:
             LOGGER.debug(f"CAUGHT EXCEPTION: {e}")
             if "TOO_MANY_OPEN_PARTITIONS" in str(e):
