@@ -952,6 +952,7 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         cursor = conn.handle.cursor()
         try:
+            LOGGER.debug(sql)
             cursor.execute(sql, catch_partitions_limit=True)
         except OperationalError as e:
             LOGGER.debug(f"CAUGHT EXCEPTION: {e}")
