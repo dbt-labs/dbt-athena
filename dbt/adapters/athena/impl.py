@@ -223,11 +223,15 @@ class AthenaAdapter(SQLAdapter):
         """
         conn = self.connections.get_thread_connection()
         client = conn.handle
+
+        data_catalog = self._get_data_catalog(relation.database)
+        catalog_id = get_catalog_id(data_catalog)
+
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         try:
-            table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)
+            table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
                 LOGGER.debug(f"Table {relation.render()} does not exists - Ignoring")
@@ -596,16 +600,25 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
+        data_catalog = self._get_data_catalog(src_relation.database)
+        src_catalog_id = get_catalog_id(data_catalog)
+
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
-        src_table = glue_client.get_table(DatabaseName=src_relation.schema, Name=src_relation.identifier).get("Table")
+        src_table = glue_client.get_table(
+            CatalogId=src_catalog_id, DatabaseName=src_relation.schema, Name=src_relation.identifier
+        ).get("Table")
+
         src_table_partitions = glue_client.get_partitions(
-            DatabaseName=src_relation.schema, TableName=src_relation.identifier
+            CatalogId=src_catalog_id, DatabaseName=src_relation.schema, TableName=src_relation.identifier
         ).get("Partitions")
 
+        data_catalog = self._get_data_catalog(src_relation.database)
+        target_catalog_id = get_catalog_id(data_catalog)
+
         target_table_partitions = glue_client.get_partitions(
-            DatabaseName=target_relation.schema, TableName=target_relation.identifier
+            CatalogId=target_catalog_id, DatabaseName=target_relation.schema, TableName=target_relation.identifier
         ).get("Partitions")
 
         target_table_version = {
@@ -618,7 +631,9 @@ class AthenaAdapter(SQLAdapter):
         }
 
         # perform a table swap
-        glue_client.update_table(DatabaseName=target_relation.schema, TableInput=target_table_version)
+        glue_client.update_table(
+            CatalogId=target_catalog_id, DatabaseName=target_relation.schema, TableInput=target_table_version
+        )
         LOGGER.debug(f"Table {target_relation.render()} swapped with the content of {src_relation.render()}")
 
         # we delete the target table partitions in any case
@@ -627,6 +642,7 @@ class AthenaAdapter(SQLAdapter):
         if target_table_partitions:
             for partition_batch in get_chunks(target_table_partitions, AthenaAdapter.BATCH_DELETE_PARTITION_API_LIMIT):
                 glue_client.batch_delete_partition(
+                    CatalogId=target_catalog_id,
                     DatabaseName=target_relation.schema,
                     TableName=target_relation.identifier,
                     PartitionsToDelete=[{"Values": partition["Values"]} for partition in partition_batch],
@@ -635,6 +651,7 @@ class AthenaAdapter(SQLAdapter):
         if src_table_partitions:
             for partition_batch in get_chunks(src_table_partitions, AthenaAdapter.BATCH_CREATE_PARTITION_API_LIMIT):
                 glue_client.batch_create_partition(
+                    CatalogId=target_catalog_id,
                     DatabaseName=target_relation.schema,
                     TableName=target_relation.identifier,
                     PartitionInputList=[
@@ -676,6 +693,9 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
+        data_catalog = self._get_data_catalog(relation.database)
+        catalog_id = get_catalog_id(data_catalog)
+
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
@@ -688,7 +708,10 @@ class AthenaAdapter(SQLAdapter):
             location = v["Table"]["StorageDescriptor"]["Location"]
             try:
                 glue_client.delete_table_version(
-                    DatabaseName=relation.schema, TableName=relation.identifier, VersionId=str(version)
+                    CatalogId=catalog_id,
+                    DatabaseName=relation.schema,
+                    TableName=relation.identifier,
+                    VersionId=str(version),
                 )
                 deleted_versions.append(version)
                 LOGGER.debug(f"Deleted version {version} of table {relation.render()} ")
@@ -720,13 +743,16 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
+        data_catalog = self._get_data_catalog(relation.database)
+        catalog_id = get_catalog_id(data_catalog)
+
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         # By default, there is no need to update Glue Table
         need_udpate_table = False
         # Get Table from Glue
-        table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.name)["Table"]
+        table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.name)["Table"]
         # Prepare new version of Glue Table picking up significant fields
         updated_table = self._get_table_input(table)
         # Update table description
@@ -766,7 +792,10 @@ class AthenaAdapter(SQLAdapter):
         # It prevents redundant schema version creating after incremental runs.
         if need_udpate_table:
             glue_client.update_table(
-                DatabaseName=relation.schema, TableInput=updated_table, SkipArchive=skip_archive_table_version
+                CatalogId=catalog_id,
+                DatabaseName=relation.schema,
+                TableInput=updated_table,
+                SkipArchive=skip_archive_table_version,
             )
 
     @available
@@ -797,11 +826,16 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
+        data_catalog = self._get_data_catalog(relation.database)
+        catalog_id = get_catalog_id(data_catalog)
+
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         try:
-            table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)["Table"]
+            table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)[
+                "Table"
+            ]
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
                 LOGGER.debug("table not exist, catching the error")
@@ -829,11 +863,14 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         client = conn.handle
 
+        data_catalog = self._get_data_catalog(relation.database)
+        catalog_id = get_catalog_id(data_catalog)
+
         with boto3_client_lock:
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         try:
-            glue_client.delete_table(DatabaseName=schema_name, Name=table_name)
+            glue_client.delete_table(CatalogId=catalog_id, DatabaseName=schema_name, Name=table_name)
             LOGGER.debug(f"Deleted table from glue catalog: {relation.render()}")
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
