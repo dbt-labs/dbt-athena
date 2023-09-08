@@ -90,26 +90,26 @@
 
 {% macro create_table_as_with_partitions(temporary, relation, sql) -%}
 
-    {%- set stg_relation = api.Relation.create(
-            identifier=relation.identifier ~ '__stg',
+    {%- set tmp_relation = api.Relation.create(
+            identifier=relation.identifier ~ '__tmp_not_partitioned',
             schema=relation.schema,
             database=relation.database,
-            s3_path_table_part=relation.identifier ~ '__stg' ,
+            s3_path_table_part=relation.identifier ~ '__tmp_not_partitioned' ,
             type='table'
         )
     -%}
 
-    {%- if stg_relation is not none -%}
-      {%- do drop_relation(stg_relation) -%}
+    {%- if tmp_relation is not none -%}
+      {%- do drop_relation(tmp_relation) -%}
     {%- endif -%}
 
-    {%- do log('CREATE NON-PARTIONED STAGING TABLE: ' ~ stg_relation) -%}
-    {%- do run_query(create_table_as(temporary, stg_relation, sql, True)) -%}
+    {%- do log('CREATE NON-PARTIONED STAGING TABLE: ' ~ tmp_relation) -%}
+    {%- do run_query(create_table_as(temporary, tmp_relation, sql, True)) -%}
 
-    {% set partitions_batches = get_partition_batches(sql=stg_relation, as_subquery=False) %}
+    {% set partitions_batches = get_partition_batches(sql=tmp_relation, as_subquery=False) %}
     {% do log('BATCHES TO PROCESS: ' ~ partitions_batches | length) %}
 
-    {%- set dest_columns = adapter.get_columns_in_relation(stg_relation) -%}
+    {%- set dest_columns = adapter.get_columns_in_relation(tmp_relation) -%}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
     {%- for batch in partitions_batches -%}
@@ -118,7 +118,7 @@
         {%- if loop.index == 1 -%}
             {%- set create_target_relation_sql -%}
                 select {{ dest_cols_csv }}
-                from {{ stg_relation }}
+                from {{ tmp_relation }}
                 where {{ batch }}
             {%- endset -%}
             {%- do run_query(create_table_as(temporary, relation, create_target_relation_sql)) -%}
@@ -126,7 +126,7 @@
             {%- set insert_batch_partitions_sql -%}
                 insert into {{ relation }} ({{ dest_cols_csv }})
                 select {{ dest_cols_csv }}
-                from {{ stg_relation }}
+                from {{ tmp_relation }}
                 where {{ batch }}
             {%- endset -%}
 
@@ -136,7 +136,7 @@
 
     {%- endfor -%}
 
-    {%- do drop_relation(stg_relation) -%}
+    {%- do drop_relation(tmp_relation) -%}
 
     select 'SUCCESSFULLY CREATED TABLE {{ relation }}'
 
