@@ -91,15 +91,19 @@
 {% macro create_table_as_with_partitions(temporary, relation, sql) -%}
 
     {%- set stg_relation = api.Relation.create(
-            identifier=target_relation.identifier ~ '__stg',
+            identifier=relation.identifier ~ '__stg',
             schema=relation.schema,
             database=relation.database,
-            s3_path_table_part=relation.identifier,
+            s3_path_table_part=relation.identifier ~ '__stg' ,
             type='table'
         )
     -%}
 
-    {%- do log('CREATE TMP TABLE: ' ~ relation) -%}
+    {%- if stg_relation is not none -%}
+      {%- do drop_relation(stg_relation) -%}
+    {%- endif -%}
+
+    {%- do log('CREATE NON-PARTIONED STAGING TABLE: ' ~ stg_relation) -%}
     {%- do run_query(create_table_as(temporary, stg_relation, sql, True)) -%}
 
     {% set partitions_batches = get_partition_batches(sql=stg_relation, as_subquery=False) %}
@@ -114,7 +118,7 @@
         {%- if loop.index == 1 -%}
             {%- set create_target_relation_sql -%}
                 select {{ dest_cols_csv }}
-                from stg_relation
+                from {{ stg_relation }}
                 where {{ batch }}
             {%- endset -%}
             {%- do run_query(create_table_as(temporary, relation, create_target_relation_sql)) -%}
@@ -122,7 +126,7 @@
             {%- set insert_batch_partitions_sql -%}
                 insert into {{ relation }} ({{ dest_cols_csv }})
                 select {{ dest_cols_csv }}
-                from stg_relation
+                from {{ stg_relation }}
                 where {{ batch }}
             {%- endset -%}
 
@@ -132,16 +136,24 @@
 
     {%- endfor -%}
 
+    {%- do drop_relation(stg_relation) -%}
+
     select 'SUCCESSFULLY CREATED TABLE {{ relation }}'
 
 {%- endmacro %}
 
 {% macro safe_create_table_as(temporary, relation, sql) -%}
-    {%- set query_result = adapter.run_query_with_partitions_limit_catching(create_table_as(temporary, relation, sql)) -%}
-    {%- do log('QUERY RESULT: ' ~ query_result) -%}
-    {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
-      {%- do create_table_as_with_partitions(temporary, relation, sql) -%}
-      {%- set query_result = relation ~ ' with many partitions created' -%}
+    {%- if temporary -%}
+      {%- do run_query(create_table_as(temporary, relation, sql, True)) -%}
+      {%- set query_result = relation ~ ' as temporary relation without partitioning created' -%}
+    {%- else -%}
+      {%- set query_result = adapter.run_query_with_partitions_limit_catching(create_table_as(temporary, relation, sql)) -%}
+      {%- do log('QUERY RESULT: ' ~ query_result) -%}
+      {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
+        {%- do create_table_as_with_partitions(temporary, relation, sql) -%}
+        {%- set query_result = relation ~ ' with many partitions created' -%}
+      {%- endif -%}
     {%- endif -%}
+
     {{ return(query_result) }}
 {%- endmacro %}
