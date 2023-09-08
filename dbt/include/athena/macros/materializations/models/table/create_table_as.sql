@@ -1,7 +1,7 @@
-{% macro athena__create_table_as(temporary, relation, sql) -%}
+{% macro athena__create_table_as(temporary, relation, sql, skip_partitioning=False) -%}
   {%- set materialized = config.get('materialized', default='table') -%}
   {%- set external_location = config.get('external_location', default=none) -%}
-  {%- set partitioned_by = config.get('partitioned_by', default=none) -%}
+  {%- set partitioned_by = config.get('partitioned_by', default=none) if not skip_partitioning else none -%}
   {%- set bucketed_by = config.get('bucketed_by', default=none) -%}
   {%- set bucket_count = config.get('bucket_count', default=none) -%}
   {%- set field_delimiter = config.get('field_delimiter', default=none) -%}
@@ -90,29 +90,46 @@
 
 {% macro create_table_as_with_partitions(temporary, relation, sql) -%}
 
-    {% set partitions_batches = get_partition_batches(sql) %}
+    {%- set stg_relation = api.Relation.create(
+            identifier=target_relation.identifier ~ '__stg',
+            schema=relation.schema,
+            database=relation.database,
+            s3_path_table_part=relation.identifier,
+            type='table'
+        )
+    -%}
+
+    {%- do log('CREATE TMP TABLE: ' ~ relation) -%}
+    {%- do run_query(create_table_as(temporary, stg_relation, sql, True)) -%}
+
+    {% set partitions_batches = get_partition_batches(sql=stg_relation, as_subquery=False) %}
     {% do log('BATCHES TO PROCESS: ' ~ partitions_batches | length) %}
 
-    {%- do log('CREATE EMPTY TABLE: ' ~ relation) -%}
-    {%- set create_empty_table_query -%}
-        {{ create_table_as(temporary, relation, sql) }}
-        limit 0
-    {%- endset -%}
-    {%- do run_query(create_empty_table_query) -%}
-    {%- set dest_columns = adapter.get_columns_in_relation(relation) -%}
+    {%- set dest_columns = adapter.get_columns_in_relation(stg_relation) -%}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
     {%- for batch in partitions_batches -%}
         {%- do log('BATCH PROCESSING: ' ~ loop.index ~ ' OF ' ~ partitions_batches | length) -%}
 
-        {%- set insert_batch_partitions -%}
-            insert into {{ relation }} ({{ dest_cols_csv }})
-            select {{ dest_cols_csv }}
-            from ({{ sql }})
-            where {{ batch }}
-        {%- endset -%}
+        {%- if loop.index == 1 -%}
+            {%- set create_target_relation_sql -%}
+                select {{ dest_cols_csv }}
+                from stg_relation
+                where {{ batch }}
+            {%- endset -%}
+            {%- do run_query(create_table_as(temporary, relation, create_target_relation_sql)) -%}
+        {%- else -%}
+            {%- set insert_batch_partitions_sql -%}
+                insert into {{ relation }} ({{ dest_cols_csv }})
+                select {{ dest_cols_csv }}
+                from stg_relation
+                where {{ batch }}
+            {%- endset -%}
 
-        {%- do run_query(insert_batch_partitions) -%}
+            {%- do run_query(insert_batch_partitions_sql) -%}
+        {%- endif -%}
+
+
     {%- endfor -%}
 
     select 'SUCCESSFULLY CREATED TABLE {{ relation }}'
