@@ -1,4 +1,5 @@
 import csv
+from dataclasses import dataclass
 import os
 import posixpath as path
 import re
@@ -9,7 +10,6 @@ from threading import Lock
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 from uuid import uuid4
-from dataclasses import dataclass
 
 import agate
 from botocore.exceptions import ClientError
