@@ -232,7 +232,9 @@ class AthenaAdapter(SQLAdapter):
 
         try:
             if catalog_id is not None:
-                table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)
+                table = glue_client.get_table(
+                    CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier
+                )
             else:
                 table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)
         except ClientError as e:
@@ -757,7 +759,9 @@ class AthenaAdapter(SQLAdapter):
         need_udpate_table = False
         # Get Table from Glue
         if catalog_id is not None:
-            table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.name)["Table"]
+            table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.name)[
+                "Table"
+            ]
         else:
             table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.name)["Table"]
         # Prepare new version of Glue Table picking up significant fields
@@ -841,7 +845,9 @@ class AthenaAdapter(SQLAdapter):
 
         try:
             if catalog_id is not None:
-                table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)["Table"]
+                table = glue_client.get_table(
+                    CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier
+                )["Table"]
             else:
                 table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)["Table"]
         except ClientError as e:
