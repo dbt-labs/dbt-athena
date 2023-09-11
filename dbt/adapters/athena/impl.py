@@ -1,9 +1,9 @@
 import csv
-from dataclasses import dataclass
 import os
 import posixpath as path
 import re
 import tempfile
+from dataclasses import dataclass
 from itertools import chain
 from textwrap import dedent
 from threading import Lock
