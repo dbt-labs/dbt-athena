@@ -53,6 +53,7 @@ from dbt.adapters.athena.utils import (
     get_chunks,
 )
 from dbt.adapters.base import ConstraintSupport, available
+from dbt.adapters.base.impl import AdapterConfig
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
