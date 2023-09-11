@@ -111,7 +111,7 @@
     s3_data_dir,
     s3_data_naming,
     external_location,
-    extra_args=seed_s3_upload_args
+    seed_s3_upload_args=seed_s3_upload_args
   ) -%}
 
   -- create target relation
