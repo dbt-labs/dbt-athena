@@ -231,7 +231,10 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         try:
-            table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)
+            if catalog_id is not None:
+                table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)
+            else:
+                table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
                 LOGGER.debug(f"Table {relation.render()} does not exists - Ignoring")
@@ -753,7 +756,10 @@ class AthenaAdapter(SQLAdapter):
         # By default, there is no need to update Glue Table
         need_udpate_table = False
         # Get Table from Glue
-        table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.name)["Table"]
+        if catalog_id is not None:
+            table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.name)["Table"]
+        else:
+            table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.name)["Table"]
         # Prepare new version of Glue Table picking up significant fields
         updated_table = self._get_table_input(table)
         # Update table description
@@ -834,9 +840,10 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         try:
-            table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)[
-                "Table"
-            ]
+            if catalog_id is not None:
+                table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)["Table"]
+            else:
+                table = glue_client.get_table(DatabaseName=relation.schema, Name=relation.identifier)["Table"]
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
                 LOGGER.debug("table not exist, catching the error")
@@ -871,7 +878,10 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         try:
-            glue_client.delete_table(CatalogId=catalog_id, DatabaseName=schema_name, Name=table_name)
+            if catalog_id is not None:
+                glue_client.delete_table(CatalogId=catalog_id, DatabaseName=schema_name, Name=table_name)
+            else:
+                glue_client.delete_table(DatabaseName=schema_name, Name=table_name)
             LOGGER.debug(f"Deleted table from glue catalog: {relation.render()}")
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
