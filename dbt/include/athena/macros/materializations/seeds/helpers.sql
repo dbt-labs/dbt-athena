@@ -96,6 +96,7 @@
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
   {%- set s3_data_naming = config.get('s3_data_naming', target.s3_data_naming) -%}
   {%- set external_location = config.get('external_location', default=none) -%}
+  {%- set seed_s3_upload_args = config.get('seed_s3_upload_args', default=target.seed_s3_upload_args) -%}
 
   {%- set tmp_relation = api.Relation.create(
     identifier=identifier + "__dbt_tmp",
@@ -110,6 +111,7 @@
     s3_data_dir,
     s3_data_naming,
     external_location,
+    seed_s3_upload_args=seed_s3_upload_args
   ) -%}
 
   -- create target relation
