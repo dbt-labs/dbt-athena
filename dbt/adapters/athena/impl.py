@@ -77,7 +77,7 @@ class AthenaConfig(AdapterConfig):
     table_properties: Optional[str] = None
     native_drop: Optional[str] = None
     seed_by_insert: Optional[bool] = False
-    lf_tags_config: Optional[str] = None
+    lf_tags_config: Optional[Dict[str, Any]] = None
 
 
 class AthenaAdapter(SQLAdapter):
