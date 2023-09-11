@@ -61,12 +61,32 @@ from dbt.exceptions import DbtRuntimeError
 boto3_client_lock = Lock()
 
 
+@dataclass
+class AthenaConfig(AdapterConfig):
+    work_group: Optional[str] = None
+    s3_staging_dir: Optional[str] = None
+    external_location: Optional[str] = None
+    partitioned_by: Optional[str] = None
+    bucketed_by: Optional[str] = None
+    bucket_count: Optional[str] = None
+    table_type: Optional[str] = "hive"
+    ha: Optional[bool] = False
+    format: Optional[str] = "parquet"
+    write_compression: Optional[str] = None
+    field_delimiter: Optional[str] = None
+    table_properties: Optional[str] = None
+    native_drop: Optional[str] = None
+    seed_by_insert: Optional[bool] = False
+    lf_tags_config: Optional[str] = None
+
+
 class AthenaAdapter(SQLAdapter):
     BATCH_CREATE_PARTITION_API_LIMIT = 100
     BATCH_DELETE_PARTITION_API_LIMIT = 25
 
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
+    AdapterSpecificConfigs = AthenaConfig
 
     # There is no such concept as constraints in Athena
     CONSTRAINT_SUPPORT = {
