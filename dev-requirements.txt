@@ -12,3 +12,4 @@ pytest-cov~=4.1
 pytest-dotenv~=0.5
 pytest-xdist~=3.3
 pyupgrade~=3.10
+boto3-stubs[s3]~=1.28
