@@ -17,6 +17,9 @@ prompts:
     hint: Specify the database (Data catalog) to build models into (lowercase only)
     default: awsdatacatalog
 
+  seed_s3_upload_args:
+    hint: Specify any extra arguments to use in the S3 Upload, e.g. ACL, SSEKMSKeyId
+
   threads:
     hint: '1 or more'
     type: 'int'
