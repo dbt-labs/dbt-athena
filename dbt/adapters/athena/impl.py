@@ -78,13 +78,13 @@ class AthenaConfig(AdapterConfig):
         ha (bool) : If the table should be built using the high-availability method.
         format (str) : The data format for the table. Supports ORC, PARQUET, AVRO, JSON, TEXTFILE.
         write_compression (str) : The compression type to use for any storage format that allows compression to be specified.
-        field_delimiter (str) : Custom field delimiter, for when format is set to TEXTFILE
-        table_properties (str) : Table properties to add to the table, valid for Iceberg only
+        field_delimiter (str) : Custom field delimiter, for when format is set to TEXTFILE.
+        table_properties (str) : Table properties to add to the table, valid for Iceberg only.
         native_drop (str) :  Relation drop operations will be performed with SQL, not direct Glue API calls.
-        seed_by_insert (bool) : default behaviour uploads seed data to S3
-        lf_tags_config (Dict[str, Any]) : AWS lakeformation tags to associate with the table and columns
-        seed_s3_upload_args (Dict[str, Any]) : Dictionary containing boto3 ExtraArgs when uploading to S3   
-        partitions_limit (int) : Maximum numbers of partitions when batching
+        seed_by_insert (bool) : default behaviour uploads seed data to S3.
+        lf_tags_config (Dict[str, Any]) : AWS lakeformation tags to associate with the table and columns.
+        seed_s3_upload_args (Dict[str, Any]) : Dictionary containing boto3 ExtraArgs when uploading to S3.
+        partitions_limit (int) : Maximum numbers of partitions when batching.
 
     """
     work_group: Optional[str] = None
