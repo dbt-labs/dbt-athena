@@ -65,7 +65,7 @@ boto3_client_lock = Lock()
 
 @dataclass
 class AthenaConfig(AdapterConfig):
-    """This is .
+    """Database and relation-level configs.
 
     Args:
         work_group (str) : Identifier of Athena workgroup.
