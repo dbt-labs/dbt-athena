@@ -10,7 +10,8 @@
       {%- if col['data_type'] is not defined -%}
         {{ col_err.append(col['name']) }}
       {%- else -%}
-        cast(null as {{ dml_data_type(col['data_type']) }}) as {{ col['name'] }}{{ ", " if not loop.last }}
+        {% set col_name = adapter.quote(col['name']) if col.get('quote') else col['name'] %}
+        cast(null as {{ dml_data_type(col['data_type']) }}) as {{ col_name }}{{ ", " if not loop.last }}
       {%- endif -%}
     {%- endfor -%}
     {%- if (col_err | length) > 0 -%}
