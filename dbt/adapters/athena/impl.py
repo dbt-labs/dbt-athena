@@ -77,7 +77,8 @@ class AthenaConfig(AdapterConfig):
         table_type (str) : The type of table, supports hive or iceberg.
         ha (bool) : If the table should be built using the high-availability method.
         format (str) : The data format for the table. Supports ORC, PARQUET, AVRO, JSON, TEXTFILE.
-        write_compression (str) : The compression type to use for any storage format that allows compression to be specified.
+        write_compression (str) : The compression type to use for any storage format
+        that allows compression to be specified.
         field_delimiter (str) : Custom field delimiter, for when format is set to TEXTFILE.
         table_properties (str) : Table properties to add to the table, valid for Iceberg only.
         native_drop (str) :  Relation drop operations will be performed with SQL, not direct Glue API calls.
@@ -87,6 +88,7 @@ class AthenaConfig(AdapterConfig):
         partitions_limit (int) : Maximum numbers of partitions when batching.
 
     """
+
     work_group: Optional[str] = None
     s3_staging_dir: Optional[str] = None
     external_location: Optional[str] = None
@@ -104,7 +106,8 @@ class AthenaConfig(AdapterConfig):
     lf_tags_config: Optional[Dict[str, Any]] = None
     seed_s3_upload_args: Optional[Dict[str, Any]] = None
     partitions_limit: Optional[int] = None
-    
+
+
 class AthenaAdapter(SQLAdapter):
     BATCH_CREATE_PARTITION_API_LIMIT = 100
     BATCH_DELETE_PARTITION_API_LIMIT = 25
