@@ -6,6 +6,9 @@ import re
 
 import pytest
 
+from dbt.tests.adapter.incremental.test_incremental_merge_exclude_columns import (
+    BaseMergeExcludeColumns,
+)
 from dbt.tests.adapter.incremental.test_incremental_predicates import (
     BaseIncrementalPredicates,
 )
@@ -43,6 +46,42 @@ seeds__expected_delete_condition_csv = """id,msg,color
 seeds__expected_predicates_and_delete_condition_csv = """id,msg,color
 1,hey,blue
 1,hello,blue
+3,anyway,purple
+"""
+
+models__merge_exclude_all_columns_sql = """
+{{ config(
+    materialized = 'incremental',
+    unique_key = 'id',
+    incremental_strategy='merge',
+    merge_exclude_columns=['msg', 'color']
+) }}
+
+{% if not is_incremental() %}
+
+-- data for first invocation of model
+
+select 1 as id, 'hello' as msg, 'blue' as color
+union all
+select 2 as id, 'goodbye' as msg, 'red' as color
+
+{% else %}
+
+-- data for subsequent incremental update
+
+select 1 as id, 'hey' as msg, 'blue' as color
+union all
+select 2 as id, 'yo' as msg, 'green' as color
+union all
+select 3 as id, 'anyway' as msg, 'purple' as color
+
+{% endif %}
+"""
+
+
+seeds__expected_merge_exclude_all_columns_csv = """id,msg,color
+1,hello,blue
+2,goodbye,red
 3,anyway,purple
 """
 
@@ -183,6 +222,36 @@ class TestIcebergPredicatesAndDeleteCondition(BaseIncrementalPredicates):
             update_sql_file=None,
         )
         self.check_scenario_correctness(expected_fields, test_case_fields, project)
+
+
+class TestIcebergMergeExcludeColumns(BaseMergeExcludeColumns):
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            "models": {
+                "+incremental_strategy": "merge",
+                "+table_type": "iceberg",
+            }
+        }
+
+
+class TestIcebergMergeExcludeAllColumns(BaseMergeExcludeColumns):
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            "models": {
+                "+incremental_strategy": "merge",
+                "+table_type": "iceberg",
+            }
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"merge_exclude_columns.sql": models__merge_exclude_all_columns_sql}
+
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {"expected_merge_exclude_columns.csv": seeds__expected_merge_exclude_all_columns_csv}
 
 
 def replace_cast_date(model: str) -> str:
