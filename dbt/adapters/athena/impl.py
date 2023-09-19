@@ -3,6 +3,7 @@ import os
 import posixpath as path
 import re
 import tempfile
+from dataclasses import dataclass
 from itertools import chain
 from textwrap import dedent
 from threading import Lock
@@ -52,6 +53,7 @@ from dbt.adapters.athena.utils import (
     get_chunks,
 )
 from dbt.adapters.base import ConstraintSupport, available
+from dbt.adapters.base.impl import AdapterConfig
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
@@ -61,12 +63,58 @@ from dbt.exceptions import DbtRuntimeError
 boto3_client_lock = Lock()
 
 
+@dataclass
+class AthenaConfig(AdapterConfig):
+    """Database and relation-level configs.
+
+    Args:
+        work_group (str) : Identifier of Athena workgroup.
+        s3_staging_dir (str) : S3 location to store Athena query results and metadata.
+        external_location (str) : If set, the full S3 path in which the table will be saved.
+        partitioned_by (str) : An array list of columns by which the table will be partitioned.
+        bucketed_by (str) : An array list of columns to bucket data, ignored if using Iceberg.
+        bucket_count (str) : The number of buckets for bucketing your data, ignored if using Iceberg.
+        table_type (str) : The type of table, supports hive or iceberg.
+        ha (bool) : If the table should be built using the high-availability method.
+        format (str) : The data format for the table. Supports ORC, PARQUET, AVRO, JSON, TEXTFILE.
+        write_compression (str) : The compression type to use for any storage format
+        that allows compression to be specified.
+        field_delimiter (str) : Custom field delimiter, for when format is set to TEXTFILE.
+        table_properties (str) : Table properties to add to the table, valid for Iceberg only.
+        native_drop (str) :  Relation drop operations will be performed with SQL, not direct Glue API calls.
+        seed_by_insert (bool) : default behaviour uploads seed data to S3.
+        lf_tags_config (Dict[str, Any]) : AWS lakeformation tags to associate with the table and columns.
+        seed_s3_upload_args (Dict[str, Any]) : Dictionary containing boto3 ExtraArgs when uploading to S3.
+        partitions_limit (int) : Maximum numbers of partitions when batching.
+
+    """
+
+    work_group: Optional[str] = None
+    s3_staging_dir: Optional[str] = None
+    external_location: Optional[str] = None
+    partitioned_by: Optional[str] = None
+    bucketed_by: Optional[str] = None
+    bucket_count: Optional[str] = None
+    table_type: Optional[str] = "hive"
+    ha: Optional[bool] = False
+    format: Optional[str] = "parquet"
+    write_compression: Optional[str] = None
+    field_delimiter: Optional[str] = None
+    table_properties: Optional[str] = None
+    native_drop: Optional[str] = None
+    seed_by_insert: Optional[bool] = False
+    lf_tags_config: Optional[Dict[str, Any]] = None
+    seed_s3_upload_args: Optional[Dict[str, Any]] = None
+    partitions_limit: Optional[int] = None
+
+
 class AthenaAdapter(SQLAdapter):
     BATCH_CREATE_PARTITION_API_LIMIT = 100
     BATCH_DELETE_PARTITION_API_LIMIT = 25
 
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
+    AdapterSpecificConfigs = AthenaConfig
 
     # There is no such concept as constraints in Athena
     CONSTRAINT_SUPPORT = {
