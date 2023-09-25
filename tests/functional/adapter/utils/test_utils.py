@@ -15,6 +15,7 @@ from dbt.tests.adapter.utils.test_array_concat import BaseArrayConcat
 from dbt.tests.adapter.utils.test_array_construct import BaseArrayConstruct
 from dbt.tests.adapter.utils.test_bool_or import BaseBoolOr
 from dbt.tests.adapter.utils.test_concat import BaseConcat
+from dbt.tests.adapter.utils.test_current_timestamp import BaseCurrentTimestampNaive
 from dbt.tests.adapter.utils.test_date_trunc import BaseDateTrunc
 from dbt.tests.adapter.utils.test_dateadd import BaseDateAdd
 from dbt.tests.adapter.utils.test_datediff import BaseDateDiff
@@ -25,6 +26,7 @@ from dbt.tests.adapter.utils.test_except import BaseExcept
 from dbt.tests.adapter.utils.test_hash import BaseHash
 from dbt.tests.adapter.utils.test_intersect import BaseIntersect
 from dbt.tests.adapter.utils.test_length import BaseLength
+from dbt.tests.adapter.utils.test_listagg import BaseListagg
 from dbt.tests.adapter.utils.test_position import BasePosition
 from dbt.tests.adapter.utils.test_replace import BaseReplace
 from dbt.tests.adapter.utils.test_right import BaseRight
@@ -181,9 +183,8 @@ class TestDateDiff(BaseDateDiff):
 #     pass
 
 
-# TODO: Implement this macro when needed
-# class TestListagg(BaseListagg):
-#     pass
+class TestListagg(BaseListagg):
+    pass
 
 
 # TODO: Implement this macro when needed
@@ -191,7 +192,5 @@ class TestDateDiff(BaseDateDiff):
 #     pass
 
 
-# TODO: Right now this test is failing
-#  pyathena.error.OperationalError: NOT_SUPPORTED: Casting a Timestamp with Time Zone to Timestamp is not supported
-# class TestCurrentTimestamp(BaseCurrentTimestampNaive):
-#     pass
+class TestCurrentTimestamp(BaseCurrentTimestampNaive):
+    pass
