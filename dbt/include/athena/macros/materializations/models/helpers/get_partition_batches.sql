@@ -28,7 +28,7 @@
             {%- if col is none -%}
                 {%- set value = 'null' -%}
                 {%- set comp_func = ' is ' -%}
-            {%- elif column_type == 'integer' -%}
+            {%- elif column_type == 'integer' or column_type is none -%}
                 {%- set value = col | string -%}
             {%- elif column_type == 'string' -%}
                 {%- set value = "'" + col + "'" -%}
@@ -36,8 +36,6 @@
                 {%- set value = "DATE'" + col | string + "'" -%}
             {%- elif column_type == 'timestamp' -%}
                 {%- set value = "TIMESTAMP'" + col | string + "'" -%}
-            {%- elif column_type is none -%}
-                {%- set value = col | string -%}
             {%- else -%}
                 {%- do exceptions.raise_compiler_error('Need to add support for column type ' + column_type) -%}
             {%- endif -%}
