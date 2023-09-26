@@ -10,7 +10,7 @@
 {% macro cast_timestamp(timestamp_col) -%}
   {%- set config = model.get('config', {}) -%}
   {%- set table_type = config.get('table_type', 'glue') -%}
-  {%- set is_view = config.get('materialized', 'table') == 'view' -%}
+  {%- set is_view = config.get('materialized', 'table') in ['view', 'ephemeral'] -%}
   {%- if table_type == 'iceberg' and not is_view -%}
     cast({{ timestamp_col }} as timestamp(6))
   {%- else -%}
