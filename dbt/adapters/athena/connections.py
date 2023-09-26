@@ -1,4 +1,7 @@
 import hashlib
+import json
+import re
+import time
 from concurrent.futures.thread import ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
@@ -33,6 +36,13 @@ from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import AdapterResponse, Connection, ConnectionState
 from dbt.exceptions import ConnectionError, DbtRuntimeError
 
+logger = AdapterLogger("Athena")
+
+
+@dataclass
+class AthenaAdapterResponse(AdapterResponse):
+    data_scanned_in_bytes: Optional[int] = None
+
 
 @dataclass
 class AthenaCredentials(Credentials):
@@ -44,13 +54,17 @@ class AthenaCredentials(Credentials):
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
     poll_interval: float = 1.0
+    debug_query_state: bool = False
     _ALIASES = {"catalog": "database"}
     num_retries: Optional[int] = 5
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
     spark_work_group: Optional[str] = None
     spark_threads: Optional[int] = DEFAULT_THREAD_COUNT
-    lf_tags: Optional[Dict[str, str]] = None
+    seed_s3_upload_args: Optional[Dict[str, Any]] = None
+    # Unfortunately we can not just use dict, must by Dict because we'll get the following error:
+    # Credentials in profile "athena", target "athena" invalid: Unable to create schema for 'dict'
+    lf_tags_database: Optional[Dict[str, str]] = None
 
     @property
     def type(self) -> str:
@@ -74,7 +88,9 @@ class AthenaCredentials(Credentials):
             "endpoint_url",
             "s3_data_dir",
             "s3_data_naming",
-            "lf_tags",
+            "debug_query_state",
+            "seed_s3_upload_args",
+            "lf_tags_database",
             "spark_work_group",
             "spark_threads",
         )
@@ -95,6 +111,32 @@ class AthenaCursor(Cursor):
             retry_config=self._retry_config,
         )
 
+    def _poll(self, query_id: str) -> AthenaQueryExecution:
+        try:
+            query_execution = self.__poll(query_id)
+        except KeyboardInterrupt as e:
+            if self._kill_on_interrupt:
+                logger.warning("Query canceled by user.")
+                self._cancel(query_id)
+                query_execution = self.__poll(query_id)
+            else:
+                raise e
+        return query_execution
+
+    def __poll(self, query_id: str) -> AthenaQueryExecution:
+        while True:
+            query_execution = self._get_query_execution(query_id)
+            if query_execution.state in [
+                AthenaQueryExecution.STATE_SUCCEEDED,
+                AthenaQueryExecution.STATE_FAILED,
+                AthenaQueryExecution.STATE_CANCELLED,
+            ]:
+                return query_execution
+            else:
+                if self.connection.cursor_kwargs.get("debug_query_state", False):
+                    logger.debug(f"Query state is: {query_execution.state}. Sleeping for {self._poll_interval}...")
+                time.sleep(self._poll_interval)
+
     def execute(  # type: ignore
         self,
         operation: str,
@@ -104,6 +146,7 @@ class AthenaCursor(Cursor):
         endpoint_url: Optional[str] = None,
         cache_size: int = 0,
         cache_expiration_time: int = 0,
+        catch_partitions_limit: bool = False,
         **kwargs,
     ):
         def inner() -> AthenaCursor:
@@ -130,7 +173,12 @@ class AthenaCursor(Cursor):
             return self
 
         retry = tenacity.Retrying(
-            retry=retry_if_exception(lambda _: True),
+            # No need to retry if TOO_MANY_OPEN_PARTITIONS occurs.
+            # Otherwise, Athena throws ICEBERG_FILESYSTEM_ERROR after retry,
+            # because not all files are removed immediately after first try to create table
+            retry=retry_if_exception(
+                lambda e: False if catch_partitions_limit and "TOO_MANY_OPEN_PARTITIONS" in str(e) else True
+            ),
             stop=stop_after_attempt(self._retry_config.attempt),
             wait=wait_exponential(
                 multiplier=self._retry_config.attempt,
@@ -175,9 +223,11 @@ class AthenaConnectionManager(SQLConnectionManager):
             handle = AthenaConnection(
                 s3_staging_dir=creds.s3_staging_dir,
                 endpoint_url=creds.endpoint_url,
+                catalog_name=creds.database,
                 schema_name=creds.schema,
                 work_group=creds.work_group,
                 cursor_class=AthenaCursor,
+                cursor_kwargs={"debug_query_state": creds.debug_query_state},
                 formatter=AthenaParameterFormatter(),
                 poll_interval=creds.poll_interval,
                 session=get_boto3_session(connection),
@@ -200,12 +250,39 @@ class AthenaConnectionManager(SQLConnectionManager):
         return connection
 
     @classmethod
-    def get_response(cls, cursor: AthenaCursor) -> AdapterResponse:
+    def get_response(cls, cursor: AthenaCursor) -> AthenaAdapterResponse:
         code = "OK" if cursor.state == AthenaQueryExecution.STATE_SUCCEEDED else "ERROR"
-        return AdapterResponse(_message=f"{code} {cursor.rowcount}", rows_affected=cursor.rowcount, code=code)
+        rowcount, data_scanned_in_bytes = cls.process_query_stats(cursor)
+        return AthenaAdapterResponse(
+            _message=f"{code} {rowcount}",
+            rows_affected=rowcount,
+            code=code,
+            data_scanned_in_bytes=data_scanned_in_bytes,
+        )
+
+    @staticmethod
+    def process_query_stats(cursor: AthenaCursor) -> Tuple[int, int]:
+        """
+        Helper function to parse query statistics from SELECT statements.
+        The function looks for all statements that contains rowcount or data_scanned_in_bytes,
+        then strip the SELECT statements, and pick the value between curly brackets.
+        """
+        if all(map(cursor.query.__contains__, ["rowcount", "data_scanned_in_bytes"])):
+            try:
+                query_split = cursor.query.lower().split("select")[-1]
+                # query statistics are in the format {"rowcount":1, "data_scanned_in_bytes": 3}
+                # the following statement extract the content between { and }
+                query_stats = re.search("{(.*)}", query_split)
+                if query_stats:
+                    stats = json.loads("{" + query_stats.group(1) + "}")
+                    return stats.get("rowcount", -1), stats.get("data_scanned_in_bytes", 0)
+            except Exception as err:
+                logger.debug(f"There was an error parsing query stats {err}")
+                return -1, 0
+        return cursor.rowcount, cursor.data_scanned_in_bytes
 
     def cancel(self, connection: Connection) -> None:
-        connection.handle.cancel()
+        pass
 
     def add_begin_query(self) -> None:
         pass

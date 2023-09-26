@@ -1,6 +1,7 @@
 CATALOG_ID = "12345678910"
 DATA_CATALOG_NAME = "awsdatacatalog"
 SHARED_DATA_CATALOG_NAME = "9876543210"
+FEDERATED_QUERY_CATALOG_NAME = "federated_query_data_source"
 DATABASE_NAME = "test_dbt_athena"
 BUCKET = "test-dbt-athena"
 AWS_REGION = "eu-west-1"

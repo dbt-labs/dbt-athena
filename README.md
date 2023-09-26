@@ -1,15 +1,19 @@
 <p align="center">
     <img src="https://raw.githubusercontent.com/dbt-athena/dbt-athena/main/static/images/dbt-athena-long.png" />
     <a href="https://pypi.org/project/dbt-athena-community/"><img src="https://badge.fury.io/py/dbt-athena-community.svg" /></a>
+    <a target="_blank" href="https://pypi.org/project/dlt/" style="background:none">
+      <img src="https://img.shields.io/pypi/pyversions/dbt-athena-community">
+    </a>
     <a href="https://pycqa.github.io/isort/"><img src="https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336" /></a>
     <a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" /></a>
     <a href="https://github.com/python/mypy"><img src="https://www.mypy-lang.org/static/mypy_badge.svg" /></a>
-    <a href="https://pepy.tech/project/dbt-athena-community"><img src="https://pepy.tech/badge/dbt-athena-community/month" /></a>
+    <a href="https://pepy.tech/project/dbt-athena-community"><img src="https://static.pepy.tech/badge/dbt-athena-community/month" /></a>
 </p>
 
 ## Features
 
-* Supports dbt version `1.5.*`
+* Supports dbt version `1.6.*`
+* Supports from Python
 * Supports [seeds][seeds]
 * Correctly detects views and their columns
 * Supports [table materialization][table]
@@ -79,6 +83,7 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | schema                | Specify the schema (Athena database) to build models into (lowercase **only**) | Required  | `dbt`                                      |
 | database              | Specify the database (Data catalog) to build models into (lowercase **only**)  | Required  | `awsdatacatalog`                           |
 | poll_interval         | Interval in seconds to use for polling the status of query results in Athena   | Optional  | `5`                                        |
+| debug_query_state     | Flag if debug message with Athena query state is needed                        | Optional  | `false`                                    |
 | aws_access_key_id     | Access key ID of the user performing requests.                                 | Optional  | `AKIAIOSFODNN7EXAMPLE`                     |
 | aws_secret_access_key | Secret access key of the user performing requests                              | Optional  | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
 | aws_profile_name      | Profile to use from your AWS shared credentials file.                          | Optional  | `my-profile`                               |
@@ -86,6 +91,8 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | num_retries           | Number of times to retry a failing query                                       | Optional  | `3`                                        |
 | spark_work_group      | Identifier of Athena Spark workgroup                                           | Optional  | `my-spark-workgroup`                       |
 | spark_threads         | Number of spark sessions to create. Recommended to be same as threads.         | Optional  | `4`                                        |
+| seed_s3_upload_args   | Dictionary containing boto3 ExtraArgs when uploading to S3                     | Optional  | `{"ACL": "bucket-owner-full-control"}`     |
+| lf_tags_database      | Default LF tags for new database if it's created by dbt                        | Optional  | `tag_key: tag_value`                       |
 
 **Example profiles.yml entry:**
 ```yaml
@@ -105,6 +112,8 @@ athena:
       work_group: my-workgroup
       spark_work_group: my-spark-workgroup
       spark_threads: 4
+      seed_s3_upload_args:
+        ACL: bucket-owner-full-control
 ```
 
 _Additional information_

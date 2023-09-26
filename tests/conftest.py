@@ -21,7 +21,7 @@ from .unit.constants import (
     SPARK_WORKGROUP,
 )
 
-# Import the fuctional fixtures as a plugin
+# Import the functional fixtures as a plugin
 # Note: fixtures with session scope need to be local
 
 pytest_plugins = ["dbt.tests.fixtures.project"]
@@ -58,14 +58,17 @@ def dbt_debug_caplog() -> StringIO:
 
 def _setup_custom_caplog(name: str, level: EventLevel):
     capture_config = _get_stdout_config(
-        line_format=LineFormat.PlainText, level=level, use_colors=False, debug=True, log_cache_events=True, quiet=False
+        line_format=LineFormat.PlainText,
+        level=level,
+        use_colors=False,
+        log_cache_events=True,
     )
     capture_config.name = name
     capture_config.filter = NoFilter
-    stringbuf = StringIO()
-    capture_config.output_stream = stringbuf
+    string_buf = StringIO()
+    capture_config.output_stream = string_buf
     EVENT_MANAGER.add_logger(capture_config)
-    return stringbuf
+    return string_buf
 
 
 @pytest.fixture(scope="class")

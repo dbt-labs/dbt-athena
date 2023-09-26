@@ -4,7 +4,7 @@ import pytest
 from pyathena.model import AthenaQueryExecution
 
 from dbt.adapters.athena import AthenaConnectionManager
-from dbt.contracts.connection import AdapterResponse
+from dbt.adapters.athena.connections import AthenaAdapterResponse
 
 
 class TestAthenaConnectionManager:
@@ -19,11 +19,13 @@ class TestAthenaConnectionManager:
         cursor = mock.MagicMock()
         cursor.rowcount = 1
         cursor.state = state
+        cursor.data_scanned_in_bytes = 123
         cm = AthenaConnectionManager(mock.MagicMock())
         response = cm.get_response(cursor)
-        assert isinstance(response, AdapterResponse)
+        assert isinstance(response, AthenaAdapterResponse)
         assert response.code == result
         assert response.rows_affected == 1
+        assert response.data_scanned_in_bytes == 123
 
     def test_data_type_code_to_name(self):
         cm = AthenaConnectionManager(mock.MagicMock())
