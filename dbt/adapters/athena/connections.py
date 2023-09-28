@@ -35,10 +35,6 @@ from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import AdapterResponse, Connection, ConnectionState
 from dbt.exceptions import ConnectionError, DbtRuntimeError
-from dbt.events import AdapterLogger
-
-
-logger = AdapterLogger("Athena")
 
 
 @dataclass
@@ -118,7 +114,7 @@ class AthenaCursor(Cursor):
             query_execution = self.__poll(query_id)
         except KeyboardInterrupt as e:
             if self._kill_on_interrupt:
-                logger.warning("Query canceled by user.")
+                LOGGER.warning("Query canceled by user.")
                 self._cancel(query_id)
                 query_execution = self.__poll(query_id)
             else:
@@ -136,7 +132,7 @@ class AthenaCursor(Cursor):
                 return query_execution
             else:
                 if self.connection.cursor_kwargs.get("debug_query_state", False):
-                    logger.debug(f"Query state is: {query_execution.state}. Sleeping for {self._poll_interval}...")
+                    LOGGER.debug(f"Query state is: {query_execution.state}. Sleeping for {self._poll_interval}...")
                 time.sleep(self._poll_interval)
 
     def execute(  # type: ignore
@@ -279,7 +275,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                     stats = json.loads("{" + query_stats.group(1) + "}")
                     return stats.get("rowcount", -1), stats.get("data_scanned_in_bytes", 0)
             except Exception as err:
-                logger.debug(f"There was an error parsing query stats {err}")
+                LOGGER.debug(f"There was an error parsing query stats {err}")
                 return -1, 0
         return cursor.rowcount, cursor.data_scanned_in_bytes
 
