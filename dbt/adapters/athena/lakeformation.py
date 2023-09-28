@@ -13,8 +13,8 @@ from mypy_boto3_lakeformation.type_defs import (
 )
 from pydantic import BaseModel
 
-from dbt.adapters.athena.relation import AthenaRelation
 from dbt.adapters.athena.constants import LOGGER
+from dbt.adapters.athena.relation import AthenaRelation
 from dbt.exceptions import DbtRuntimeError
 
 

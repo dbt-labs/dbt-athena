@@ -1,5 +1,6 @@
 import importlib.metadata
 from unittest.mock import Mock
+
 import pytest
 
 from dbt.adapters.athena.config import AthenaSparkSessionConfig, get_boto3_config
