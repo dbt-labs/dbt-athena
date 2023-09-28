@@ -14,10 +14,8 @@ from mypy_boto3_lakeformation.type_defs import (
 from pydantic import BaseModel
 
 from dbt.adapters.athena.relation import AthenaRelation
-from dbt.events import AdapterLogger
+from dbt.adapters.athena.constants import LOGGER
 from dbt.exceptions import DbtRuntimeError
-
-logger = AdapterLogger("AthenaLakeFormation")
 
 
 class LfTagsConfig(BaseModel):
@@ -51,7 +49,7 @@ class LfTagsManager:
 
     def _remove_lf_tags_columns(self, existing_lf_tags: GetResourceLFTagsResponseTypeDef) -> None:
         lf_tags_columns = existing_lf_tags.get("LFTagsOnColumns", [])
-        logger.debug(f"COLUMNS: {lf_tags_columns}")
+        LOGGER.debug(f"COLUMNS: {lf_tags_columns}")
         if lf_tags_columns:
             to_remove = {}
             for column in lf_tags_columns:
@@ -64,7 +62,7 @@ class LfTagsManager:
                         to_remove[tag_key][tag_value] = [column["Name"]]
                     else:
                         to_remove[tag_key][tag_value].append(column["Name"])
-            logger.debug(f"TO REMOVE: {to_remove}")
+            LOGGER.debug(f"TO REMOVE: {to_remove}")
             for tag_key, tag_config in to_remove.items():
                 for tag_value, columns in tag_config.items():
                     resource = {
@@ -79,15 +77,15 @@ class LfTagsManager:
         self, table_resource: ResourceTypeDef, existing_lf_tags: GetResourceLFTagsResponseTypeDef
     ) -> None:
         lf_tags_table = existing_lf_tags.get("LFTagsOnTable", [])
-        logger.debug(f"EXISTING TABLE TAGS: {lf_tags_table}")
-        logger.debug(f"CONFIG TAGS: {self.lf_tags}")
+        LOGGER.debug(f"EXISTING TABLE TAGS: {lf_tags_table}")
+        LOGGER.debug(f"CONFIG TAGS: {self.lf_tags}")
 
         to_remove = {
             tag["TagKey"]: tag["TagValues"]
             for tag in lf_tags_table
             if tag["TagKey"] not in self.lf_tags  # type: ignore
         }
-        logger.debug(f"TAGS TO REMOVE: {to_remove}")
+        LOGGER.debug(f"TAGS TO REMOVE: {to_remove}")
         if to_remove:
             response = self.lf_client.remove_lf_tags_from_resource(
                 Resource=table_resource, LFTags=[{"TagKey": k, "TagValues": v} for k, v in to_remove.items()]
@@ -128,9 +126,9 @@ class LfTagsManager:
             for failure in failures:
                 tag = failure.get("LFTag", {}).get("TagKey")
                 error = failure.get("Error", {}).get("ErrorMessage")
-                logger.error(f"Failed to {verb} {tag} for " + resource_msg + f" - {error}")
+                LOGGER.error(f"Failed to {verb} {tag} for " + resource_msg + f" - {error}")
             raise DbtRuntimeError(base_msg)
-        logger.debug(f"Success: {verb} LF tags {lf_tags} to " + resource_msg)
+        LOGGER.debug(f"Success: {verb} LF tags {lf_tags} to " + resource_msg)
 
 
 class FilterConfig(BaseModel):
@@ -178,10 +176,10 @@ class LfPermissions:
 
     def process_filters(self, config: LfGrantsConfig) -> None:
         current_filters = self.get_filters()
-        logger.debug(f"CURRENT FILTERS: {current_filters}")
+        LOGGER.debug(f"CURRENT FILTERS: {current_filters}")
 
         to_drop = [f for name, f in current_filters.items() if name not in config.data_cell_filters.filters]
-        logger.debug(f"FILTERS TO DROP: {to_drop}")
+        LOGGER.debug(f"FILTERS TO DROP: {to_drop}")
         for f in to_drop:
             self.lf_client.delete_data_cells_filter(
                 TableCatalogId=f["TableCatalogId"],
@@ -195,7 +193,7 @@ class LfPermissions:
             for name, f in config.data_cell_filters.filters.items()
             if name not in current_filters
         ]
-        logger.debug(f"FILTERS TO ADD: {to_add}")
+        LOGGER.debug(f"FILTERS TO ADD: {to_add}")
         for f in to_add:
             self.lf_client.create_data_cells_filter(TableData=f)
 
@@ -204,13 +202,13 @@ class LfPermissions:
             for name, f in config.data_cell_filters.filters.items()
             if name in current_filters and f.to_update(current_filters[name])
         ]
-        logger.debug(f"FILTERS TO UPDATE: {to_update}")
+        LOGGER.debug(f"FILTERS TO UPDATE: {to_update}")
         for f in to_update:
             self.lf_client.update_data_cells_filter(TableData=f)
 
     def process_permissions(self, config: LfGrantsConfig) -> None:
         for name, f in config.data_cell_filters.filters.items():
-            logger.debug(f"Start processing permissions for filter: {name}")
+            LOGGER.debug(f"Start processing permissions for filter: {name}")
             current_permissions = self.lf_client.list_permissions(
                 Resource={
                     "DataCellsFilter": {
@@ -231,9 +229,9 @@ class LfPermissions:
                     Entries=[self._permission_entry(name, principal, idx) for idx, principal in enumerate(to_revoke)],
                 )
                 revoke_principals_msg = "\n".join(to_revoke)
-                logger.debug(f"Revoked permissions for filter {name} from principals:\n{revoke_principals_msg}")
+                LOGGER.debug(f"Revoked permissions for filter {name} from principals:\n{revoke_principals_msg}")
             else:
-                logger.debug(f"No redundant permissions found for filter: {name}")
+                LOGGER.debug(f"No redundant permissions found for filter: {name}")
 
             to_add = {p for p in f.principals if p not in current_principals}
             if to_add:
@@ -242,11 +240,11 @@ class LfPermissions:
                     Entries=[self._permission_entry(name, principal, idx) for idx, principal in enumerate(to_add)],
                 )
                 add_principals_msg = "\n".join(to_add)
-                logger.debug(f"Granted permissions for filter {name} to principals:\n{add_principals_msg}")
+                LOGGER.debug(f"Granted permissions for filter {name} to principals:\n{add_principals_msg}")
             else:
-                logger.debug(f"No new permissions added for filter {name}")
+                LOGGER.debug(f"No new permissions added for filter {name}")
 
-            logger.debug(f"Permissions are set to be consistent with config for filter: {name}")
+            LOGGER.debug(f"Permissions are set to be consistent with config for filter: {name}")
 
     def _permission_entry(self, filter_name: str, principal: str, idx: int) -> BatchPermissionsRequestEntryTypeDef:
         return {

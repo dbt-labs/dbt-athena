@@ -35,6 +35,8 @@ from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import AdapterResponse, Connection, ConnectionState
 from dbt.exceptions import ConnectionError, DbtRuntimeError
+from dbt.events import AdapterLogger
+
 
 logger = AdapterLogger("Athena")
 
