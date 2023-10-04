@@ -108,10 +108,7 @@
           then delete
       {%- endif %}
       {% if update_columns -%}
-        when matched
-          {% if update_condition is not none -%}
-            and {{ update_condition }}
-          {%- endif %}
+        when matched {% if update_condition is not none -%} and {{ update_condition }} {%- endif %}
           then update set
             {%- for col in update_columns %}
               {%- if merge_update_columns_rules and col.name in merge_update_columns_rules %}
