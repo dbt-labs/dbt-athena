@@ -13,7 +13,7 @@
 ## Features
 
 * Supports dbt version `1.6.*`
-* Supports from Python
+* Support for Python
 * Supports [seeds][seeds]
 * Correctly detects views and their columns
 * Supports [table materialization][table]
@@ -36,8 +36,6 @@
 [python-models]: https://docs.getdbt.com/docs/build/python-models#configuring-python-models
 [athena-iceberg]: https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg.html
 [snapshots]: https://docs.getdbt.com/docs/build/snapshots
-[persist-docs]: https://docs.getdbt.com/reference/resource-configs/persist_docs
-
 
 ## Quick Start
 
@@ -58,15 +56,17 @@ WITH DBPROPERTIES ('creator'='Foo Bar', 'email'='foo@bar.com');
 ```
 
 Notes:
-- Take note of your AWS region code (e.g. `us-west-2` or `eu-west-2`, etc.).
-- You can also use [AWS Glue](https://docs.aws.amazon.com/athena/latest/ug/glue-athena.html) to create and manage Athena databases.
+
+* Take note of your AWS region code (e.g. `us-west-2` or `eu-west-2`, etc.).
+* You can also use [AWS Glue](https://docs.aws.amazon.com/athena/latest/ug/glue-athena.html) to create and manage Athena databases.
 
 ### Credentials
 
 Credentials can be passed directly to the adapter, or they can be [determined automatically](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html) based on `aws cli`/`boto3` conventions.
 You can either:
-- configure `aws_access_key_id` and `aws_secret_access_key`
-- configure `aws_profile_name` to match a profile defined in your AWS credentials file
+
+* configure `aws_access_key_id` and `aws_secret_access_key`
+* configure `aws_profile_name` to match a profile defined in your AWS credentials file
 Checkout dbt profile configuration below for details.
 
 ### Configuring your profile
@@ -92,6 +92,7 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | lf_tags_database      | Default LF tags for new database if it's created by dbt                        | Optional  | `tag_key: tag_value`                       |
 
 **Example profiles.yml entry:**
+
 ```yaml
 athena:
   target: dev
@@ -111,9 +112,9 @@ athena:
 ```
 
 _Additional information_
+
 * `threads` is supported
 * `database` and `catalog` can be used interchangeably
-
 
 ## Models
 
@@ -143,13 +144,15 @@ _Additional information_
 * `field_delimiter` (`default=none`)
   * Custom field delimiter, for when format is set to `TEXTFILE`
 * `table_properties`: table properties to add to the table, valid for Iceberg only
-+ `native_drop`: Relation drop operations will be performed with SQL, not direct Glue API calls. No S3 calls will be made to manage data in S3. Data in S3 will only be cleared up for Iceberg tables [see AWS docs](https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-managing-tables.html). Note that Iceberg DROP TABLE operations may timeout if they take longer than 60 seconds.
-+ `seed_by_insert` (`default=false`)
-  + default behaviour uploads seed data to S3. This flag will create seeds using an SQL insert statement
-  + large seed files cannot use `seed_by_insert`, as the SQL insert statement would exceed [the Athena limit of 262144 bytes](https://docs.aws.amazon.com/athena/latest/ug/service-limits.html)
+* `native_drop`: Relation drop operations will be performed with SQL, not direct Glue API calls. No S3 calls will be made to manage data in S3. Data in S3 will only be cleared up for Iceberg tables [see AWS docs](https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-managing-tables.html). Note that Iceberg DROP TABLE operations may timeout if they take longer than 60 seconds.
+* `seed_by_insert` (`default=false`)
+  * default behaviour uploads seed data to S3. This flag will create seeds using an SQL insert statement
+  * large seed files cannot use `seed_by_insert`, as the SQL insert statement would exceed [the Athena limit of 262144 bytes](https://docs.aws.amazon.com/athena/latest/ug/service-limits.html)
+
 * `lf_tags_config` (`default=none`)
   * [AWS lakeformation](#aws-lakeformation-integration) tags to associate with the table and columns
   * format for model config:
+
 ```sql
 {{
   config(
@@ -174,7 +177,9 @@ _Additional information_
   )
 }}
 ```
+
 * format for `dbt_project.yml`:
+
 ```yaml
   +lf_tags_config:
     enabled: true
@@ -185,9 +190,11 @@ _Additional information_
       tag1:
         value1: [ column1, column2 ]
 ```
+
 * `lf_grants` (`default=none`)
   * lakeformation grants config for data_cell filters
   * format:
+
   ```python
   lf_grants={
           'data_cell_filters': {
@@ -203,11 +210,12 @@ _Additional information_
   ```
 
 > Notes:  
-> - `lf_tags` and `lf_tags_columns` configs support only attaching lf tags to corresponding resources.
+>
+> * `lf_tags` and `lf_tags_columns` configs support only attaching lf tags to corresponding resources.
 > We recommend managing LF Tags permissions somewhere outside dbt. For example, you may use
 > [terraform](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_permissions) or
 > [aws cdk](https://docs.aws.amazon.com/cdk/api/v1/docs/aws-lakeformation-readme.html) for such purpose.
-> - `data_cell_filters` management can't be automated outside dbt because the filter can't be attached to the table
+> * `data_cell_filters` management can't be automated outside dbt because the filter can't be attached to the table
 > which doesn't exist. Once you `enable` this config, dbt will set all filters and their permissions during every
 > dbt run. Such approach keeps the actual state of row level security configuration actual after every dbt run and
 > apply changes if they occur: drop, create, update filters and their permissions.
@@ -223,6 +231,7 @@ The location in which a table is saved is determined by:
 3. If `s3_data_dir` is not defined, data is stored under `s3_staging_dir/tables/`
 
 Here all the options available for `s3_data_naming`:
+
 * `unique`: `{s3_data_dir}/{uuid4()}/`
 * `table`: `{s3_data_dir}/{table}/`
 * `table_unique`: `{s3_data_dir}/{table}/{uuid4()}/`
@@ -252,6 +261,7 @@ Only available when using Iceberg.
 
 `on_schema_change` is an option to reflect changes of schema in incremental models.
 The following options are supported:
+
 * `ignore` (default)
 * `fail`
 * `append_new_columns`
@@ -264,6 +274,7 @@ For details, please refer to [dbt docs](https://docs.getdbt.com/docs/build/incre
 The adapter supports table materialization for Iceberg.
 
 To get started just add this as your model:
+
 ```sql
 {{ config(
     materialized='table',
@@ -271,18 +282,18 @@ To get started just add this as your model:
     format='parquet',
     partitioned_by=['bucket(user_id, 5)'],
     table_properties={
-    	'optimize_rewrite_delete_file_threshold': '2'
-    	}
+     'optimize_rewrite_delete_file_threshold': '2'
+     }
 ) }}
 
 select
-	'A' as user_id,
-	'pi' as name,
-	'active' as status,
-	17.89 as cost,
-	1 as quantity,
-	100000000 as quantity_big,
-	current_date as my_date
+ 'A' as user_id,
+ 'pi' as name,
+ 'active' as status,
+ 17.89 as cost,
+ 1 as quantity,
+ 100000000 as quantity_big,
+ current_date as my_date
 ```
 
 Iceberg supports bucketing as hidden partitions, therefore use the `partitioned_by` config to add specific bucketing conditions.
@@ -290,12 +301,13 @@ Iceberg supports bucketing as hidden partitions, therefore use the `partitioned_
 Iceberg supports several table formats for data : `PARQUET`, `AVRO` and `ORC`.
 
 It is possible to use Iceberg in an incremental fashion, specifically two strategies are supported:
+
 * `append`: New records are appended to the table, this can lead to duplicates.
 * `merge`: Performs an upsert (and optional delete), where new records are added and existing records are updated. Only available with Athena engine version 3.
-    - `unique_key` **(required)**: columns that define a unique record in the source and target tables.
-    - `incremental_predicates` (optional): SQL conditions that enable custom join clauses in the merge statement. This can be useful for improving performance via predicate pushdown on the target table.
-    - `delete_condition` (optional): SQL condition used to identify records that should be deleted.
-      - `delete_condition` and `incremental_predicates` can include any column of the incremental table (`src`) or the final table (`target`). Column names must be prefixed by either `src` or `target` to prevent a `Column is ambiguous` error.
+  * `unique_key` **(required)**: columns that define a unique record in the source and target tables.
+  * `incremental_predicates` (optional): SQL conditions that enable custom join clauses in the merge statement. This can be useful for improving performance via predicate pushdown on the target table.
+  * `delete_condition` (optional): SQL condition used to identify records that should be deleted.
+    * `delete_condition` and `incremental_predicates` can include any column of the incremental table (`src`) or the final table (`target`). Column names must be prefixed by either `src` or `target` to prevent a `Column is ambiguous` error.
 
 ```sql
 {{ config(
@@ -309,16 +321,17 @@ It is possible to use Iceberg in an incremental fashion, specifically two strate
 ) }}
 
 select
-	'A' as user_id,
-	'pi' as name,
-	'active' as status,
-	17.89 as cost,
-	1 as quantity,
-	100000000 as quantity_big,
-	current_date as my_date
+ 'A' as user_id,
+ 'pi' as name,
+ 'active' as status,
+ 17.89 as cost,
+ 1 as quantity,
+ 100000000 as quantity_big,
+ current_date as my_date
 ```
 
 ### Highly available table
+
 The current implementation of the table materialization can lead to downtime, as target table is dropped and re-created.
 To have the less destructive behavior it's possible to use the `ha` config on your `table` materialized models.
 It leverages the table versions feature of glue catalog, creating a tmp table and swapping the target table to the
@@ -349,12 +362,12 @@ select
 By default, the materialization keeps the last 4 table versions, you can change it by setting `versions_to_keep`.
 
 #### Known issues
+
 * When swapping from a table with partitions to a table without (and the other way around), there could be a little downtime.
   In case high performances are needed consider bucketing instead of partitions
 * By default, Glue "duplicates" the versions internally, so the last two versions of a table point to the same location
 * It's recommended to have `versions_to_keep` >= 4, as this will avoid having the older location removed
 * The macro `athena__end_of_time` needs to be overwritten by the user if using Athena engine v3 since it requires a precision parameter for timestamps
-
 
 ## Snapshots
 
@@ -375,24 +388,28 @@ The materialization also supports invalidating hard deletes. Check the [docs](ht
 ### AWS Lakeformation integration
 
 The adapter implements AWS Lakeformation tags management in the following way:
-- you can enable or disable lf-tags management via [config](#table-configuration) (disabled by default)
-- once you enable the feature, lf-tags will be updated on every dbt run
-- first, all lf-tags for columns are removed to avoid inheritance issues
-- then all redundant lf-tags are removed from table and actual tags from config are applied
-- finally, lf-tags for columns are applied
+
+* you can enable or disable lf-tags management via [config](#table-configuration) (disabled by default)
+* once you enable the feature, lf-tags will be updated on every dbt run
+* first, all lf-tags for columns are removed to avoid inheritance issues
+* then all redundant lf-tags are removed from table and actual tags from config are applied
+* finally, lf-tags for columns are applied
 
 It's important to understand the following points:
-- dbt does not manage lf-tags for database
-- dbt does not manage lakeformation permissions
+
+* dbt does not manage lf-tags for database
+* dbt does not manage lakeformation permissions
 
 That's why you should handle this by yourself manually or using some automation tools like terraform, AWS CDK etc.  
 You may find the following links useful to manage that:
-- [terraform aws_lakeformation_permissions](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_permissions)
-- [terraform aws_lakeformation_resource_lf_tags](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_resource_lf_tags)
+
+* [terraform aws_lakeformation_permissions](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_permissions)
+* [terraform aws_lakeformation_resource_lf_tags](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_resource_lf_tags)
 
 ### Working example
 
 seed file - employent_indicators_november_2022_csv_tables.csv
+
 ```
 Series_reference,Period,Data_value,Suppressed
 MEIM.S1WA,1999.04,80267,
@@ -417,6 +434,7 @@ MEIM.S1WA,2000.1,74897,
 ```
 
 model.sql
+
 ```sql
 {{ config(
     materialized='table'
@@ -449,6 +467,7 @@ from {{ ref('model') }}
 ```
 
 invalidate hard deletes - model_snapshot_2
+
 ```sql
 {% snapshot model_snapshot_2 %}
 
@@ -468,6 +487,7 @@ from {{ ref('model') }}
 ```
 
 check strategy - model_snapshot_3
+
 ```sql
 {% snapshot model_snapshot_3 %}
 
@@ -493,25 +513,23 @@ The only way, from a dbt perspective, is to do a full-refresh of the incremental
 * Tables, schemas and database should only be lowercase
 
 * In order to avoid potential conflicts, make sure [`dbt-athena-adapter`](https://github.com/Tomme/dbt-athena) is not installed in the target environment.
-  See https://github.com/dbt-athena/dbt-athena/issues/103 for more details.
+  See <https://github.com/dbt-athena/dbt-athena/issues/103> for more details.
 
 * Snapshot does not support dropping columns from the source table. If you drop a column make sure to drop the column from the snapshot as well. Another workaround is to NULL the column in the snapshot definition to preserve history
-
 
 ## Contracts
 
 The adapter partly supports contract definition.
+
 * Concerning the `data_type`, it is supported but needs to be adjusted for complex types. They must be specified
   entirely (for instance `array<int>`) even though they won't be checked. Indeed, as dbt recommends, we only compare
   the broader type (array, map, int, varchar). The complete definition is used in order to check that the data types
   defined in athena are ok (pre-flight check).
 * the adapter does not support the constraints since no constraints don't exist in Athena.
 
-
 ## Contributing
 
 See [CONTRIBUTING](CONTRIBUTING.md) for more information on how to contribute to this project.
-
 
 ## Contributors ✨
 
