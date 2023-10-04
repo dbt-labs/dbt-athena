@@ -72,14 +72,14 @@
     {% endif %}
     {% set query_result = safe_create_table_as(True, tmp_relation, sql) -%}
     {% set build_sql = iceberg_merge(
-        on_schema_change,
-        tmp_relation,
-        target_relation,
-        unique_key,
-        incremental_predicates,
-        existing_relation,
-        update_condition,
-        delete_condition
+        on_schema_change=on_schema_change,
+        tmp_relation=tmp_relation,
+        target_relation=target_relation,
+        unique_key=unique_key,
+        incremental_predicates=incremental_predicates,
+        existing_relation=existing_relation,
+        delete_condition=delete_condition,
+        update_condition=update_condition,
       )
     %}
     {% do to_drop.append(tmp_relation) %}
