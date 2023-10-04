@@ -72,11 +72,11 @@ MD013:
   # Number of characters for headings
   heading_line_length: 120
   # Number of characters for code blocks
-  code_block_line_length: 80
+  code_block_line_length: 120
   # Include code blocks
   code_blocks: true
   # Include tables
-  tables: true
+  tables: false
   # Include headings
   headings: true
   # Include headings
@@ -206,13 +206,13 @@ MD041:
 MD042: true
 
 # MD043/required-headings/required-headers - Required heading structure
-MD043:
-  # List of headings
-  headings: []
-  # List of headings
-  headers: []
-  # Match case of headings
-  match_case: false
+MD043: false
+#  # List of headings
+#  headings: []
+#  # List of headings
+#  headers: []
+#  # Match case of headings
+#  match_case: false
 
 # MD044/proper-names - Proper names should have the correct capitalization
 MD044:
