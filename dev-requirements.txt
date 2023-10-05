@@ -1,11 +1,11 @@
 autoflake~=1.7
 black~=23.9
 boto3-stubs[s3]~=1.28
-dbt-tests-adapter~=1.6.3
+dbt-tests-adapter~=1.6.4
 flake8~=6.1
 Flake8-pyproject~=1.2
 isort~=5.11
-moto~=4.2.4
+moto~=4.2.5
 pre-commit~=3.4
 pyparsing~=3.1.1
 pytest~=7.4
