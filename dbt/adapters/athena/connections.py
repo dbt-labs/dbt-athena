@@ -59,6 +59,7 @@ class AthenaCredentials(Credentials):
     num_retries: Optional[int] = 5
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
+    s3_temp_table_dir: Optional[str] = None
     seed_s3_upload_args: Optional[Dict[str, Any]] = None
     # Unfortunately we can not just use dict, must by Dict because we'll get the following error:
     # Credentials in profile "athena", target "athena" invalid: Unable to create schema for 'dict'
@@ -86,6 +87,7 @@ class AthenaCredentials(Credentials):
             "endpoint_url",
             "s3_data_dir",
             "s3_data_naming",
+            "s3_temp_table_dir",
             "debug_query_state",
             "seed_s3_upload_args",
             "lf_tags_database",

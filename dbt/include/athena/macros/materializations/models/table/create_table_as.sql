@@ -10,6 +10,7 @@
   {%- set write_compression = config.get('write_compression', default=none) -%}
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
   {%- set s3_data_naming = config.get('s3_data_naming', default=target.s3_data_naming) -%}
+  {%- set s3_temp_table_dir = config.get('s3_temp_table_dir', default=target.s3_temp_table_dir) -%}
   {%- set extra_table_properties = config.get('table_properties', default=none) -%}
 
   {%- set location_property = 'external_location' -%}
@@ -18,8 +19,10 @@
   {%- set location = adapter.generate_s3_location(relation,
                                                  s3_data_dir,
                                                  s3_data_naming,
+                                                 s3_temp_table_dir,
                                                  external_location,
-                                                 temporary) -%}
+                                                 temporary,
+                                                 ) -%}
   {%- set native_drop = config.get('native_drop', default=false) -%}
 
   {%- set contract_config = config.get('contract') -%}
