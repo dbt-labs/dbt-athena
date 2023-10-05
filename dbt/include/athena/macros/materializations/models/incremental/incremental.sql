@@ -51,6 +51,7 @@
     {% set unique_key = config.get('unique_key') %}
     {% set incremental_predicates = config.get('incremental_predicates') %}
     {% set delete_condition = config.get('delete_condition') %}
+    {% set update_condition = config.get('update_condition') %}
     {% set empty_unique_key -%}
       Merge strategy must implement unique_key as a single column or a list of columns.
     {%- endset %}
@@ -70,7 +71,17 @@
       {% do drop_relation(tmp_relation) %}
     {% endif %}
     {% set query_result = safe_create_table_as(True, tmp_relation, sql) -%}
-    {% set build_sql = iceberg_merge(on_schema_change, tmp_relation, target_relation, unique_key, incremental_predicates, existing_relation, delete_condition) %}
+    {% set build_sql = iceberg_merge(
+        on_schema_change=on_schema_change,
+        tmp_relation=tmp_relation,
+        target_relation=target_relation,
+        unique_key=unique_key,
+        incremental_predicates=incremental_predicates,
+        existing_relation=existing_relation,
+        delete_condition=delete_condition,
+        update_condition=update_condition,
+      )
+    %}
     {% do to_drop.append(tmp_relation) %}
   {% endif %}
 
