@@ -318,7 +318,7 @@ class TestAthenaAdapter:
             "s3_data_dir",
             "s3_data_naming",
             "s3_path_table_part",
-            "s3_temp_table_dir",
+            "s3_tmp_table_dir",
             "external_location",
             "is_temporary_table",
             "expected",
@@ -388,7 +388,7 @@ class TestAthenaAdapter:
                 "s3://path/to/external/",
                 True,
                 "s3://my-bucket/test-dbt-temp/temp_tables/schema/table/uuid",
-                id="s3_temp_table_dir set, external_location set and temporary",
+                id="s3_tmp_table_dir set, external_location set and temporary",
             ),
             pytest.param(
                 "s3://my-data-bucket/",
@@ -398,7 +398,7 @@ class TestAthenaAdapter:
                 "s3://path/to/external/",
                 True,
                 "s3://my-data-bucket/schema/table/uuid",
-                id="s3_temp_table_dir is empty, external_location set and temporary",
+                id="s3_tmp_table_dir is empty, external_location set and temporary",
             ),
             pytest.param(
                 None,
@@ -418,7 +418,7 @@ class TestAthenaAdapter:
         _,
         s3_data_dir,
         s3_data_naming,
-        s3_temp_table_dir,
+        s3_tmp_table_dir,
         external_location,
         s3_path_table_part,
         is_temporary_table,
@@ -432,7 +432,7 @@ class TestAthenaAdapter:
             s3_path_table_part=s3_path_table_part,
         )
         assert expected == self.adapter.generate_s3_location(
-            relation, s3_data_dir, s3_data_naming, s3_temp_table_dir, external_location, is_temporary_table
+            relation, s3_data_dir, s3_data_naming, s3_tmp_table_dir, external_location, is_temporary_table
         )
 
     @mock_glue

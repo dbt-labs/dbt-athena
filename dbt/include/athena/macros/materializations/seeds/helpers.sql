@@ -40,7 +40,7 @@
   {%- set quote_seed_column = config.get('quote_columns') -%}
   {%- set s3_data_dir = config.get('s3_data_dir', target.s3_data_dir) -%}
   {%- set s3_data_naming = config.get('s3_data_naming', target.s3_data_naming) -%}
-  {%- set s3_temp_table_dir = config.get('s3_temp_table_dir', default=target.s3_temp_table_dir) -%}
+  {%- set s3_tmp_table_dir = config.get('s3_tmp_table_dir', default=target.s3_tmp_table_dir) -%}
   {%- set external_location = config.get('external_location') -%}
 
   {%- set relation = api.Relation.create(
@@ -53,7 +53,7 @@
   {%- set location = adapter.generate_s3_location(relation,
                                                  s3_data_dir,
                                                  s3_data_naming,
-                                                 s3_temp_table_dir,
+                                                 s3_tmp_table_dir,
                                                  external_location,
                                                  temporary) -%}
 

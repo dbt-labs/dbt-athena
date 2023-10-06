@@ -19,7 +19,7 @@ def dbt_profile_target():
     return {
         "type": "athena",
         "s3_staging_dir": os.getenv("DBT_TEST_ATHENA_S3_STAGING_DIR"),
-        "s3_temp_table_dir": os.getenv("DBT_TEST_ATHENA_S3_TEMP_TABLE_DIR"),
+        "s3_tmp_table_dir": os.getenv("DBT_TEST_ATHENA_S3_TMP_TABLE_DIR"),
         "schema": os.getenv("DBT_TEST_ATHENA_SCHEMA"),
         "database": os.getenv("DBT_TEST_ATHENA_DATABASE"),
         "region_name": os.getenv("DBT_TEST_ATHENA_REGION_NAME"),

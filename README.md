@@ -121,7 +121,7 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | s3_staging_dir        | S3 location to store Athena query results and metadata                                | Required  | `s3://bucket/dbt/`                         |
 | s3_data_dir           | Prefix for storing tables, if different from the connection's `s3_staging_dir`        | Optional  | `s3://bucket2/dbt/`                        |
 | s3_data_naming        | How to generate table paths in `s3_data_dir`                                          | Optional  | `schema_table_unique`                      |
-| s3_temp_table_dir     | Prefix for storing temporary tables, if different from the connection's `s3_data_dir` | Optional  | `s3://bucket3/dbt/`                        |
+| s3_tmp_table_dir      | Prefix for storing temporary tables, if different from the connection's `s3_data_dir` | Optional  | `s3://bucket3/dbt/`                        |
 | region_name           | AWS region of your Athena instance                                                    | Required  | `eu-west-1`                                |
 | schema                | Specify the schema (Athena database) to build models into (lowercase **only**)        | Required  | `dbt`                                      |
 | database              | Specify the database (Data catalog) to build models into (lowercase **only**)         | Required  | `awsdatacatalog`                           |
@@ -146,7 +146,7 @@ athena:
       s3_staging_dir: s3://athena-query-results/dbt/
       s3_data_dir: s3://your_s3_bucket/dbt/
       s3_data_naming: schema_table
-      s3_temp_table_dir: s3://your_s3_bucket/temp/
+      s3_tmp_table_dir: s3://your_s3_bucket/temp/
       region_name: eu-west-1
       schema: dbt
       database: awsdatacatalog
