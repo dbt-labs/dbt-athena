@@ -387,7 +387,7 @@ class TestAthenaAdapter:
                 "s3://my-bucket/test-dbt-temp/",
                 "s3://path/to/external/",
                 True,
-                "s3://my-bucket/test-dbt-temp/temp_tables/schema/table/uuid",
+                "s3://my-bucket/test-dbt-temp/schema/table/uuid",
                 id="s3_tmp_table_dir set, external_location set and temporary",
             ),
             pytest.param(

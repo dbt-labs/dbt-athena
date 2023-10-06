@@ -225,7 +225,7 @@ class AthenaAdapter(SQLAdapter):
 
         s3_tmp_table_dir = s3_tmp_table_dir or creds.s3_tmp_table_dir
         if s3_tmp_table_dir and is_temporary_table:
-            return path.join(s3_tmp_table_dir, "temp_tables")
+            return s3_tmp_table_dir
 
         if s3_data_dir is not None:
             return s3_data_dir
