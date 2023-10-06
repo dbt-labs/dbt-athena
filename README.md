@@ -64,7 +64,6 @@
     * Does **not** support the use of `unique_key`
 * Supports [snapshots][snapshots]
 * Supports [Python models][python-models]
-* Does not support [persist docs][persist-docs] for views
 
 [seeds]: https://docs.getdbt.com/docs/building-a-dbt-project/seeds
 
@@ -366,9 +365,12 @@ It is possible to use Iceberg in an incremental fashion, specifically two strate
   * `incremental_predicates` (optional): SQL conditions that enable custom join clauses in the merge statement. This can
     be useful for improving performance via predicate pushdown on the target table.
   * `delete_condition` (optional): SQL condition used to identify records that should be deleted.
-    * `delete_condition` and `incremental_predicates` can include any column of the incremental table (`src`) or the
-      final table (`target`). Column names must be prefixed by either `src` or `target` to prevent
-      a `Column is ambiguous` error.
+  * `update_condition` (optional): SQL condition used to identify records that should be updated.
+    * `incremental_predicates`, `delete_condition` and `update_condition` can include any column of the incremental
+      table (`src`) or the final table (`target`).
+      Column names must be prefixed by either `src` or `target` to prevent a `Column is ambiguous` error.
+
+`delete_condition` example:
 
 ```sql
 {{ config(
@@ -381,13 +383,46 @@ It is possible to use Iceberg in an incremental fashion, specifically two strate
     format='parquet'
 ) }}
 
-select 'A'          as user_id,
-       'pi'         as name,
-       'active'     as status,
-       17.89        as cost,
-       1            as quantity,
-       100000000    as quantity_big,
+select 'A' as user_id,
+       'pi' as name,
+       'active' as status,
+       17.89 as cost,
+       1 as quantity,
+       100000000 as quantity_big,
        current_date as my_date
+```
+
+`update_condition` example:
+
+```sql
+{{ config(
+        materialized='incremental',
+        incremental_strategy='merge',
+        unique_key=['id'],
+        update_condition='target.id > 1',
+        schema='sandbox'
+    )
+}}
+
+{% if is_incremental() %}
+
+select * from (
+    values
+    (1, 'v1-updated')
+    , (2, 'v2-updated')
+) as t (id, value)
+
+{% else %}
+
+select * from (
+    values
+    (-1, 'v-1')
+    , (0, 'v0')
+    , (1, 'v1')
+    , (2, 'v2')
+) as t (id, value)
+
+{% endif %}
 ```
 
 ### Highly available table (HA)
@@ -475,12 +510,13 @@ You may find the following links useful to manage that:
 
 The adapter supports python models using [`spark`](https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark.html).
 
-#### Prerequisites
+### Setup
 
 * A spark enabled work group created in athena
 * Spark execution role granted access to Athena, Glue and S3
 * The spark work group is added to the ~/.dbt/profiles.yml file and the profile is referenced in dbt_project.yml
-* The spark_threads value is added to ~/.dbt/profiles.yml which determines the maximum number of parallel spark sessions that will be created. It is recommended to keep this same as threads.
+* The spark_threads value is added to ~/.dbt/profiles.yml which determines the maximum number of parallel spark sessions
+  that will be created. It is recommended to keep this same as threads.
 
 ### Example models
 
