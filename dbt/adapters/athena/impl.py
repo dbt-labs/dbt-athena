@@ -217,6 +217,8 @@ class AthenaAdapter(SQLAdapter):
         and `s3_staging_dir/tables/` if nothing provided as data dir.
         We generate a value here even if `s3_data_dir` is not set,
         since creating a seed table requires a non-default location.
+
+        When `s3_temp_table_dir` is set, we use that as the root location for temporary tables.
         """
         conn = self.connections.get_thread_connection()
         creds = conn.credentials
