@@ -4,7 +4,7 @@
     <a href="https://pypi.org/project/dbt-athena-community/">
       <img src="https://badge.fury.io/py/dbt-athena-community.svg" />
     </a>
-    <a target="_blank" href="https://pypi.org/project/dlt/" style="background:none">
+    <a target="_blank" href="https://pypi.org/project/dbt-athena-community/" style="background:none">
       <img src="https://img.shields.io/pypi/pyversions/dbt-athena-community">
     </a>
     <a href="https://pycqa.github.io/isort/">
