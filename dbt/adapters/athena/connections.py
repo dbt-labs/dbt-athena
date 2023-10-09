@@ -60,9 +60,9 @@ class AthenaCredentials(Credentials):
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
     s3_tmp_table_dir: Optional[str] = None
-    seed_s3_upload_args: Optional[Dict[str, Any]] = None
-    # Unfortunately we can not just use dict, must by Dict because we'll get the following error:
+    # Unfortunately we can not just use dict, must be Dict because we'll get the following error:
     # Credentials in profile "athena", target "athena" invalid: Unable to create schema for 'dict'
+    seed_s3_upload_args: Optional[Dict[str, Any]] = None
     lf_tags_database: Optional[Dict[str, str]] = None
 
     @property
@@ -130,10 +130,10 @@ class AthenaCursor(Cursor):
                 AthenaQueryExecution.STATE_CANCELLED,
             ]:
                 return query_execution
-            else:
-                if self.connection.cursor_kwargs.get("debug_query_state", False):
-                    logger.debug(f"Query state is: {query_execution.state}. Sleeping for {self._poll_interval}...")
-                time.sleep(self._poll_interval)
+
+            if self.connection.cursor_kwargs.get("debug_query_state", False):
+                logger.debug(f"Query state is: {query_execution.state}. Sleeping for {self._poll_interval}...")
+            time.sleep(self._poll_interval)
 
     def execute(  # type: ignore
         self,

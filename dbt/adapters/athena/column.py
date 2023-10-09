@@ -30,9 +30,7 @@ class AthenaColumn(Column):
         return "varbinary"
 
     def timestamp_type(self) -> str:
-        if self.is_iceberg():
-            return "timestamp(6)"
-        return "timestamp"
+        return "timestamp(6)" if self.is_iceberg() else "timestamp"
 
     def string_size(self) -> int:
         if not self.is_string():
@@ -44,10 +42,14 @@ class AthenaColumn(Column):
     def data_type(self) -> str:
         if self.is_string():
             return self.string_type(self.string_size())
-        elif self.is_numeric():
+
+        if self.is_numeric():
             return self.numeric_type(self.dtype, self.numeric_precision, self.numeric_scale)  # type: ignore
-        elif self.is_binary():
+
+        if self.is_binary():
             return self.binary_type()
-        elif self.is_timestamp():
+
+        if self.is_timestamp():
             return self.timestamp_type()
+
         return self.dtype  # type: ignore
