@@ -56,7 +56,7 @@ class AthenaCredentials(Credentials):
     poll_interval: float = 1.0
     debug_query_state: bool = False
     _ALIASES = {"catalog": "database"}
-    num_retries: Optional[int] = 5
+    num_retries: int = 5
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
     s3_tmp_table_dir: Optional[str] = None
@@ -230,7 +230,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                 poll_interval=creds.poll_interval,
                 session=get_boto3_session(connection),
                 retry_config=RetryConfig(
-                    attempt=creds.num_retries,
+                    attempt=creds.num_retries + 1,
                     exceptions=("ThrottlingException", "TooManyRequestsException", "InternalServerException"),
                 ),
                 config=get_boto3_config(),

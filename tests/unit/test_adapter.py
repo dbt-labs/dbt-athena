@@ -283,7 +283,7 @@ class TestAthenaAdapter:
         assert arguments["cursor_class"] == AthenaCursor
         assert isinstance(arguments["formatter"], AthenaParameterFormatter)
         assert arguments["poll_interval"] == 1.0
-        assert arguments["retry_config"].attempt == 5
+        assert arguments["retry_config"].attempt == 6
         assert arguments["retry_config"].exceptions == (
             "ThrottlingException",
             "TooManyRequestsException",
