@@ -208,19 +208,27 @@ class AthenaAdapter(SQLAdapter):
         else:
             return False
 
-    def _s3_table_prefix(self, s3_data_dir: Optional[str]) -> str:
+    def _s3_table_prefix(
+        self, s3_data_dir: Optional[str], s3_tmp_table_dir: Optional[str], is_temporary_table: bool
+    ) -> str:
         """
         Returns the root location for storing tables in S3.
         This is `s3_data_dir`, if set at the model level, the s3_data_dir of the connection if provided,
         and `s3_staging_dir/tables/` if nothing provided as data dir.
         We generate a value here even if `s3_data_dir` is not set,
         since creating a seed table requires a non-default location.
+
+        When `s3_tmp_table_dir` is set, we use that as the root location for temporary tables.
         """
         conn = self.connections.get_thread_connection()
         creds = conn.credentials
+
+        s3_tmp_table_dir = s3_tmp_table_dir or creds.s3_tmp_table_dir
+        if s3_tmp_table_dir and is_temporary_table:
+            return s3_tmp_table_dir
+
         if s3_data_dir is not None:
             return s3_data_dir
-
         return path.join(creds.s3_staging_dir, "tables")
 
     def _s3_data_naming(self, s3_data_naming: Optional[str]) -> S3DataNaming:
@@ -240,6 +248,7 @@ class AthenaAdapter(SQLAdapter):
         relation: AthenaRelation,
         s3_data_dir: Optional[str] = None,
         s3_data_naming: Optional[str] = None,
+        s3_tmp_table_dir: Optional[str] = None,
         external_location: Optional[str] = None,
         is_temporary_table: bool = False,
     ) -> str:
@@ -249,10 +258,9 @@ class AthenaAdapter(SQLAdapter):
         """
         if external_location and not is_temporary_table:
             return external_location.rstrip("/")
-
         s3_path_table_part = relation.s3_path_table_part or relation.identifier
         schema_name = relation.schema
-        table_prefix = self._s3_table_prefix(s3_data_dir)
+        table_prefix = self._s3_table_prefix(s3_data_dir, s3_tmp_table_dir, is_temporary_table)
 
         mapping = {
             S3DataNaming.UNIQUE: path.join(table_prefix, str(uuid4())),

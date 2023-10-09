@@ -26,7 +26,8 @@ jobs:
     name: Functional Tests
     runs-on: ubuntu-latest
     env:
-      DBT_TEST_ATHENA_S3_STAGING_DIR: s3://dbt-athena-query-results-${{ inputs.aws-region }}
+      DBT_TEST_ATHENA_S3_STAGING_DIR: s3://dbt-athena-query-results-${{ inputs.aws-region }}/staging/
+      DBT_TEST_ATHENA_S3_TMP_TABLE_DIR: s3://dbt-athena-query-results-${{ inputs.aws-region }}/tmp_tables/
       DBT_TEST_ATHENA_REGION_NAME: ${{ inputs.aws-region }}
     steps:
       - name: Checkout
