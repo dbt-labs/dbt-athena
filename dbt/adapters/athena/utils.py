@@ -20,7 +20,7 @@ def stringify_table_parameter_value(value: Any) -> str:
             value_str = str(value)
     except (TypeError, ValueError) as e:
         # Handle non-stringifiable objects and non-serializable objects
-        value_str = f"Non-stringifiable object: {type(value)}, Error: {str(e)}"
+        value_str = f"Non-stringifiable object. Error: {str(e)}"
     return value_str[:512000]
 
 
