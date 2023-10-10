@@ -1,5 +1,6 @@
+import json
 from enum import Enum
-from typing import Generator, List, Optional, TypeVar
+from typing import Any, Generator, List, Optional, TypeVar
 
 from mypy_boto3_athena.type_defs import DataCatalogTypeDef
 
@@ -7,6 +8,17 @@ from mypy_boto3_athena.type_defs import DataCatalogTypeDef
 def clean_sql_comment(comment: str) -> str:
     split_and_strip = [line.strip() for line in comment.split("\n")]
     return " ".join(line for line in split_and_strip if line)
+
+
+def stringify_for_table_property(value: Any) -> str:
+    """Convert any variable to string for Glue Table property."""
+    if isinstance(value, (str, bool, int, float)):
+        # Convert simple formats to strings
+        value_str: str = str(value)
+    else:
+        # Convert complex format to json string
+        value_str = json.dumps(value)
+    return value_str
 
 
 def get_catalog_id(catalog: Optional[DataCatalogTypeDef]) -> Optional[str]:

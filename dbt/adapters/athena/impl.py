@@ -51,11 +51,13 @@ from dbt.adapters.athena.utils import (
     get_catalog_id,
     get_catalog_type,
     get_chunks,
+    stringify_for_table_property,
 )
 from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.impl import AdapterConfig
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
+from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import CompiledNode, ConstraintType
 from dbt.exceptions import DbtRuntimeError
@@ -810,11 +812,12 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         # By default, there is no need to update Glue Table
-        need_udpate_table = False
+        need_to_update_table = False
         # Get Table from Glue
         table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.name)["Table"]
         # Prepare new version of Glue Table picking up significant fields
-        updated_table = self._get_table_input(table)
+        table_input = self._get_table_input(table)
+        table_parameters: Dict[str, str] = dict(table_input["Parameters"])
         # Update table description
         if persist_relation_docs:
             # Prepare dbt description
@@ -825,16 +828,34 @@ class AthenaAdapter(SQLAdapter):
             glue_table_comment = table["Parameters"].get("comment", "")
             # Update description if it's different
             if clean_table_description != glue_table_description or clean_table_description != glue_table_comment:
-                updated_table["Description"] = clean_table_description
-                updated_table_parameters: Dict[str, str] = dict(updated_table["Parameters"])
-                updated_table_parameters["comment"] = clean_table_description
-                updated_table["Parameters"] = updated_table_parameters
-                need_udpate_table = True
+                table_input["Description"] = clean_table_description
+                table_parameters["comment"] = clean_table_description
+                need_to_update_table = True
+
+            # Get dbt model meta if available
+            meta: dict[str, Any] = model.get("config", {}).get("meta", {})
+            # Add some of dbt model config fields as table meta
+            meta["unique_id"] = model["unique_id"]
+            meta["materialized"] = model.get("config", {}).get("materialized")
+            # Get dbt runtime config to be able to get dbt project metadata
+            runtime_config: RuntimeConfig = self.config
+            # Add dbt project metadata to table meta
+            meta["dbt_project_name"] = runtime_config.project_name
+            meta["dbt_project_version"] = runtime_config.version
+            # Prepare meta values for table properties and check if update is required
+            for meta_key, meta_value_obj in meta.items():
+                meta_value = stringify_for_table_property(meta_value_obj)
+                # Check that meta value is already attached to GLue table
+                current_meta_value: Optional[str] = table_parameters.get(meta_key)
+                if current_meta_value is None or current_meta_value != meta_value:
+                    # Update Glue table parameter only if needed
+                    table_parameters[meta_key] = meta_value
+                    need_to_update_table = True
 
         # Update column comments
         if persist_column_docs:
             # Process every column
-            for col_obj in updated_table["StorageDescriptor"]["Columns"]:
+            for col_obj in table_input["StorageDescriptor"]["Columns"]:
                 # Get column description from dbt
                 col_name = col_obj["Name"]
                 if col_name in model["columns"]:
@@ -846,15 +867,16 @@ class AthenaAdapter(SQLAdapter):
                     # Update column description if it's different
                     if glue_col_comment != clean_col_comment:
                         col_obj["Comment"] = clean_col_comment
-                        need_udpate_table = True
+                        need_to_update_table = True
 
         # Update Glue Table only if table/column description is modified.
         # It prevents redundant schema version creating after incremental runs.
-        if need_udpate_table:
+        if need_to_update_table:
+            table_input["Parameters"] = table_parameters
             glue_client.update_table(
                 CatalogId=catalog_id,
                 DatabaseName=relation.schema,
-                TableInput=updated_table,
+                TableInput=table_input,
                 SkipArchive=skip_archive_table_version,
             )
 
