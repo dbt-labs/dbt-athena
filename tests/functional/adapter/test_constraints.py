@@ -23,4 +23,4 @@ class TestAthenaConstraintQuotedColumn(BaseConstraintQuotedColumn):
 
         # NOTE: by the above reason, this test just checks the query can be executed without errors.
         #       The query itself is not checked.
-        return 'SELECT \'{"rowcount":1,"data_scanned_in_bytes":0}\';'
+        return 'SELECT \'{"rowcount":-1,"data_scanned_in_bytes":0}\';'

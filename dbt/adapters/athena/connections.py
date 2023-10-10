@@ -132,9 +132,10 @@ class AthenaCursor(Cursor):
                 AthenaQueryExecution.STATE_CANCELLED,
             ]:
                 return query_execution
-            if self.connection.cursor_kwargs.get("debug_query_state", False):
-                LOGGER.debug(f"Query state is: {query_execution.state}. Sleeping for {self._poll_interval}...")
-            time.sleep(self._poll_interval)
+            else:
+                if self.connection.cursor_kwargs.get("debug_query_state", False):
+                    LOGGER.debug(f"Query state is: {query_execution.state}. Sleeping for {self._poll_interval}...")
+                time.sleep(self._poll_interval)
 
     def execute(  # type: ignore
         self,
