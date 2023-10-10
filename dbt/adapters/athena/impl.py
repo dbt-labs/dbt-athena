@@ -817,7 +817,7 @@ class AthenaAdapter(SQLAdapter):
         table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.name)["Table"]
         # Prepare new version of Glue Table picking up significant fields
         table_input = self._get_table_input(table)
-        table_parameters: Dict[str, str] = dict(table_input["Parameters"])
+        table_parameters = table_input["Parameters"]
         # Update table description
         if persist_relation_docs:
             # Prepare dbt description
@@ -833,7 +833,7 @@ class AthenaAdapter(SQLAdapter):
                 need_to_update_table = True
 
             # Get dbt model meta if available
-            meta: dict[str, Any] = model.get("config", {}).get("meta", {})
+            meta: Dict[str, Any] = model.get("config", {}).get("meta", {})
             # Add some of dbt model config fields as table meta
             meta["unique_id"] = model.get("unique_id")
             meta["materialized"] = model.get("config", {}).get("materialized")

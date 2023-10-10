@@ -12,13 +12,9 @@ def clean_sql_comment(comment: str) -> str:
 
 def stringify_for_table_property(value: Any) -> str:
     """Convert any variable to string for Glue Table property."""
-    if isinstance(value, (str, bool, int, float)):
-        # Convert simple formats to strings
-        value_str: str = str(value)
-    else:
-        # Convert complex format to json string
-        value_str = json.dumps(value)
-    return value_str
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    return str(value)
 
 
 def get_catalog_id(catalog: Optional[DataCatalogTypeDef]) -> Optional[str]:
