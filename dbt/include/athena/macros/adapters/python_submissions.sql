@@ -16,33 +16,30 @@ import pyspark
 {{ compiled_code }}
 def materialize(spark_session, df, target_relation):
     import pandas
-    try:
-        if isinstance(df, pyspark.sql.dataframe.DataFrame):
-            pass
-        elif isinstance(df, pandas.core.frame.DataFrame):
-            df = spark_session.createDataFrame(df)
-        else:
-            msg = f"{type(df)} is not a supported type for dbt Python materialization"
-            raise Exception(msg)
-        writer = df.write \
-        .format("{{ format }}") \
-        .mode("{{ mode }}") \
-        .option("path", "{{ location }}") \
-        .option("compression", "{{ write_compression }}") \
-        .option("mergeSchema", "{{ merge_schema }}") \
-        .option("delimiter", "{{ field_delimiter }}")
-        if {{ partitioned_by }} is not None:
-            writer = writer.partitionBy({{ partitioned_by }})
-        if {{ bucketed_by }} is not None:
-            writer = writer.bucketBy({{ bucket_count }},{{ bucketed_by }})
-        if {{ sorted_by }} is not None:
-            writer = writer.sortBy({{ sorted_by }})
-        writer.saveAsTable(
-            name="{{ target_relation.schema}}.{{ target_relation.identifier }}",
-        )
-        return "OK"
-    except Exception:
-        raise
+    if isinstance(df, pyspark.sql.dataframe.DataFrame):
+        pass
+    elif isinstance(df, pandas.core.frame.DataFrame):
+        df = spark_session.createDataFrame(df)
+    else:
+        msg = f"{type(df)} is not a supported type for dbt Python materialization"
+        raise Exception(msg)
+    writer = df.write \
+    .format("{{ format }}") \
+    .mode("{{ mode }}") \
+    .option("path", "{{ location }}") \
+    .option("compression", "{{ write_compression }}") \
+    .option("mergeSchema", "{{ merge_schema }}") \
+    .option("delimiter", "{{ field_delimiter }}")
+    if {{ partitioned_by }} is not None:
+        writer = writer.partitionBy({{ partitioned_by }})
+    if {{ bucketed_by }} is not None:
+        writer = writer.bucketBy({{ bucket_count }},{{ bucketed_by }})
+    if {{ sorted_by }} is not None:
+        writer = writer.sortBy({{ sorted_by }})
+    writer.saveAsTable(
+        name="{{ target_relation.schema}}.{{ target_relation.identifier }}",
+    )
+    return "OK"
 
 {{ athena__py_get_spark_dbt_object() }}
 
@@ -55,11 +52,8 @@ materialize(spark, df, dbt.this)
 {{ athena__py_get_spark_dbt_object() }}
 
 def execute_query(spark_session):
-    try:
-        spark_session.sql("""{{ query }}""")
-        return "OK"
-    except Exception:
-        raise
+    spark_session.sql("""{{ query }}""")
+    return "OK"
 
 dbt = SparkdbtObj()
 execute_query(spark)

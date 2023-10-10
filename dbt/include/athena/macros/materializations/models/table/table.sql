@@ -68,7 +68,9 @@
       {%- set query_result = safe_create_table_as(False, target_relation, compiled_code, language=language) -%}
     {%- endif -%}
 
-    {{ set_table_classification(target_relation) }}
+    {%- if language != 'python' -%}
+      {{ set_table_classification(target_relation) }}
+    {%- endif -%}
 
   {%- else -%}
 
@@ -105,8 +107,12 @@
 
   {%- endif -%}
 
-  {% call statement("main") %}
-    SELECT '{{ query_result }}';
+  {% call statement("main", language=language) %}
+    {%- if language=='sql' -%}
+      SELECT '{{ query_result }}';
+    {%- else -%}
+      {{ query_result }}
+    {%- endif -%}
   {% endcall %}
 
   {{ run_hooks(post_hooks) }}
