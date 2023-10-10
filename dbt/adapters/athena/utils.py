@@ -13,15 +13,23 @@ def clean_sql_comment(comment: str) -> str:
 
 def stringify_table_parameter_value(value: Any) -> str:
     """Convert any variable to string for Glue Table property."""
-    if isinstance(value, (dict, list)):
-        value_str: str = json.dumps(value)
-    else:
-        value_str = str(value)
+    try:
+        if isinstance(value, (dict, list)):
+            value_str: str = json.dumps(value)
+        else:
+            value_str = str(value)
+    except (TypeError, ValueError) as e:
+        # Handle non-stringifiable objects and non-serializable objects
+        value_str = f"Non-stringifiable object: {type(value)}, Error: {str(e)}"
     return value_str[:512000]
 
 
 def is_valid_table_parameter_key(key: str) -> bool:
-    return len(key) <= 255 and bool(re.match(r"^[\u0020-\uD7FF\uE000-\uFFFD\t]*$", key))
+    """Check if key is valid for Glue Table property according to official documentation."""
+    # Simplified version of key pattern which works with re
+    # Original pattern can be found here https://docs.aws.amazon.com/glue/latest/webapi/API_Table.html
+    key_pattern: str = r"^[\u0020-\uD7FF\uE000-\uFFFD\t]*$"
+    return len(key) <= 255 and bool(re.match(key_pattern, key))
 
 
 def get_catalog_id(catalog: Optional[DataCatalogTypeDef]) -> Optional[str]:
