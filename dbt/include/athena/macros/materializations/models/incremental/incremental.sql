@@ -25,7 +25,7 @@
 
   {% set to_drop = [] %}
   {% if existing_relation is none %}
-    {% set query_result = safe_create_table_as(False, target_relation, compiled_code, language=model_language) -%}
+    {% set query_result = safe_create_table_as(False, target_relation, compiled_code, model_language) -%}
     {%- if model_language == 'python' -%}
       {% call statement('create_table', language=model_language) %}
         {{ query_result }}
@@ -34,7 +34,7 @@
     {% set build_sql = "select '" ~ query_result ~ "'" -%}
   {% elif existing_relation.is_view or should_full_refresh() %}
     {% do drop_relation(existing_relation) %}
-    {% set query_result = safe_create_table_as(False, target_relation, compiled_code, language=model_language) -%}
+    {% set query_result = safe_create_table_as(False, target_relation, compiled_code, model_language) -%}
     {%- if model_language == 'python' -%}
       {% call statement('create_table', language=model_language) %}
         {{ query_result }}
@@ -46,7 +46,7 @@
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, language=model_language) -%}
+    {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language) -%}
     {%- if model_language == 'python' -%}
       {% call statement('create_table', language=model_language) %}
         {{ query_result }}
@@ -60,7 +60,7 @@
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, language=model_language) -%}
+    {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language) -%}
     {%- if model_language == 'python' -%}
       {% call statement('create_table', language=model_language) %}
         {{ query_result }}
@@ -91,7 +91,7 @@
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, language=model_language) -%}
+    {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language) -%}
     {%- if model_language == 'python' -%}
       {% call statement('create_table', language=model_language) %}
         {{ query_result }}
