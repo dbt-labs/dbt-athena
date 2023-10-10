@@ -54,14 +54,15 @@ class AthenaCredentials(Credentials):
     poll_interval: float = 1.0
     debug_query_state: bool = False
     _ALIASES = {"catalog": "database"}
-    num_retries: Optional[int] = 5
+    num_retries: int = 5
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
     spark_work_group: Optional[str] = None
     spark_threads: Optional[int] = DEFAULT_THREAD_COUNT
-    seed_s3_upload_args: Optional[Dict[str, Any]] = None
-    # Unfortunately we can not just use dict, must by Dict because we'll get the following error:
+    s3_tmp_table_dir: Optional[str] = None
+    # Unfortunately we can not just use dict, must be Dict because we'll get the following error:
     # Credentials in profile "athena", target "athena" invalid: Unable to create schema for 'dict'
+    seed_s3_upload_args: Optional[Dict[str, Any]] = None
     lf_tags_database: Optional[Dict[str, str]] = None
 
     @property
@@ -86,6 +87,7 @@ class AthenaCredentials(Credentials):
             "endpoint_url",
             "s3_data_dir",
             "s3_data_naming",
+            "s3_tmp_table_dir",
             "debug_query_state",
             "seed_s3_upload_args",
             "lf_tags_database",
@@ -230,7 +232,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                 poll_interval=creds.poll_interval,
                 session=get_boto3_session(connection),
                 retry_config=RetryConfig(
-                    attempt=creds.num_retries,
+                    attempt=creds.num_retries + 1,
                     exceptions=("ThrottlingException", "TooManyRequestsException", "InternalServerException"),
                 ),
                 config=get_boto3_config(),

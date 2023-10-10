@@ -4,7 +4,7 @@
     <a href="https://pypi.org/project/dbt-athena-community/">
       <img src="https://badge.fury.io/py/dbt-athena-community.svg" />
     </a>
-    <a target="_blank" href="https://pypi.org/project/dlt/" style="background:none">
+    <a target="_blank" href="https://pypi.org/project/dbt-athena-community/" style="background:none">
       <img src="https://img.shields.io/pypi/pyversions/dbt-athena-community">
     </a>
     <a href="https://pycqa.github.io/isort/">
@@ -116,25 +116,26 @@ You can either:
 
 A dbt profile can be configured to run against AWS Athena using the following configuration:
 
-| Option                | Description                                                                    | Required? | Example                                    |
-|-----------------------|--------------------------------------------------------------------------------|-----------|--------------------------------------------|
-| s3_staging_dir        | S3 location to store Athena query results and metadata                         | Required  | `s3://bucket/dbt/`                         |
-| s3_data_dir           | Prefix for storing tables, if different from the connection's `s3_staging_dir` | Optional  | `s3://bucket2/dbt/`                        |
-| s3_data_naming        | How to generate table paths in `s3_data_dir`                                   | Optional  | `schema_table_unique`                      |
-| region_name           | AWS region of your Athena instance                                             | Required  | `eu-west-1`                                |
-| schema                | Specify the schema (Athena database) to build models into (lowercase **only**) | Required  | `dbt`                                      |
-| database              | Specify the database (Data catalog) to build models into (lowercase **only**)  | Required  | `awsdatacatalog`                           |
-| poll_interval         | Interval in seconds to use for polling the status of query results in Athena   | Optional  | `5`                                        |
-| debug_query_state     | Flag if debug message with Athena query state is needed                        | Optional  | `false`                                    |
-| aws_access_key_id     | Access key ID of the user performing requests.                                 | Optional  | `AKIAIOSFODNN7EXAMPLE`                     |
-| aws_secret_access_key | Secret access key of the user performing requests                              | Optional  | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
-| aws_profile_name      | Profile to use from your AWS shared credentials file.                          | Optional  | `my-profile`                               |
-| work_group            | Identifier of Athena workgroup                                                 | Optional  | `my-custom-workgroup`                      |
-| num_retries           | Number of times to retry a failing query                                       | Optional  | `3`                                        |
+| Option                | Description                                                                           | Required? | Example                                    |
+| --------------------- | ------------------------------------------------------------------------------------- | --------- | ------------------------------------------ |
+| s3_staging_dir        | S3 location to store Athena query results and metadata                                | Required  | `s3://bucket/dbt/`                         |
+| s3_data_dir           | Prefix for storing tables, if different from the connection's `s3_staging_dir`        | Optional  | `s3://bucket2/dbt/`                        |
+| s3_data_naming        | How to generate table paths in `s3_data_dir`                                          | Optional  | `schema_table_unique`                      |
+| s3_tmp_table_dir      | Prefix for storing temporary tables, if different from the connection's `s3_data_dir` | Optional  | `s3://bucket3/dbt/`                        |
+| region_name           | AWS region of your Athena instance                                                    | Required  | `eu-west-1`                                |
+| schema                | Specify the schema (Athena database) to build models into (lowercase **only**)        | Required  | `dbt`                                      |
+| database              | Specify the database (Data catalog) to build models into (lowercase **only**)         | Required  | `awsdatacatalog`                           |
+| poll_interval         | Interval in seconds to use for polling the status of query results in Athena          | Optional  | `5`                                        |
+| debug_query_state     | Flag if debug message with Athena query state is needed                               | Optional  | `false`                                    |
+| aws_access_key_id     | Access key ID of the user performing requests.                                        | Optional  | `AKIAIOSFODNN7EXAMPLE`                     |
+| aws_secret_access_key | Secret access key of the user performing requests                                     | Optional  | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
+| aws_profile_name      | Profile to use from your AWS shared credentials file.                                 | Optional  | `my-profile`                               |
+| work_group            | Identifier of Athena workgroup                                                        | Optional  | `my-custom-workgroup`                      |
+| num_retries           | Number of times to retry a failing query                                              | Optional  | `3`                                        |
 | spark_work_group      | Identifier of Athena Spark workgroup                                           | Optional  | `my-spark-workgroup`                       |
 | spark_threads         | Number of spark sessions to create. Recommended to be same as threads.         | Optional  | `4`                                        |
-| seed_s3_upload_args   | Dictionary containing boto3 ExtraArgs when uploading to S3                     | Optional  | `{"ACL": "bucket-owner-full-control"}`     |
-| lf_tags_database      | Default LF tags for new database if it's created by dbt                        | Optional  | `tag_key: tag_value`                       |
+| seed_s3_upload_args   | Dictionary containing boto3 ExtraArgs when uploading to S3                            | Optional  | `{"ACL": "bucket-owner-full-control"}`     |
+| lf_tags_database      | Default LF tags for new database if it's created by dbt                               | Optional  | `tag_key: tag_value`                       |
 
 **Example profiles.yml entry:**
 
@@ -147,6 +148,7 @@ athena:
       s3_staging_dir: s3://athena-query-results/dbt/
       s3_data_dir: s3://your_s3_bucket/dbt/
       s3_data_naming: schema_table
+      s3_tmp_table_dir: s3://your_s3_bucket/temp/
       region_name: eu-west-1
       schema: dbt
       database: awsdatacatalog

@@ -283,7 +283,7 @@ class TestAthenaAdapter:
         assert arguments["cursor_class"] == AthenaCursor
         assert isinstance(arguments["formatter"], AthenaParameterFormatter)
         assert arguments["poll_interval"] == 1.0
-        assert arguments["retry_config"].attempt == 5
+        assert arguments["retry_config"].attempt == 6
         assert arguments["retry_config"].exceptions == (
             "ThrottlingException",
             "TooManyRequestsException",
@@ -314,13 +314,26 @@ class TestAthenaAdapter:
         assert "Got an error when attempting to open a Athena connection due to foobar" in dbt_error_caplog.getvalue()
 
     @pytest.mark.parametrize(
-        ("s3_data_dir", "s3_data_naming", "s3_path_table_part", "external_location", "is_temporary_table", "expected"),
         (
-            pytest.param(None, "table", None, None, False, "s3://my-bucket/test-dbt/tables/table", id="table naming"),
-            pytest.param(None, "unique", None, None, False, "s3://my-bucket/test-dbt/tables/uuid", id="unique naming"),
+            "s3_data_dir",
+            "s3_data_naming",
+            "s3_path_table_part",
+            "s3_tmp_table_dir",
+            "external_location",
+            "is_temporary_table",
+            "expected",
+        ),
+        (
+            pytest.param(
+                None, "table", None, None, None, False, "s3://my-bucket/test-dbt/tables/table", id="table naming"
+            ),
+            pytest.param(
+                None, "unique", None, None, None, False, "s3://my-bucket/test-dbt/tables/uuid", id="unique naming"
+            ),
             pytest.param(
                 None,
                 "table_unique",
+                None,
                 None,
                 None,
                 False,
@@ -332,6 +345,7 @@ class TestAthenaAdapter:
                 "schema_table",
                 None,
                 None,
+                None,
                 False,
                 "s3://my-bucket/test-dbt/tables/schema/table",
                 id="schema_table naming",
@@ -339,6 +353,7 @@ class TestAthenaAdapter:
             pytest.param(
                 None,
                 "schema_table_unique",
+                None,
                 None,
                 None,
                 False,
@@ -350,6 +365,7 @@ class TestAthenaAdapter:
                 "schema_table_unique",
                 None,
                 None,
+                None,
                 False,
                 "s3://my-data-bucket/schema/table/uuid",
                 id="data_dir set",
@@ -357,6 +373,7 @@ class TestAthenaAdapter:
             pytest.param(
                 "s3://my-data-bucket/",
                 "schema_table_unique",
+                None,
                 None,
                 "s3://path/to/external/",
                 False,
@@ -367,15 +384,27 @@ class TestAthenaAdapter:
                 "s3://my-data-bucket/",
                 "schema_table_unique",
                 None,
+                "s3://my-bucket/test-dbt-temp/",
+                "s3://path/to/external/",
+                True,
+                "s3://my-bucket/test-dbt-temp/schema/table/uuid",
+                id="s3_tmp_table_dir set, external_location set and temporary",
+            ),
+            pytest.param(
+                "s3://my-data-bucket/",
+                "schema_table_unique",
+                None,
+                None,
                 "s3://path/to/external/",
                 True,
                 "s3://my-data-bucket/schema/table/uuid",
-                id="external_location set and temporary",
+                id="s3_tmp_table_dir is empty, external_location set and temporary",
             ),
             pytest.param(
                 None,
                 "schema_table_unique",
                 "other_table",
+                None,
                 None,
                 False,
                 "s3://my-bucket/test-dbt/tables/schema/other_table/uuid",
@@ -385,7 +414,15 @@ class TestAthenaAdapter:
     )
     @patch("dbt.adapters.athena.impl.uuid4", return_value="uuid")
     def test_generate_s3_location(
-        self, _, s3_data_dir, s3_data_naming, external_location, s3_path_table_part, is_temporary_table, expected
+        self,
+        _,
+        s3_data_dir,
+        s3_data_naming,
+        s3_tmp_table_dir,
+        external_location,
+        s3_path_table_part,
+        is_temporary_table,
+        expected,
     ):
         self.adapter.acquire_connection("dummy")
         relation = self.adapter.Relation.create(
@@ -395,7 +432,7 @@ class TestAthenaAdapter:
             s3_path_table_part=s3_path_table_part,
         )
         assert expected == self.adapter.generate_s3_location(
-            relation, s3_data_dir, s3_data_naming, external_location, is_temporary_table
+            relation, s3_data_dir, s3_data_naming, s3_tmp_table_dir, external_location, is_temporary_table
         )
 
     @mock_glue
