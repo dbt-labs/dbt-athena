@@ -835,7 +835,7 @@ class AthenaAdapter(SQLAdapter):
             # Get dbt model meta if available
             meta: dict[str, Any] = model.get("config", {}).get("meta", {})
             # Add some of dbt model config fields as table meta
-            meta["unique_id"] = model["unique_id"]
+            meta["unique_id"] = model.get("unique_id")
             meta["materialized"] = model.get("config", {}).get("materialized")
             # Get dbt runtime config to be able to get dbt project metadata
             runtime_config: RuntimeConfig = self.config
