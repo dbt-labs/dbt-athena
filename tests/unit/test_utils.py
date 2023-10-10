@@ -1,4 +1,8 @@
-from dbt.adapters.athena.utils import clean_sql_comment, get_chunks
+from dbt.adapters.athena.utils import (
+    clean_sql_comment,
+    get_chunks,
+    stringify_for_table_property,
+)
 
 
 def test_clean_comment():
@@ -12,6 +16,14 @@ def test_clean_comment():
         )
         == "my long comment on several lines with weird spaces and indents."
     )
+
+
+def test_stringify_for_table_property():
+    assert stringify_for_table_property(True) == "True"
+    assert stringify_for_table_property(123) == "123"
+    assert stringify_for_table_property("dbt-athena") == "dbt-athena"
+    assert stringify_for_table_property(["a", "b", 3]) == '["a", "b", 3]'
+    assert stringify_for_table_property({"a": 1, "b": "c"}) == '{"a": 1, "b": "c"}'
 
 
 def test_get_chunks_empty():
