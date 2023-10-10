@@ -20,12 +20,25 @@ def test_clean_comment():
 
 
 def test_stringify_table_parameter_value():
+    class NonStringifiableObject:
+        def __str__(self):
+            raise ValueError("Non-stringifiable object")
+
     assert stringify_table_parameter_value(True) == "True"
     assert stringify_table_parameter_value(123) == "123"
     assert stringify_table_parameter_value("dbt-athena") == "dbt-athena"
     assert stringify_table_parameter_value(["a", "b", 3]) == '["a", "b", 3]'
     assert stringify_table_parameter_value({"a": 1, "b": "c"}) == '{"a": 1, "b": "c"}'
     assert len(stringify_table_parameter_value("a" * 512001)) == 512000
+    print(stringify_table_parameter_value(NonStringifiableObject()))
+    assert (
+        stringify_table_parameter_value(NonStringifiableObject())
+        == "Non-stringifiable object. Error: Non-stringifiable object"
+    )
+    assert (
+        stringify_table_parameter_value([NonStringifiableObject()])
+        == "Non-stringifiable object. Error: Object of type NonStringifiableObject is not JSON serializable"
+    )
 
 
 def test_is_valid_table_parameter_key():
