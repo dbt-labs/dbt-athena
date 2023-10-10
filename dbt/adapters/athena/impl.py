@@ -51,7 +51,8 @@ from dbt.adapters.athena.utils import (
     get_catalog_id,
     get_catalog_type,
     get_chunks,
-    stringify_for_table_property,
+    is_valid_table_parameter_key,
+    stringify_table_parameter_value,
 )
 from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.impl import AdapterConfig
@@ -843,14 +844,15 @@ class AthenaAdapter(SQLAdapter):
             meta["dbt_project_name"] = runtime_config.project_name
             meta["dbt_project_version"] = runtime_config.version
             # Prepare meta values for table properties and check if update is required
-            for meta_key, meta_value_obj in meta.items():
-                meta_value = stringify_for_table_property(meta_value_obj)
-                # Check that meta value is already attached to GLue table
-                current_meta_value: Optional[str] = table_parameters.get(meta_key)
-                if current_meta_value is None or current_meta_value != meta_value:
-                    # Update Glue table parameter only if needed
-                    table_parameters[meta_key] = meta_value
-                    need_to_update_table = True
+            for meta_key, meta_value_raw in meta.items():
+                if is_valid_table_parameter_key(meta_key):
+                    meta_value = stringify_table_parameter_value(meta_value_raw)
+                    # Check that meta value is already attached to Glue table
+                    current_meta_value: Optional[str] = table_parameters.get(meta_key)
+                    if current_meta_value is None or current_meta_value != meta_value:
+                        # Update Glue table parameter only if needed
+                        table_parameters[meta_key] = meta_value
+                        need_to_update_table = True
 
         # Update column comments
         if persist_column_docs:

@@ -1,4 +1,5 @@
 import json
+import re
 from enum import Enum
 from typing import Any, Generator, List, Optional, TypeVar
 
@@ -10,11 +11,17 @@ def clean_sql_comment(comment: str) -> str:
     return " ".join(line for line in split_and_strip if line)
 
 
-def stringify_for_table_property(value: Any) -> str:
+def stringify_table_parameter_value(value: Any) -> str:
     """Convert any variable to string for Glue Table property."""
     if isinstance(value, (dict, list)):
-        return json.dumps(value)
-    return str(value)
+        value_str: str = json.dumps(value)
+    else:
+        value_str = str(value)
+    return value_str[:512000]
+
+
+def is_valid_table_parameter_key(key: str) -> bool:
+    return len(key) <= 255 and bool(re.match(r"^[\u0020-\uD7FF\uE000-\uFFFD\t]*$", key))
 
 
 def get_catalog_id(catalog: Optional[DataCatalogTypeDef]) -> Optional[str]:

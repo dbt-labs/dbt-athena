@@ -1,7 +1,8 @@
 from dbt.adapters.athena.utils import (
     clean_sql_comment,
     get_chunks,
-    stringify_for_table_property,
+    is_valid_table_parameter_key,
+    stringify_table_parameter_value,
 )
 
 
@@ -18,12 +19,20 @@ def test_clean_comment():
     )
 
 
-def test_stringify_for_table_property():
-    assert stringify_for_table_property(True) == "True"
-    assert stringify_for_table_property(123) == "123"
-    assert stringify_for_table_property("dbt-athena") == "dbt-athena"
-    assert stringify_for_table_property(["a", "b", 3]) == '["a", "b", 3]'
-    assert stringify_for_table_property({"a": 1, "b": "c"}) == '{"a": 1, "b": "c"}'
+def test_stringify_table_parameter_value():
+    assert stringify_table_parameter_value(True) == "True"
+    assert stringify_table_parameter_value(123) == "123"
+    assert stringify_table_parameter_value("dbt-athena") == "dbt-athena"
+    assert stringify_table_parameter_value(["a", "b", 3]) == '["a", "b", 3]'
+    assert stringify_table_parameter_value({"a": 1, "b": "c"}) == '{"a": 1, "b": "c"}'
+    assert len(stringify_table_parameter_value("a" * 512001)) == 512000
+
+
+def test_is_valid_table_parameter_key():
+    assert is_valid_table_parameter_key("valid_key") is True
+    assert is_valid_table_parameter_key("Valid Key 123*!") is True
+    assert is_valid_table_parameter_key("invalid \n key") is False
+    assert is_valid_table_parameter_key("long_key" * 100) is False
 
 
 def test_get_chunks_empty():
