@@ -847,12 +847,17 @@ class AthenaAdapter(SQLAdapter):
             for meta_key, meta_value_raw in meta.items():
                 if is_valid_table_parameter_key(meta_key):
                     meta_value = stringify_table_parameter_value(meta_value_raw)
-                    # Check that meta value is already attached to Glue table
-                    current_meta_value: Optional[str] = table_parameters.get(meta_key)
-                    if current_meta_value is None or current_meta_value != meta_value:
-                        # Update Glue table parameter only if needed
-                        table_parameters[meta_key] = meta_value
-                        need_to_update_table = True
+                    if meta_value is not None:
+                        # Check that meta value is already attached to Glue table
+                        current_meta_value: Optional[str] = table_parameters.get(meta_key)
+                        if current_meta_value is None or current_meta_value != meta_value:
+                            # Update Glue table parameter only if needed
+                            table_parameters[meta_key] = meta_value
+                            need_to_update_table = True
+                    else:
+                        LOGGER.warning('Meta value for key "%s" is not supported and will be ignored', meta_key)
+                else:
+                    LOGGER.warning('Meta key "%s" is not supported and will be ignored', meta_key)
 
         # Update column comments
         if persist_column_docs:

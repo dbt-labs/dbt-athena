@@ -5,23 +5,26 @@ from typing import Any, Generator, List, Optional, TypeVar
 
 from mypy_boto3_athena.type_defs import DataCatalogTypeDef
 
+from dbt.adapters.athena.constants import LOGGER
+
 
 def clean_sql_comment(comment: str) -> str:
     split_and_strip = [line.strip() for line in comment.split("\n")]
     return " ".join(line for line in split_and_strip if line)
 
 
-def stringify_table_parameter_value(value: Any) -> str:
+def stringify_table_parameter_value(value: Any) -> Optional[str]:
     """Convert any variable to string for Glue Table property."""
     try:
         if isinstance(value, (dict, list)):
             value_str: str = json.dumps(value)
         else:
             value_str = str(value)
+        return value_str[:512000]
     except (TypeError, ValueError) as e:
         # Handle non-stringifiable objects and non-serializable objects
-        value_str = f"Non-stringifiable object. Error: {str(e)}"
-    return value_str[:512000]
+        LOGGER.warning("Non-stringifiable object. Error: %s", str(e))
+        return None
 
 
 def is_valid_table_parameter_key(key: str) -> bool:
