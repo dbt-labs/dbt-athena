@@ -258,29 +258,33 @@ athena:
           }
       }
   ```
+
 * `lf_inherited_tags` (`default=none`)
   * List of Lake Formation tag keys that are intended to be inherited from the database level and thus shouldn't be removed during association of those defined in `lf_tags_config`
     * i.e. The default behavior of `lf_tags_config` is to be exhaustive and first remove any pre-existing tags from tables and columns before associating the ones currently defined for a given model
     * This breaks tag inheritance as inherited tags appear on tables and columns like those associated directly
   * This list sits outside of `lf_tags_config` so that it can be set at the project level -- for example:
+
 ```yaml
 models:
   my_project:
     example:
       +lf_inherited_tags: [inherited-tag-1, inherited-tag-2]
 ```
+
 > Notes:  
-> - `lf_tags` and `lf_tags_columns` configs support only attaching lf tags to corresponding resources.
+>
+> * `lf_tags` and `lf_tags_columns` configs support only attaching lf tags to corresponding resources.
 > We recommend managing LF Tags permissions somewhere outside dbt. For example, you may use
 > [terraform](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_permissions) or
 > [aws cdk](https://docs.aws.amazon.com/cdk/api/v1/docs/aws-lakeformation-readme.html) for such purpose.
-> - `data_cell_filters` management can't be automated outside dbt because the filter can't be attached to the table
+> * `data_cell_filters` management can't be automated outside dbt because the filter can't be attached to the table
 > which doesn't exist. Once you `enable` this config, dbt will set all filters and their permissions during every
 > dbt run. Such approach keeps the actual state of row level security configuration actual after every dbt run and
 > apply changes if they occur: drop, create, update filters and their permissions.
-> - Any tags listed in `lf_inherited_tags` should be strictly inherited from the database level and never overridden at the table and column level
->   - Currently `dbt-athena` does not differentiate between an inherited tag association and an override of same it made previously
->   - e.g. If an inherited tag is overridden by an `lf_tags_config` value in one DBT run, and that override is removed prior to a subsequent run, the prior override will linger and no longer be encoded anywhere (in e.g. Terraform where the inherited value is configured nor in the DBT project where the override previously existed but now is gone)
+> * Any tags listed in `lf_inherited_tags` should be strictly inherited from the database level and never overridden at the table and column level
+>   * Currently `dbt-athena` does not differentiate between an inherited tag association and an override of same it made previously
+>   * e.g. If an inherited tag is overridden by an `lf_tags_config` value in one DBT run, and that override is removed prior to a subsequent run, the prior override will linger and no longer be encoded anywhere (in e.g. Terraform where the inherited value is configured nor in the DBT project where the override previously existed but now is gone)
 
 [create-table-as]: https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html#ctas-table-properties
 
