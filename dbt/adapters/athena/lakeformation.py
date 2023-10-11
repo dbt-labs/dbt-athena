@@ -24,7 +24,7 @@ logger = AdapterLogger("AthenaLakeFormation")
 
 def _column_tags_to_remove(
     lf_tags_columns: List[ColumnLFTagTypeDef], lf_inherited_tags: Set[str]
-) -> dict[str, dict[str, List[str]]]:
+) -> Dict[str, Dict[str, List[str]]]:
     to_remove = {}
 
     for column in lf_tags_columns:
