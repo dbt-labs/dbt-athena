@@ -23,7 +23,7 @@ def stringify_table_parameter_value(value: Any) -> Optional[str]:
         return value_str[:512000]
     except (TypeError, ValueError) as e:
         # Handle non-stringifiable objects and non-serializable objects
-        LOGGER.warning("Non-stringifiable object. Error: %s", str(e))
+        LOGGER.warning(f"Non-stringifiable object. Error: {str(e)}")
         return None
 
 

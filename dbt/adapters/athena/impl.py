@@ -855,9 +855,9 @@ class AthenaAdapter(SQLAdapter):
                             table_parameters[meta_key] = meta_value
                             need_to_update_table = True
                     else:
-                        LOGGER.warning('Meta value for key "%s" is not supported and will be ignored', meta_key)
+                        LOGGER.warning(f"Meta value for key '{meta_key}' is not supported and will be ignored")
                 else:
-                    LOGGER.warning('Meta key "%s" is not supported and will be ignored', meta_key)
+                    LOGGER.warning(f"Meta key '{meta_key}' is not supported and will be ignored")
 
         # Update column comments
         if persist_column_docs:
