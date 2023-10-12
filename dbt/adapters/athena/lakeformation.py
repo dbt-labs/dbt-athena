@@ -1,6 +1,6 @@
 """AWS Lakeformation permissions management helper utilities."""
 
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Sequence, Set, Union
 
 from mypy_boto3_lakeformation import LakeFormationClient
 from mypy_boto3_lakeformation.type_defs import (
@@ -36,7 +36,7 @@ class LfTagsManager:
         self.table = relation.identifier
         self.lf_tags = lf_tags_config.tags
         self.lf_tags_columns = lf_tags_config.tags_columns
-        self.lf_inherited_tags = set(lf_tags_config.inherited_tags)
+        self.lf_inherited_tags = set(lf_tags_config.inherited_tags if lf_tags_config.inherited_tags else [])
 
     def process_lf_tags_database(self) -> None:
         if self.lf_tags:
@@ -92,7 +92,7 @@ class LfTagsManager:
     @staticmethod
     def _table_tags_to_remove(
         lf_tags_table: list[LFTagPairTypeDef], lf_tags: Optional[Dict[str, str]], lf_inherited_tags: set[str]
-    ):
+    ) -> Dict[str, Sequence[str]]:
         return {
             tag["TagKey"]: tag["TagValues"]
             for tag in lf_tags_table
