@@ -109,7 +109,7 @@ class TestLfTagsManager:
         ],
     )
     def test__column_tags_to_remove(self, lf_tags_columns, lf_inherited_tags, expected):
-        assert lakeformation._column_tags_to_remove(lf_tags_columns, lf_inherited_tags) == expected
+        assert lakeformation.LfTagsManager._column_tags_to_remove(lf_tags_columns, lf_inherited_tags) == expected
 
     @pytest.mark.parametrize(
         "lf_tags_table,lf_tags,lf_inherited_tags,expected",
@@ -141,4 +141,4 @@ class TestLfTagsManager:
         ],
     )
     def test__table_tags_to_remove(self, lf_tags_table, lf_tags, lf_inherited_tags, expected):
-        assert lakeformation._table_tags_to_remove(lf_tags_table, lf_tags, lf_inherited_tags) == expected
+        assert lakeformation.LfTagsManager._table_tags_to_remove(lf_tags_table, lf_tags, lf_inherited_tags) == expected
