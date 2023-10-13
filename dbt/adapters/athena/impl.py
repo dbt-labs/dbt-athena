@@ -563,7 +563,7 @@ class AthenaAdapter(SQLAdapter):
                     MaxResults=50,  # Limit supported by this operation
                 ):
                     for table in page["TableMetadataList"]:
-                        if relations and table["Name"] in relations:
+                        if relations and table["Name"].lower() in relations:
                             catalog.extend(
                                 self._get_one_table_for_non_glue_catalog(
                                     table, schema, information_schema.path.database
