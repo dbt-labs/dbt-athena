@@ -36,7 +36,7 @@ class LfTagsManager:
         self.table = relation.identifier
         self.lf_tags = lf_tags_config.tags
         self.lf_tags_columns = lf_tags_config.tags_columns
-        self.lf_inherited_tags = set(lf_tags_config.inherited_tags if lf_tags_config.inherited_tags else [])
+        self.lf_inherited_tags = set(lf_tags_config.inherited_tags)
 
     def process_lf_tags_database(self) -> None:
         if self.lf_tags:
