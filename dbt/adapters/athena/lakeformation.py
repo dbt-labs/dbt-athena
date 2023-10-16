@@ -91,7 +91,7 @@ class LfTagsManager:
 
     @staticmethod
     def _table_tags_to_remove(
-        lf_tags_table: list[LFTagPairTypeDef], lf_tags: Optional[Dict[str, str]], lf_inherited_tags: set[str]
+        lf_tags_table: List[LFTagPairTypeDef], lf_tags: Optional[Dict[str, str]], lf_inherited_tags: Set[str]
     ) -> Dict[str, Sequence[str]]:
         return {
             tag["TagKey"]: tag["TagValues"]
