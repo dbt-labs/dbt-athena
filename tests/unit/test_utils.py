@@ -1,4 +1,9 @@
-from dbt.adapters.athena.utils import clean_sql_comment, get_chunks
+from dbt.adapters.athena.utils import (
+    clean_sql_comment,
+    get_chunks,
+    is_valid_table_parameter_key,
+    stringify_table_parameter_value,
+)
 
 
 def test_clean_comment():
@@ -12,6 +17,28 @@ def test_clean_comment():
         )
         == "my long comment on several lines with weird spaces and indents."
     )
+
+
+def test_stringify_table_parameter_value():
+    class NonStringifiableObject:
+        def __str__(self):
+            raise ValueError("Non-stringifiable object")
+
+    assert stringify_table_parameter_value(True) == "True"
+    assert stringify_table_parameter_value(123) == "123"
+    assert stringify_table_parameter_value("dbt-athena") == "dbt-athena"
+    assert stringify_table_parameter_value(["a", "b", 3]) == '["a", "b", 3]'
+    assert stringify_table_parameter_value({"a": 1, "b": "c"}) == '{"a": 1, "b": "c"}'
+    assert len(stringify_table_parameter_value("a" * 512001)) == 512000
+    assert stringify_table_parameter_value(NonStringifiableObject()) is None
+    assert stringify_table_parameter_value([NonStringifiableObject()]) is None
+
+
+def test_is_valid_table_parameter_key():
+    assert is_valid_table_parameter_key("valid_key") is True
+    assert is_valid_table_parameter_key("Valid Key 123*!") is True
+    assert is_valid_table_parameter_key("invalid \n key") is False
+    assert is_valid_table_parameter_key("long_key" * 100) is False
 
 
 def test_get_chunks_empty():
