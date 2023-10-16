@@ -667,16 +667,28 @@ class AthenaAdapter(SQLAdapter):
             CatalogId=src_catalog_id, DatabaseName=src_relation.schema, Name=src_relation.identifier
         ).get("Table")
 
-        src_table_partitions = glue_client.get_partitions(
-            CatalogId=src_catalog_id, DatabaseName=src_relation.schema, TableName=src_relation.identifier
-        ).get("Partitions")
+        src_table_get_partitions_paginator = glue_client.get_paginator("get_partitions")
+        src_table_partitions_result = src_table_get_partitions_paginator.paginate(
+            **{
+                "CatalogId": src_catalog_id,
+                "DatabaseName": src_relation.schema,
+                "TableName": src_relation.identifier,
+            }
+        )
+        src_table_partitions = src_table_partitions_result.build_full_result().get("Partitions")
 
         data_catalog = self._get_data_catalog(src_relation.database)
         target_catalog_id = get_catalog_id(data_catalog)
 
-        target_table_partitions = glue_client.get_partitions(
-            CatalogId=target_catalog_id, DatabaseName=target_relation.schema, TableName=target_relation.identifier
-        ).get("Partitions")
+        target_get_partitions_paginator = glue_client.get_paginator("get_partitions")
+        target_table_partitions_result = target_get_partitions_paginator.paginate(
+            **{
+                "CatalogId": target_catalog_id,
+                "DatabaseName": target_relation.schema,
+                "TableName": target_relation.identifier,
+            }
+        )
+        target_table_partitions = target_table_partitions_result.build_full_result().get("Partitions")
 
         target_table_version = {
             "Name": target_relation.identifier,
