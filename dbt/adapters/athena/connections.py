@@ -53,6 +53,7 @@ class AthenaCredentials(Credentials):
     aws_profile_name: Optional[str] = None
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
+    aws_session_token: Optional[str] = None
     poll_interval: float = 1.0
     debug_query_state: bool = False
     _ALIASES = {"catalog": "database"}
@@ -84,6 +85,7 @@ class AthenaCredentials(Credentials):
             "aws_profile_name",
             "aws_access_key_id",
             "aws_secret_access_key",
+            "aws_session_token",
             "endpoint_url",
             "s3_data_dir",
             "s3_data_naming",
