@@ -26,7 +26,7 @@ class LfTagsConfig(BaseModel):
     enabled: bool = False
     tags: Optional[Dict[str, str]] = None
     tags_columns: Optional[Dict[str, Dict[str, List[str]]]] = None
-    inherited_tags: Optional[List[str]] = []
+    inherited_tags: List[str] = []
 
 
 class LfTagsManager:
