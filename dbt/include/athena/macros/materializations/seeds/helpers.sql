@@ -91,6 +91,7 @@
   {%- set identifier = model['alias'] -%}
 
   {%- set lf_tags_config = config.get('lf_tags_config') -%}
+  {%- set lf_inherited_tags = config.get('lf_inherited_tags') -%}
   {%- set lf_grants = config.get('lf_grants') -%}
 
   {%- set column_override = config.get('column_types', {}) -%}
@@ -179,7 +180,7 @@
   {% do adapter.delete_from_s3(tmp_s3_location) %}
 
   {% if lf_tags_config is not none %}
-    {{ adapter.add_lf_tags(relation, lf_tags_config) }}
+    {{ adapter.add_lf_tags(relation, lf_tags_config, lf_inherited_tags) }}
   {% endif %}
 
   {% if lf_grants is not none %}

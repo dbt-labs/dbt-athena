@@ -159,8 +159,10 @@ class AthenaAdapter(SQLAdapter):
             LOGGER.debug(f"Lakeformation is disabled for {relation}")
 
     @available
-    def add_lf_tags(self, relation: AthenaRelation, lf_tags_config: Dict[str, Any]) -> None:
-        config = LfTagsConfig(**lf_tags_config)
+    def add_lf_tags(
+        self, relation: AthenaRelation, lf_tags_config: Dict[str, Any], lf_inherited_tags: Optional[List[str]]
+    ) -> None:
+        config = LfTagsConfig(**(lf_tags_config | dict(inherited_tags=lf_inherited_tags)))
         if config.enabled:
             conn = self.connections.get_thread_connection()
             client = conn.handle
