@@ -70,7 +70,7 @@
     {%- set single_partition = [] -%}
     {%- for col in row -%}
       {%- set column_type = adapter.convert_type(table, loop.index0) -%}
-      {%- if column_type == 'integer' -%}
+      {%- if column_type == 'integer' or column_type is none -%}
         {%- set value = col|string -%}
       {%- elif column_type == 'string' -%}
         {%- set value = "'" + col + "'" -%}

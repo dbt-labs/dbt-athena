@@ -51,11 +51,14 @@ from dbt.adapters.athena.utils import (
     get_catalog_id,
     get_catalog_type,
     get_chunks,
+    is_valid_table_parameter_key,
+    stringify_table_parameter_value,
 )
 from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.impl import AdapterConfig
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
+from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import CompiledNode, ConstraintType
 from dbt.exceptions import DbtRuntimeError
@@ -156,8 +159,10 @@ class AthenaAdapter(SQLAdapter):
             LOGGER.debug(f"Lakeformation is disabled for {relation}")
 
     @available
-    def add_lf_tags(self, relation: AthenaRelation, lf_tags_config: Dict[str, Any]) -> None:
-        config = LfTagsConfig(**lf_tags_config)
+    def add_lf_tags(
+        self, relation: AthenaRelation, lf_tags_config: Dict[str, Any], lf_inherited_tags: Optional[List[str]]
+    ) -> None:
+        config = LfTagsConfig(**(lf_tags_config | dict(inherited_tags=lf_inherited_tags)))
         if config.enabled:
             conn = self.connections.get_thread_connection()
             client = conn.handle
@@ -564,7 +569,7 @@ class AthenaAdapter(SQLAdapter):
                     MaxResults=50,  # Limit supported by this operation
                 ):
                     for table in page["TableMetadataList"]:
-                        if relations and table["Name"] in relations:
+                        if relations and table["Name"].lower() in relations:
                             catalog.extend(
                                 self._get_one_table_for_non_glue_catalog(
                                     table, schema, information_schema.path.database
@@ -668,16 +673,28 @@ class AthenaAdapter(SQLAdapter):
             CatalogId=src_catalog_id, DatabaseName=src_relation.schema, Name=src_relation.identifier
         ).get("Table")
 
-        src_table_partitions = glue_client.get_partitions(
-            CatalogId=src_catalog_id, DatabaseName=src_relation.schema, TableName=src_relation.identifier
-        ).get("Partitions")
+        src_table_get_partitions_paginator = glue_client.get_paginator("get_partitions")
+        src_table_partitions_result = src_table_get_partitions_paginator.paginate(
+            **{
+                "CatalogId": src_catalog_id,
+                "DatabaseName": src_relation.schema,
+                "TableName": src_relation.identifier,
+            }
+        )
+        src_table_partitions = src_table_partitions_result.build_full_result().get("Partitions")
 
         data_catalog = self._get_data_catalog(src_relation.database)
         target_catalog_id = get_catalog_id(data_catalog)
 
-        target_table_partitions = glue_client.get_partitions(
-            CatalogId=target_catalog_id, DatabaseName=target_relation.schema, TableName=target_relation.identifier
-        ).get("Partitions")
+        target_get_partitions_paginator = glue_client.get_paginator("get_partitions")
+        target_table_partitions_result = target_get_partitions_paginator.paginate(
+            **{
+                "CatalogId": target_catalog_id,
+                "DatabaseName": target_relation.schema,
+                "TableName": target_relation.identifier,
+            }
+        )
+        target_table_partitions = target_table_partitions_result.build_full_result().get("Partitions")
 
         target_table_version = {
             "Name": target_relation.identifier,
@@ -814,11 +831,12 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
 
         # By default, there is no need to update Glue Table
-        need_udpate_table = False
+        need_to_update_table = False
         # Get Table from Glue
         table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.name)["Table"]
         # Prepare new version of Glue Table picking up significant fields
-        updated_table = self._get_table_input(table)
+        table_input = self._get_table_input(table)
+        table_parameters = table_input["Parameters"]
         # Update table description
         if persist_relation_docs:
             # Prepare dbt description
@@ -829,16 +847,40 @@ class AthenaAdapter(SQLAdapter):
             glue_table_comment = table["Parameters"].get("comment", "")
             # Update description if it's different
             if clean_table_description != glue_table_description or clean_table_description != glue_table_comment:
-                updated_table["Description"] = clean_table_description
-                updated_table_parameters: Dict[str, str] = dict(updated_table["Parameters"])
-                updated_table_parameters["comment"] = clean_table_description
-                updated_table["Parameters"] = updated_table_parameters
-                need_udpate_table = True
+                table_input["Description"] = clean_table_description
+                table_parameters["comment"] = clean_table_description
+                need_to_update_table = True
+
+            # Get dbt model meta if available
+            meta: Dict[str, Any] = model.get("config", {}).get("meta", {})
+            # Add some of dbt model config fields as table meta
+            meta["unique_id"] = model.get("unique_id")
+            meta["materialized"] = model.get("config", {}).get("materialized")
+            # Get dbt runtime config to be able to get dbt project metadata
+            runtime_config: RuntimeConfig = self.config
+            # Add dbt project metadata to table meta
+            meta["dbt_project_name"] = runtime_config.project_name
+            meta["dbt_project_version"] = runtime_config.version
+            # Prepare meta values for table properties and check if update is required
+            for meta_key, meta_value_raw in meta.items():
+                if is_valid_table_parameter_key(meta_key):
+                    meta_value = stringify_table_parameter_value(meta_value_raw)
+                    if meta_value is not None:
+                        # Check that meta value is already attached to Glue table
+                        current_meta_value: Optional[str] = table_parameters.get(meta_key)
+                        if current_meta_value is None or current_meta_value != meta_value:
+                            # Update Glue table parameter only if needed
+                            table_parameters[meta_key] = meta_value
+                            need_to_update_table = True
+                    else:
+                        LOGGER.warning(f"Meta value for key '{meta_key}' is not supported and will be ignored")
+                else:
+                    LOGGER.warning(f"Meta key '{meta_key}' is not supported and will be ignored")
 
         # Update column comments
         if persist_column_docs:
             # Process every column
-            for col_obj in updated_table["StorageDescriptor"]["Columns"]:
+            for col_obj in table_input["StorageDescriptor"]["Columns"]:
                 # Get column description from dbt
                 col_name = col_obj["Name"]
                 if col_name in model["columns"]:
@@ -850,15 +892,16 @@ class AthenaAdapter(SQLAdapter):
                     # Update column description if it's different
                     if glue_col_comment != clean_col_comment:
                         col_obj["Comment"] = clean_col_comment
-                        need_udpate_table = True
+                        need_to_update_table = True
 
         # Update Glue Table only if table/column description is modified.
         # It prevents redundant schema version creating after incremental runs.
-        if need_udpate_table:
+        if need_to_update_table:
+            table_input["Parameters"] = table_parameters
             glue_client.update_table(
                 CatalogId=catalog_id,
                 DatabaseName=relation.schema,
-                TableInput=updated_table,
+                TableInput=table_input,
                 SkipArchive=skip_archive_table_version,
             )
 
