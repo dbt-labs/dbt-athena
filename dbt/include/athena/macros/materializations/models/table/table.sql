@@ -50,7 +50,7 @@
       {%- endif -%}
 
       -- create tmp table
-      {%- set query_result = safe_create_table_as(False, tmp_relation, sql) -%}
+      {%- set query_result = safe_create_table_as(False, tmp_relation, sql, False) -%}
 
       -- swap table
       {%- set swap_table = adapter.swap_table(tmp_relation, target_relation) -%}
@@ -65,7 +65,7 @@
       {%- if old_relation is not none -%}
         {{ drop_relation(old_relation) }}
       {%- endif -%}
-      {%- set query_result = safe_create_table_as(False, target_relation, sql) -%}
+      {%- set query_result = safe_create_table_as(False, target_relation, sql, False) -%}
     {%- endif -%}
 
     {{ set_table_classification(target_relation) }}
@@ -73,10 +73,10 @@
   {%- else -%}
 
     {%- if old_relation is none -%}
-      {%- set query_result = safe_create_table_as(False, target_relation, sql) -%}
+      {%- set query_result = safe_create_table_as(False, target_relation, sql, False) -%}
     {%- else -%}
       {%- if old_relation.is_view -%}
-        {%- set query_result = safe_create_table_as(False, tmp_relation, sql) -%}
+        {%- set query_result = safe_create_table_as(False, tmp_relation, sql, False) -%}
         {%- do drop_relation(old_relation) -%}
         {%- do rename_relation(tmp_relation, target_relation) -%}
       {%- else -%}
@@ -94,7 +94,7 @@
           {%- do drop_relation(old_relation_bkp) -%}
         {%- endif -%}
 
-        {% set query_result = safe_create_table_as(False, tmp_relation, sql) %}
+        {% set query_result = safe_create_table_as(False, tmp_relation, sql, False) %}
 
         {{ rename_relation(old_relation, old_relation_bkp) }}
         {{ rename_relation(tmp_relation, target_relation) }}
