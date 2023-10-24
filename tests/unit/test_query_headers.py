@@ -68,3 +68,9 @@ class TestQueryHeaders:
         self.query_header.comment.append = True
         sql = "VACUUM table"
         assert self.query_header.add(sql) == sql
+
+    def test_no_query_comment_on_msck(self):
+        self.query_header.comment.query_comment = "executed by dbt"
+        self.query_header.comment.append = True
+        sql = "MSCK REPAIR TABLE"
+        assert self.query_header.add(sql) == sql
