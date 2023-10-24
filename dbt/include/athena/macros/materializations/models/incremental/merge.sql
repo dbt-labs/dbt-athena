@@ -56,6 +56,7 @@
     existing_relation,
     delete_condition,
     update_condition,
+    insert_condition,
     statement_name="main"
   )
 %}
@@ -118,7 +119,7 @@
               {%- endif -%}
             {%- endfor %}
       {%- endif %}
-      when not matched
+      when not matched {% if insert_condition is not none -%} and {{ insert_condition }} {%- endif %}
         then insert ({{ dest_cols_csv }})
          values ({{ src_cols_csv }})
     {%- endset -%}
