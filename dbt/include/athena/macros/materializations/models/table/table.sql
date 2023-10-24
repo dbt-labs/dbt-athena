@@ -15,6 +15,7 @@
   {%- set is_full_refresh_mode = (flags.FULL_REFRESH == True or full_refresh_config == True) -%}
   {%- set versions_to_keep = config.get('versions_to_keep', default=4) -%}
   {%- set external_location = config.get('external_location', default=none) -%}
+  {%- set batch_inserts = should_batch_inserts() %}
   {%- set target_relation = api.Relation.create(identifier=identifier,
                                                 schema=schema,
                                                 database=database,
@@ -50,7 +51,7 @@
       {%- endif -%}
 
       -- create tmp table
-      {%- set query_result = safe_create_table_as(False, tmp_relation, sql, False) -%}
+      {%- set query_result = safe_create_table_as(False, tmp_relation, sql, batch_inserts) -%}
 
       -- swap table
       {%- set swap_table = adapter.swap_table(tmp_relation, target_relation) -%}
