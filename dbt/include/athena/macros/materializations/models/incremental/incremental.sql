@@ -54,6 +54,7 @@
     {% set incremental_predicates = config.get('incremental_predicates') %}
     {% set delete_condition = config.get('delete_condition') %}
     {% set update_condition = config.get('update_condition') %}
+    {% set insert_condition = config.get('insert_condition') %}
     {% set empty_unique_key -%}
       Merge strategy must implement unique_key as a single column or a list of columns.
     {%- endset %}
@@ -82,6 +83,7 @@
         existing_relation=existing_relation,
         delete_condition=delete_condition,
         update_condition=update_condition,
+        insert_condition=insert_condition,
       )
     %}
     {% do to_drop.append(tmp_relation) %}

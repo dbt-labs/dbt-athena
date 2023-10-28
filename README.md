@@ -389,8 +389,9 @@ It is possible to use Iceberg in an incremental fashion, specifically two strate
     be useful for improving performance via predicate pushdown on the target table.
   * `delete_condition` (optional): SQL condition used to identify records that should be deleted.
   * `update_condition` (optional): SQL condition used to identify records that should be updated.
-    * `incremental_predicates`, `delete_condition` and `update_condition` can include any column of the incremental
-      table (`src`) or the final table (`target`).
+  * `insert_condition` (optional): SQL condition used to identify records that should be inserted.
+    * `incremental_predicates`, `delete_condition`, `update_condition` and `insert_condition` can include any column of
+      the incremental table (`src`) or the final table (`target`).
       Column names must be prefixed by either `src` or `target` to prevent a `Column is ambiguous` error.
 
 `delete_condition` example:
@@ -446,6 +447,26 @@ select * from (
 ) as t (id, value)
 
 {% endif %}
+```
+
+`insert_condition` example:
+
+```sql
+{{ config(
+        materialized='incremental',
+        incremental_strategy='merge',
+        unique_key=['id'],
+        insert_condition='target.status != 0',
+        schema='sandbox'
+    )
+}}
+
+select * from (
+    values
+    (1, 0)
+    , (2, 1)
+) as t (id, status)
+
 ```
 
 ### Highly available table (HA)
