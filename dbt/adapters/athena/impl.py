@@ -109,6 +109,7 @@ class AthenaConfig(AdapterConfig):
     lf_tags_config: Optional[Dict[str, Any]] = None
     seed_s3_upload_args: Optional[Dict[str, Any]] = None
     partitions_limit: Optional[int] = None
+    force_batch_insert: bool = False
 
 
 class AthenaAdapter(SQLAdapter):
