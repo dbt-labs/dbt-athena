@@ -6,9 +6,8 @@ from dbt.tests.util import run_dbt
 models__force_batch_insert_sql = """
 {{ config(
         materialized='table',
-        partitioned_by=['date_column']
-        force_batch_insert=true,
-        schema='sandbox'
+        partitioned_by=['date_column'],
+        force_batch_insert=true
     )
 }}
 
