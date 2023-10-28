@@ -90,6 +90,7 @@ class AthenaConfig(AdapterConfig):
         lf_tags_config: AWS lakeformation tags to associate with the table and columns.
         seed_s3_upload_args: Dictionary containing boto3 ExtraArgs when uploading to S3.
         partitions_limit: Maximum numbers of partitions when batching.
+        force_batch_insert: Skip creating the table as ctas and run the operation directly in batch insert mode.
     """
 
     work_group: Optional[str] = None

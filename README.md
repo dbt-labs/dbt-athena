@@ -199,7 +199,7 @@ athena:
   * large seed files cannot use `seed_by_insert`, as the SQL insert statement would
     exceed [the Athena limit of 262144 bytes](https://docs.aws.amazon.com/athena/latest/ug/service-limits.html)
 * `force_batch_insert` (`default=false`)
-  * Direct the system to avoid the initial table creation step and run the operation directly in batch insert mode.
+  * Skip creating the table as ctas and run the operation directly in batch insert mode.
   * This is particularly useful when the standard table creation process fails due to partition limitations,
   allowing you to work with temporary tables and persist the dataset more efficiently.
 
