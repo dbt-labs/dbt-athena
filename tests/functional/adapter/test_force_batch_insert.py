@@ -30,7 +30,7 @@ class TestForceBatchInsertParam:
 
     def test__force_batch_insert_param(self, project):
         relation_name = "force_batch_insert"
-        model_run_result_row_count_query = f"`select count(*) as records from {project.test_schema}.{relation_name}`"
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
 
         model_run = run_dbt(["run", "--select", relation_name])
         model_run_result = model_run.results[0]
