@@ -124,6 +124,42 @@ seeds__expected_update_condition_csv = """id,value
 2,v2-updated
 """
 
+models__insert_condition_sql = """
+{{ config(
+        table_type='iceberg',
+        materialized='incremental',
+        incremental_strategy='merge',
+        unique_key=['id'],
+        insert_condition='src.status != 0'
+    )
+}}
+
+{% if is_incremental() %}
+
+select * from (
+    values
+    (1, -1)
+    , (2, 0)
+    , (3, 1)
+) as t (id, status)
+
+{% else %}
+
+select * from (
+    values
+    (0, 1)
+) as t (id, status)
+
+{% endif %}
+
+"""
+
+seeds__expected_insert_condition_csv = """id,status
+0, 1
+1,-1
+3,1
+"""
+
 
 class TestIcebergIncrementalUniqueKey(BaseIncrementalUniqueKey):
     @pytest.fixture(scope="class")
@@ -325,3 +361,30 @@ def replace_cast_date(model: str) -> str:
 
     new_model = re.sub("'[0-9]{4}-[0-9]{2}-[0-9]{2}'", r"cast(\g<0> as date)", model)
     return new_model
+
+
+class TestIcebergInsertCondition:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"merge_insert_condition.sql": models__insert_condition_sql}
+
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {"expected_merge_insert_condition.csv": seeds__expected_insert_condition_csv}
+
+    def test__merge_insert_condition(self, project):
+        """Seed should match the model after run"""
+
+        expected_seed_name = "expected_merge_insert_condition"
+        run_dbt(["seed", "--select", expected_seed_name, "--full-refresh"])
+
+        relation_name = "merge_insert_condition"
+        model_run = run_dbt(["run", "--select", relation_name])
+        model_run_result = model_run.results[0]
+        assert model_run_result.status == RunStatus.Success
+
+        model_update = run_dbt(["run", "--select", relation_name])
+        model_update_result = model_update.results[0]
+        assert model_update_result.status == RunStatus.Success
+
+        check_relations_equal(project.adapter, [relation_name, expected_seed_name])

@@ -509,6 +509,7 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
+    @mock_sts
     def test_clean_up_partitions_will_work(self, dbt_debug_caplog, mock_aws_service):
         table_name = "table"
         mock_aws_service.create_data_catalog()
