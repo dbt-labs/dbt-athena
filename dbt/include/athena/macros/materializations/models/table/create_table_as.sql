@@ -145,16 +145,25 @@
 
 {%- endmacro %}
 
-{% macro safe_create_table_as(temporary, relation, sql) -%}
-    {%- if temporary -%}
-      {%- do run_query(create_table_as(temporary, relation, sql, True)) -%}
-      {%- set query_result = relation ~ ' as temporary relation without partitioning created' -%}
+{% macro safe_create_table_as(temporary, relation, sql, force_batch) -%}
+
+    {%- if force_batch -%}
+      {%- do create_table_as_with_partitions(temporary, relation, sql) -%}
+      {%- set query_result = relation ~ ' with many partitions created' -%}
     {%- else -%}
-      {%- set query_result = adapter.run_query_with_partitions_limit_catching(create_table_as(temporary, relation, sql)) -%}
-      {%- do log('QUERY RESULT: ' ~ query_result) -%}
-      {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
-        {%- do create_table_as_with_partitions(temporary, relation, sql) -%}
-        {%- set query_result = relation ~ ' with many partitions created' -%}
+      {%- if temporary -%}
+        {%- do run_query(create_table_as(temporary, relation, sql, True)) -%}
+        {%- set query_result = relation ~ ' as temporary relation without partitioning created' -%}
+      {%- else -%}
+        {%- set query_result = adapter.run_query_with_partitions_limit_catching(
+              create_table_as(temporary, relation, sql)
+            )
+        -%}
+        {%- do log('QUERY RESULT: ' ~ query_result) -%}
+        {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
+          {%- do create_table_as_with_partitions(temporary, relation, sql) -%}
+          {%- set query_result = relation ~ ' with many partitions created' -%}
+        {%- endif -%}
       {%- endif -%}
     {%- endif -%}
 

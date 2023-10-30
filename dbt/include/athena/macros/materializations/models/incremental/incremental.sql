@@ -9,6 +9,7 @@
   {% set lf_inherited_tags = config.get('lf_inherited_tags') %}
   {% set lf_grants = config.get('lf_grants') %}
   {% set partitioned_by = config.get('partitioned_by') %}
+  {% set force_batch = config.get('force_batch', False) | as_bool -%}
   {% set target_relation = this.incorporate(type='table') %}
   {% set existing_relation = load_relation(this) %}
   {% set tmp_relation = make_temp_relation(this) %}
@@ -25,18 +26,18 @@
 
   {% set to_drop = [] %}
   {% if existing_relation is none %}
-    {% set query_result = safe_create_table_as(False, target_relation, sql) -%}
+    {% set query_result = safe_create_table_as(False, target_relation, sql, force_batch) -%}
     {% set build_sql = "select '" ~ query_result ~ "'" -%}
   {% elif existing_relation.is_view or should_full_refresh() %}
     {% do drop_relation(existing_relation) %}
-    {% set query_result = safe_create_table_as(False, target_relation, sql) -%}
+    {% set query_result = safe_create_table_as(False, target_relation, sql, force_batch) -%}
     {% set build_sql = "select '" ~ query_result ~ "'" -%}
   {% elif partitioned_by is not none and strategy == 'insert_overwrite' %}
     {% set tmp_relation = make_temp_relation(target_relation) %}
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% set query_result = safe_create_table_as(True, tmp_relation, sql) -%}
+    {% set query_result = safe_create_table_as(True, tmp_relation, sql, force_batch) -%}
     {% do delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by) %}
     {% set build_sql = incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation) %}
     {% do to_drop.append(tmp_relation) %}
@@ -45,7 +46,7 @@
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% set query_result = safe_create_table_as(True, tmp_relation, sql) -%}
+    {% set query_result = safe_create_table_as(True, tmp_relation, sql, force_batch) -%}
     {% set build_sql = incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation) %}
     {% do to_drop.append(tmp_relation) %}
   {% elif strategy == 'merge' and table_type == 'iceberg' %}
@@ -72,7 +73,7 @@
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% set query_result = safe_create_table_as(True, tmp_relation, sql) -%}
+    {% set query_result = safe_create_table_as(True, tmp_relation, sql, force_batch) -%}
     {% set build_sql = iceberg_merge(
         on_schema_change=on_schema_change,
         tmp_relation=tmp_relation,

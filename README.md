@@ -198,6 +198,10 @@ athena:
   * default behaviour uploads seed data to S3. This flag will create seeds using an SQL insert statement
   * large seed files cannot use `seed_by_insert`, as the SQL insert statement would
     exceed [the Athena limit of 262144 bytes](https://docs.aws.amazon.com/athena/latest/ug/service-limits.html)
+* `force_batch` (`default=false`)
+  * Skip creating the table as ctas and run the operation directly in batch insert mode.
+  * This is particularly useful when the standard table creation process fails due to partition limitations,
+  allowing you to work with temporary tables and persist the dataset more efficiently.
 
 * `lf_tags_config` (`default=none`)
   * [AWS lakeformation](#aws-lakeformation-integration) tags to associate with the table and columns
