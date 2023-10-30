@@ -165,7 +165,7 @@
           {%- set query_result = relation ~ ' with many partitions created' -%}
         {%- endif -%}
       {%- endif -%}
-    {%- else -%}
+    {%- endif -%}
 
     {{ return(query_result) }}
 {%- endmacro %}
