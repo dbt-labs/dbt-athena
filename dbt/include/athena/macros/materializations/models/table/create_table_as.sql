@@ -147,8 +147,13 @@
 
 {% macro safe_create_table_as(temporary, relation, sql, force_batch_insert) -%}
     {%- if temporary -%}
-      {%- do run_query(create_table_as(temporary, relation, sql, True)) -%}
-      {%- set query_result = relation ~ ' as temporary relation without partitioning created' -%}
+      {%- if force_batch_insert -%}
+        {%- do create_table_as_with_partitions(temporary, relation, sql) -%}
+        {%- set query_result = relation ~ ' with many partitions created' -%}
+      {%- else -%}
+        {%- do run_query(create_table_as(temporary, relation, sql, True)) -%}
+        {%- set query_result = relation ~ ' as temporary relation without partitioning created' -%}
+      {%- endif -%}
     {%- else -%}
       {%- if force_batch_insert -%}
         {%- do create_table_as_with_partitions(temporary, relation, sql) -%}
