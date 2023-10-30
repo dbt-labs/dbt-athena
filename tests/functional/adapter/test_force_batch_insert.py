@@ -3,11 +3,11 @@ import pytest
 from dbt.contracts.results import RunStatus
 from dbt.tests.util import run_dbt
 
-models__force_batch_insert_sql = """
+models__force_batch_sql = """
 {{ config(
         materialized='table',
         partitioned_by=['date_column'],
-        force_batch_insert=true
+        force_batch=true
     )
 }}
 
@@ -26,10 +26,10 @@ cross join unnest(date_array) as t2(date_column)
 class TestForceBatchInsertParam:
     @pytest.fixture(scope="class")
     def models(self):
-        return {"force_batch_insert.sql": models__force_batch_insert_sql}
+        return {"force_batch.sql": models__force_batch_sql}
 
-    def test__force_batch_insert_param(self, project):
-        relation_name = "force_batch_insert"
+    def test__force_batch_param(self, project):
+        relation_name = "force_batch"
         model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
 
         model_run = run_dbt(["run", "--select", relation_name])
