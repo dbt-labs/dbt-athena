@@ -48,14 +48,14 @@
 {%- endmacro -%}
 
 
-{% macro batch_iceberg_merge(tmp_relation, target_relation, merge_part) %}
+{% macro batch_iceberg_merge(tmp_relation, target_relation, merge_part, dest_cols_csv) %}
     {% set partitions_batches = get_partition_batches(tmp_relation) %}
     {% do log('BATCHES TO PROCESS: ' ~ partitions_batches | length) %}
     {%- for batch in partitions_batches -%}
         {%- do log('BATCH PROCESSING: ' ~ loop.index ~ ' OF ' ~ partitions_batches | length) -%}
         {%- set src_batch_part -%}
             merge into {{ target_relation }} as target
-            using (select * from {{ tmp_relation }} where {{ batch }}) as src
+            using (select {{ dest_cols_csv }} from {{ tmp_relation }} where {{ batch }}) as src
         {%- endset -%}
         {%- set merge_batch -%}
           {{ src_batch_part }}
@@ -141,7 +141,7 @@
     {%- endset -%}
 
     {%- if force_batch -%}
-      {% do batch_iceberg_merge(tmp_relation, target_relation, merge_part) %}
+      {% do batch_iceberg_merge(tmp_relation, target_relation, merge_part, dest_cols_csv) %}
     {%- else -%}
       {%- set src_part -%}
           merge into {{ target_relation }} as target using {{ tmp_relation }} as src
@@ -154,7 +154,7 @@
       {%- set query_result =  adapter.run_query_with_partitions_limit_catching(merge_full) -%}
       {%- do log('QUERY RESULT: ' ~ query_result) -%}
       {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
-        {% do batch_iceberg_merge(tmp_relation, target_relation, merge_part) %}
+        {% do batch_iceberg_merge(tmp_relation, target_relation, merge_part, dest_cols_csv) %}
       {%- endif -%}
     {%- endif -%}
 
