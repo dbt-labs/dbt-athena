@@ -39,7 +39,10 @@
     {% endif %}
     {% set query_result = safe_create_table_as(True, tmp_relation, sql, force_batch) -%}
     {% do delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by) %}
-    {% set build_sql = incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation) %}
+    {% set build_sql = incremental_insert(
+        on_schema_change, tmp_relation, target_relation, existing_relation, force_batch
+      )
+    %}
     {% do to_drop.append(tmp_relation) %}
   {% elif strategy == 'append' %}
     {% set tmp_relation = make_temp_relation(target_relation) %}
@@ -47,7 +50,10 @@
       {% do drop_relation(tmp_relation) %}
     {% endif %}
     {% set query_result = safe_create_table_as(True, tmp_relation, sql, force_batch) -%}
-    {% set build_sql = incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation) %}
+    {% set build_sql = incremental_insert(
+        on_schema_change, tmp_relation, target_relation, existing_relation, force_batch
+      )
+    %}
     {% do to_drop.append(tmp_relation) %}
   {% elif strategy == 'merge' and table_type == 'iceberg' %}
     {% set unique_key = config.get('unique_key') %}
@@ -84,6 +90,7 @@
         delete_condition=delete_condition,
         update_condition=update_condition,
         insert_condition=insert_condition,
+        force_batch=force_batch,
       )
     %}
     {% do to_drop.append(tmp_relation) %}
