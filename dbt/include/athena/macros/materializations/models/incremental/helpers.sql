@@ -21,40 +21,60 @@
   {% do return(raw_strategy) %}
 {% endmacro %}
 
-{% macro incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation, statement_name="main") %}
+
+{% macro batch_incremental_insert(tmp_relation, target_relation, dest_cols_csv) %}
+    {% set partitions_batches = get_partition_batches(tmp_relation) %}
+    {% do log('BATCHES TO PROCESS: ' ~ partitions_batches | length) %}
+    {%- for batch in partitions_batches -%}
+        {%- do log('BATCH PROCESSING: ' ~ loop.index ~ ' OF ' ~ partitions_batches|length) -%}
+        {%- set insert_batch_partitions -%}
+            insert into {{ target_relation }} ({{ dest_cols_csv }})
+                (
+                   select {{ dest_cols_csv }}
+                   from {{ tmp_relation }}
+                   where {{ batch }}
+                );
+        {%- endset -%}
+        {%- do run_query(insert_batch_partitions) -%}
+    {%- endfor -%}
+{% endmacro %}
+
+
+{% macro incremental_insert(
+    on_schema_change,
+    tmp_relation,
+    target_relation,
+    existing_relation,
+    force_batch,
+    statement_name="main"
+  )
+%}
     {%- set dest_columns = process_schema_changes(on_schema_change, tmp_relation, existing_relation) -%}
     {%- if not dest_columns -%}
       {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
     {%- endif -%}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
-    {%- set insert_full -%}
-        insert into {{ target_relation }} ({{ dest_cols_csv }})
-            (
-               select {{ dest_cols_csv }}
-               from {{ tmp_relation }}
-            );
-    {%- endset -%}
+    {% if force_batch %}
+        {% do batch_incremental_insert(tmp_relation, target_relation, dest_cols_csv) %}
+    {% else %}
+      {%- set insert_full -%}
+          insert into {{ target_relation }} ({{ dest_cols_csv }})
+              (
+                 select {{ dest_cols_csv }}
+                 from {{ tmp_relation }}
+              );
+      {%- endset -%}
 
-    {%- set query_result =  adapter.run_query_with_partitions_limit_catching(insert_full) -%}
-    {%- do log('QUERY RESULT: ' ~ query_result) -%}
-    {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
-        {% set partitions_batches = get_partition_batches(tmp_relation) %}
-        {% do log('BATCHES TO PROCESS: ' ~ partitions_batches | length) %}
-        {%- for batch in partitions_batches -%}
-            {%- do log('BATCH PROCESSING: ' ~ loop.index ~ ' OF ' ~ partitions_batches|length) -%}
-            {%- set insert_batch_partitions -%}
-                insert into {{ target_relation }} ({{ dest_cols_csv }})
-                    (
-                       select {{ dest_cols_csv }}
-                       from {{ tmp_relation }}
-                       where {{ batch }}
-                    );
-            {%- endset -%}
-            {%- do run_query(insert_batch_partitions) -%}
-        {%- endfor -%}
+      {%- set query_result =  adapter.run_query_with_partitions_limit_catching(insert_full) -%}
+      {%- do log('QUERY RESULT: ' ~ query_result) -%}
+      {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
+          {% do batch_incremental_insert(tmp_relation, target_relation, dest_cols_csv) %}
+      {%- endif -%}
     {%- endif -%}
+
     SELECT '{{query_result}}'
+
 {%- endmacro %}
 
 
