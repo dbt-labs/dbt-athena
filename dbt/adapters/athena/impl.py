@@ -48,6 +48,7 @@ from dbt.adapters.athena.s3 import S3DataNaming
 from dbt.adapters.athena.utils import (
     AthenaCatalogType,
     clean_sql_comment,
+    ellipsis_comment,
     get_catalog_id,
     get_catalog_type,
     get_chunks,
@@ -842,7 +843,7 @@ class AthenaAdapter(SQLAdapter):
         # Update table description
         if persist_relation_docs:
             # Prepare dbt description
-            clean_table_description = clean_sql_comment(model["description"])
+            clean_table_description = ellipsis_comment(clean_sql_comment(model["description"]))
             # Get current description from Glue
             glue_table_description = table.get("Description", "")
             # Get current description parameter from Glue
@@ -888,7 +889,7 @@ class AthenaAdapter(SQLAdapter):
                 if col_name in model["columns"]:
                     col_comment = model["columns"][col_name]["description"]
                     # Prepare column description from dbt
-                    clean_col_comment = clean_sql_comment(col_comment)
+                    clean_col_comment = ellipsis_comment(clean_sql_comment(col_comment))
                     # Get current column comment from Glue
                     glue_col_comment = col_obj.get("Comment", "")
                     # Update column description if it's different

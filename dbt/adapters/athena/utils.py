@@ -56,3 +56,8 @@ def get_chunks(lst: List[T], n: int) -> Generator[List[T], None, None]:
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
+
+
+def ellipsis_comment(s: str, max_len: int = 255) -> str:
+    """Ellipsis string if it exceeds max length"""
+    return f"{s[:(max_len - 3)]}..." if len(s) > max_len else s
