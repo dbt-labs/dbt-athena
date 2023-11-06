@@ -58,6 +58,7 @@ class AthenaCredentials(Credentials):
     debug_query_state: bool = False
     _ALIASES = {"catalog": "database"}
     num_retries: int = 5
+    num_boto3_retries: Optional[int] = None
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
     s3_tmp_table_dir: Optional[str] = None
@@ -73,6 +74,10 @@ class AthenaCredentials(Credentials):
     @property
     def unique_field(self) -> str:
         return f"athena-{hashlib.md5(self.s3_staging_dir.encode()).hexdigest()}"
+
+    @property
+    def get_effective_num_retries(self) -> int:
+        return self.num_boto3_retries if self.num_boto3_retries is not None else self.num_retries
 
     def _connection_keys(self) -> Tuple[str, ...]:
         return (
@@ -235,7 +240,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                     attempt=creds.num_retries + 1,
                     exceptions=("ThrottlingException", "TooManyRequestsException", "InternalServerException"),
                 ),
-                config=get_boto3_config(),
+                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
             )
 
             connection.state = ConnectionState.OPEN
