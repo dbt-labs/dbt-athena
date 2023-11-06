@@ -4,8 +4,9 @@ from io import StringIO
 import pytest
 
 from dbt.events.base_types import EventLevel
-from dbt.events.eventmgr import LineFormat, NoFilter
+from dbt.events.eventmgr import LineFormat
 from dbt.events.functions import EVENT_MANAGER, _get_stdout_config
+from dbt.events.logger import NoFilter
 
 # Import the functional fixtures as a plugin
 # Note: fixtures with session scope need to be local
