@@ -679,7 +679,8 @@ class AthenaAdapter(SQLAdapter):
         for _rel in relations:
             glue_table_definition = self.get_glue_table(_rel)
             if glue_table_definition:
-                final_table_definition = self._get_one_table_for_catalog(glue_table_definition, _rel.database)
+                print(glue_table_definition)
+                final_table_definition = self._get_one_table_for_catalog(glue_table_definition["Table"], _rel.database)
                 _table_definitions.append(final_table_definition)
         table = agate.Table.from_object(_table_definitions)
         filtered_table = self._catalog_filter_table(table, manifest)

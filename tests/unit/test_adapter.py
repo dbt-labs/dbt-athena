@@ -660,6 +660,28 @@ class TestAthenaAdapter:
 
     @mock_glue
     @mock_athena
+    @mock_sts
+    def test__get_one_catalog_by_relations(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database("foo")
+        mock_aws_service.create_table(database_name="foo", table_name="bar")
+
+        mock_information_schema = mock.MagicMock()
+        mock_information_schema.path.database = "awsdatacatalog"
+
+        self.adapter.acquire_connection("dummy")
+
+        rel_1 = self.adapter.Relation.create(
+            database="awsdatacatalog",
+            schema="foo",
+            identifier="bar",
+        )
+
+        actual = self.adapter._get_one_catalog_by_relations(mock_information_schema, [rel_1], self.mock_manifest)
+        assert len(actual.rows) == 1
+
+    @mock_glue
+    @mock_athena
     def test__get_one_catalog_shared_catalog(self, mock_aws_service):
         mock_aws_service.create_data_catalog(catalog_name=SHARED_DATA_CATALOG_NAME, catalog_id=SHARED_DATA_CATALOG_NAME)
         mock_aws_service.create_database("foo", catalog_id=SHARED_DATA_CATALOG_NAME)
