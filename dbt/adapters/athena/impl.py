@@ -58,6 +58,7 @@ from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.impl import AdapterConfig
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
+from dbt.clients.agate_helper import table_from_rows
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import CompiledNode, ConstraintType
@@ -455,6 +456,8 @@ class AthenaAdapter(SQLAdapter):
         return True if "Contents" in response else False
 
     def _join_catalog_table_owners(self, table: agate.Table, manifest: Manifest) -> agate.Table:
+        # print(manifest)
+        # print(table)
         owners = []
         # Get the owner for each model from the manifest
         for node in manifest.nodes.values():
@@ -468,6 +471,9 @@ class AthenaAdapter(SQLAdapter):
                     }
                 )
         owners_table = agate.Table.from_object(owners)
+
+        print(table)
+        print(owners_table)
 
         # Join owners with the results from catalog
         join_keys = ["table_database", "table_schema", "table_name"]
@@ -680,12 +686,15 @@ class AthenaAdapter(SQLAdapter):
             glue_table_definition = self.get_glue_table(_rel)
             if glue_table_definition:
                 _table_definition = self._get_one_table_for_catalog(glue_table_definition["Table"], _rel.database)
-                print(_table_definition)
-                _table_definitions.append(_table_definition)
+                _table_definitions.extend(_table_definition)
         table = agate.Table.from_object(_table_definitions)
-        # TODO this doesn't work, must be fixed
-        # return self._join_catalog_table_owners(table, manifest)
-        return table
+        # picked from _catalog_filter_table, force database + schema to be strings
+        table_casted = table_from_rows(
+            table.rows,
+            table.column_names,
+            text_only_columns=["table_database", "table_schema", "table_name"],
+        )
+        return self._join_catalog_table_owners(table_casted, manifest)
 
     @available
     def swap_table(self, src_relation: AthenaRelation, target_relation: AthenaRelation) -> None:

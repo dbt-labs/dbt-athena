@@ -652,7 +652,6 @@ class TestAthenaAdapter:
             ("awsdatacatalog", "baz", "qux", "table", None, "id", 0, "string", None, "data-engineers"),
             ("awsdatacatalog", "baz", "qux", "table", None, "country", 1, "string", None, "data-engineers"),
         ]
-
         assert actual.column_names == expected_column_names
         assert len(actual.rows) == len(expected_rows)
         for row in actual.rows.values():
@@ -664,7 +663,10 @@ class TestAthenaAdapter:
     def test__get_one_catalog_by_relations(self, mock_aws_service):
         mock_aws_service.create_data_catalog()
         mock_aws_service.create_database("foo")
+        mock_aws_service.create_database("quux")
         mock_aws_service.create_table(database_name="foo", table_name="bar")
+        # we create another relations
+        mock_aws_service.create_table(table_name="bar", database_name="quux")
 
         mock_information_schema = mock.MagicMock()
         mock_information_schema.path.database = "awsdatacatalog"
@@ -677,8 +679,28 @@ class TestAthenaAdapter:
             identifier="bar",
         )
 
+        expected_column_names = (
+            "table_database",
+            "table_schema",
+            "table_name",
+            "table_type",
+            "table_comment",
+            "column_name",
+            "column_index",
+            "column_type",
+            "column_comment",
+            "table_owner",
+        )
+
+        expected_rows = [
+            ("awsdatacatalog", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
+            ("awsdatacatalog", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
+            ("awsdatacatalog", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
+        ]
+
         actual = self.adapter._get_one_catalog_by_relations(mock_information_schema, [rel_1], self.mock_manifest)
-        assert len(actual.rows) == 1
+        assert actual.column_names == expected_column_names
+        assert actual.rows == expected_rows
 
     @mock_glue
     @mock_athena
