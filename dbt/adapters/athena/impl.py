@@ -673,7 +673,7 @@ class AthenaAdapter(SQLAdapter):
     ) -> agate.Table:
         """
         Overwrite of _get_one_catalog_by_relations for Athena, in order to use glue apis.
-        This function is invoked by Adapter.get_catalog_by_relations. And
+        This function is invoked by Adapter.get_catalog_by_relations.
         """
         _table_definitions = []
         for _rel in relations:
