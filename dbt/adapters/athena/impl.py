@@ -456,8 +456,6 @@ class AthenaAdapter(SQLAdapter):
         return True if "Contents" in response else False
 
     def _join_catalog_table_owners(self, table: agate.Table, manifest: Manifest) -> agate.Table:
-        # print(manifest)
-        # print(table)
         owners = []
         # Get the owner for each model from the manifest
         for node in manifest.nodes.values():
@@ -471,9 +469,6 @@ class AthenaAdapter(SQLAdapter):
                     }
                 )
         owners_table = agate.Table.from_object(owners)
-
-        print(table)
-        print(owners_table)
 
         # Join owners with the results from catalog
         join_keys = ["table_database", "table_schema", "table_name"]
