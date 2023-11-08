@@ -13,5 +13,5 @@
 {% endmacro %}
 
 {% macro athena__get_catalog_relations(information_schema, relations) %}
-  {{ return(adapter.get_catalog_by_relations()) }}
+  {{ return(adapter.get_catalog_by_relations(information_schema, relations)) }}
 {% endmacro %}
