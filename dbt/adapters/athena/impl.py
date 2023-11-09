@@ -58,6 +58,7 @@ from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.impl import AdapterConfig
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
+from dbt.clients.agate_helper import table_from_rows
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import CompiledNode, ConstraintType
@@ -527,6 +528,9 @@ class AthenaAdapter(SQLAdapter):
         schemas: Dict[str, Optional[Set[str]]],
         manifest: Manifest,
     ) -> agate.Table:
+        """
+        This function is invoked by Adapter.get_catalog for each schema.
+        """
         data_catalog = self._get_data_catalog(information_schema.path.database)
         data_catalog_type = get_catalog_type(data_catalog)
 
@@ -581,6 +585,10 @@ class AthenaAdapter(SQLAdapter):
         return self._join_catalog_table_owners(filtered_table, manifest)
 
     def _get_catalog_schemas(self, manifest: Manifest) -> AthenaSchemaSearchMap:
+        """
+        Get the schemas from the catalog.
+        It's called by the `get_catalog` method.
+        """
         info_schema_name_map = AthenaSchemaSearchMap()
         nodes: Iterator[CompiledNode] = chain(
             [node for node in manifest.nodes.values() if (node.is_relational and not node.is_ephemeral_model)],
@@ -657,6 +665,31 @@ class AthenaAdapter(SQLAdapter):
             LOGGER.debug(f"Schema '{schema_relation.schema}' does not exist - Ignoring: {e}")
 
         return relations
+
+    def _get_one_catalog_by_relations(
+        self,
+        information_schema: InformationSchema,
+        relations: List[BaseRelation],
+        manifest: Manifest,
+    ) -> agate.Table:
+        """
+        Overwrite of _get_one_catalog_by_relations for Athena, in order to use glue apis.
+        This function is invoked by Adapter.get_catalog_by_relations.
+        """
+        _table_definitions = []
+        for _rel in relations:
+            glue_table_definition = self.get_glue_table(_rel)
+            if glue_table_definition:
+                _table_definition = self._get_one_table_for_catalog(glue_table_definition["Table"], _rel.database)
+                _table_definitions.extend(_table_definition)
+        table = agate.Table.from_object(_table_definitions)
+        # picked from _catalog_filter_table, force database + schema to be strings
+        table_casted = table_from_rows(
+            table.rows,
+            table.column_names,
+            text_only_columns=["table_database", "table_schema", "table_name"],
+        )
+        return self._join_catalog_table_owners(table_casted, manifest)
 
     @available
     def swap_table(self, src_relation: AthenaRelation, target_relation: AthenaRelation) -> None:
