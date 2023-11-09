@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import ClassVar, Dict
 
 from dbt.adapters.athena.relation import TableType
 from dbt.adapters.base.column import Column
@@ -8,6 +9,10 @@ from dbt.exceptions import DbtRuntimeError
 @dataclass
 class AthenaColumn(Column):
     table_type: TableType = TableType.TABLE
+
+    TYPE_LABELS: ClassVar[Dict[str, str]] = {
+        "STRING": "STRING",
+    }
 
     def is_iceberg(self) -> bool:
         return self.table_type == TableType.ICEBERG
