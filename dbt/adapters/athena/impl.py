@@ -159,7 +159,7 @@ class AthenaAdapter(SQLAdapter):
                 lf_client = client.session.client(
                     "lakeformation",
                     client.region_name,
-                    config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                    config=get_boto3_config(num_retries=creds.effective_num_retries),
                 )
             manager = LfTagsManager(lf_client, relation, config)
             manager.process_lf_tags_database()
@@ -177,7 +177,7 @@ class AthenaAdapter(SQLAdapter):
                 lf_client = client.session.client(
                     "lakeformation",
                     client.region_name,
-                    config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                    config=get_boto3_config(num_retries=creds.effective_num_retries),
                 )
             manager = LfTagsManager(lf_client, relation, config)
             manager.process_lf_tags()
@@ -195,7 +195,7 @@ class AthenaAdapter(SQLAdapter):
                 lf = client.session.client(
                     "lakeformation",
                     region_name=client.region_name,
-                    config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                    config=get_boto3_config(num_retries=creds.effective_num_retries),
                 )
             catalog = self._get_data_catalog(relation.database)
             catalog_id = get_catalog_id(catalog)
@@ -213,7 +213,7 @@ class AthenaAdapter(SQLAdapter):
             athena_client = client.session.client(
                 "athena",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
         if creds.work_group:
@@ -313,7 +313,7 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client(
                 "glue",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
         try:
@@ -373,7 +373,7 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client(
                 "glue",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
         paginator = glue_client.get_paginator("get_partitions")
         partition_params = {
@@ -426,7 +426,7 @@ class AthenaAdapter(SQLAdapter):
             s3_client = client.session.client(
                 "s3",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
             # This ensures cross-platform support, tempfile.NamedTemporaryFile does not
             tmpfile = os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
@@ -451,7 +451,7 @@ class AthenaAdapter(SQLAdapter):
             s3_resource = client.session.resource(
                 "s3",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
             s3_bucket = s3_resource.Bucket(bucket_name)
             LOGGER.debug(f"Deleting table data: path='{s3_path}', bucket='{bucket_name}', prefix='{prefix}'")
@@ -494,7 +494,7 @@ class AthenaAdapter(SQLAdapter):
             s3_client = client.session.client(
                 "s3",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
         response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
         return True if "Contents" in response else False
@@ -586,7 +586,7 @@ class AthenaAdapter(SQLAdapter):
                 glue_client = client.session.client(
                     "glue",
                     region_name=client.region_name,
-                    config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                    config=get_boto3_config(num_retries=creds.effective_num_retries),
                 )
 
             catalog = []
@@ -612,7 +612,7 @@ class AthenaAdapter(SQLAdapter):
                 athena_client = client.session.client(
                     "athena",
                     region_name=client.region_name,
-                    config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                    config=get_boto3_config(num_retries=creds.effective_num_retries),
                 )
 
             catalog = []
@@ -660,7 +660,7 @@ class AthenaAdapter(SQLAdapter):
                     sts = client.session.client(
                         "sts",
                         region_name=client.region_name,
-                        config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                        config=get_boto3_config(num_retries=creds.effective_num_retries),
                     )
                 catalog_id = sts.get_caller_identity()["Account"]
                 return {"Name": database, "Type": "GLUE", "Parameters": {"catalog-id": catalog_id}}
@@ -668,7 +668,7 @@ class AthenaAdapter(SQLAdapter):
                 athena = client.session.client(
                     "athena",
                     region_name=client.region_name,
-                    config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                    config=get_boto3_config(num_retries=creds.effective_num_retries),
                 )
             return athena.get_data_catalog(Name=database)["DataCatalog"]
         return None
@@ -687,7 +687,7 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client(
                 "glue",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
         paginator = glue_client.get_paginator("get_tables")
 
@@ -769,7 +769,7 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client(
                 "glue",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
         src_table = glue_client.get_table(
@@ -854,7 +854,7 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client(
                 "glue",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
         paginator = glue_client.get_paginator("get_table_versions")
@@ -884,7 +884,7 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client(
                 "glue",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
         versions_to_delete = self._get_glue_table_versions_to_expire(relation, to_keep)
@@ -945,7 +945,7 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client(
                 "glue",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
         # By default, there is no need to update Glue Table
@@ -1033,7 +1033,7 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client(
                 "glue",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
         paginator = glue_client.get_paginator("get_databases")
@@ -1064,7 +1064,7 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client(
                 "glue",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
         try:
@@ -1106,7 +1106,7 @@ class AthenaAdapter(SQLAdapter):
             glue_client = client.session.client(
                 "glue",
                 region_name=client.region_name,
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
         try:

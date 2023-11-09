@@ -76,8 +76,8 @@ class AthenaCredentials(Credentials):
         return f"athena-{hashlib.md5(self.s3_staging_dir.encode()).hexdigest()}"
 
     @property
-    def get_effective_num_retries(self) -> int:
-        return self.num_boto3_retries if self.num_boto3_retries is not None else self.num_retries
+    def effective_num_retries(self) -> int:
+        return self.num_boto3_retries or self.num_retries
 
     def _connection_keys(self) -> Tuple[str, ...]:
         return (
@@ -240,7 +240,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                     attempt=creds.num_retries + 1,
                     exceptions=("ThrottlingException", "TooManyRequestsException", "InternalServerException"),
                 ),
-                config=get_boto3_config(num_retries=creds.get_effective_num_retries),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
             connection.state = ConnectionState.OPEN
