@@ -12,7 +12,7 @@ class AthenaColumn(Column):
 
     TYPE_LABELS: ClassVar[Dict[str, str]] = {
         "STRING": "STRING",
-        "TEXT": "STRING"
+        "TEXT": "STRING",
     }
 
     def is_iceberg(self) -> bool:
