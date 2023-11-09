@@ -11,8 +11,8 @@ class AthenaColumn(Column):
     table_type: TableType = TableType.TABLE
 
     TYPE_LABELS: ClassVar[Dict[str, str]] = {
-        "STRING": "STRING",
-        "TEXT": "STRING",
+        "STRING": "VARCHAR",
+        "TEXT": "VARCHAR",
     }
 
     def is_iceberg(self) -> bool:
