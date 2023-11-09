@@ -202,10 +202,17 @@ athena:
   * Skip creating the table as ctas and run the operation directly in batch insert mode.
   * This is particularly useful when the standard table creation process fails due to partition limitations,
   allowing you to work with temporary tables and persist the dataset more efficiently.
-
 * `lf_tags_config` (`default=none`)
   * [AWS lakeformation](#aws-lakeformation-integration) tags to associate with the table and columns
-  * format for model config:
+  * `enabled` (`default=False`) whether LF tags management is enabled for a model
+  * `tags` dictionary with tags and their values to assign for the model
+  * `tags_columns` dictionary with a tag key, value and list of columns they must be assigned to
+  * `lf_inherited_tags` (`default=none`)
+    * List of Lake Formation tag keys that are intended to be inherited from the database level and thus shouldn't be
+      removed during association of those defined in `lf_tags_config`
+      * i.e., the default behavior of `lf_tags_config` is to be exhaustive and first remove any pre-existing tags from
+        tables and columns before associating the ones currently defined for a given model
+      * This breaks tag inheritance as inherited tags appear on tables and columns like those associated directly
 
 ```sql
 {{
@@ -226,7 +233,8 @@ athena:
               'value1': ['column1', 'column2'],
               'value2': ['column3', 'column4']
             }
-          }
+          },
+          'inherited_tags': ['tag1', 'tag2']
     }
   )
 }}
@@ -243,6 +251,7 @@ athena:
     tags_columns:
       tag1:
         value1: [ column1, column2 ]
+    inherited_tags: [ tag1, tag2 ]
 ```
 
 * `lf_grants` (`default=none`)
@@ -262,21 +271,6 @@ athena:
           }
       }
   ```
-
-* `lf_inherited_tags` (`default=none`)
-  * List of Lake Formation tag keys that are intended to be inherited from the database level and thus shouldn't be
-    removed during association of those defined in `lf_tags_config`
-    * i.e. The default behavior of `lf_tags_config` is to be exhaustive and first remove any pre-existing tags from
-      tables and columns before associating the ones currently defined for a given model
-    * This breaks tag inheritance as inherited tags appear on tables and columns like those associated directly
-  * This list sits outside of `lf_tags_config` so that it can be set at the project level -- for example:
-
-```yaml
-models:
-  my_project:
-    example:
-      +lf_inherited_tags: [inherited-tag-1, inherited-tag-2]
-```
 
 > Notes:  
 >
