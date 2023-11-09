@@ -1,5 +1,8 @@
+import pytest
+
 from dbt.adapters.athena.utils import (
     clean_sql_comment,
+    ellipsis_comment,
     get_chunks,
     is_valid_table_parameter_key,
     stringify_table_parameter_value,
@@ -56,3 +59,14 @@ def test_get_chunks_more_elements_than_chunk():
     chunks = list(get_chunks([1, 2, 3], 4))
     assert chunks[0] == [1, 2, 3]
     assert len(chunks) == 1
+
+
+@pytest.mark.parametrize(
+    ("max_len", "expected"),
+    (
+        pytest.param(12, "abc def ghi", id="ok string"),
+        pytest.param(6, "abc...", id="ellipsis"),
+    ),
+)
+def test_ellipsis_comment(max_len, expected):
+    assert expected == ellipsis_comment("abc def ghi", max_len=max_len)
