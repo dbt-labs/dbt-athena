@@ -47,7 +47,7 @@
 
 # Features
 
-- Supports dbt version `1.6.*`
+- Supports dbt version `1.7.*`
 - Support for Python
 - Supports [seeds][seeds]
 - Correctly detects views and their columns
