@@ -14,7 +14,7 @@ class TestAthenaConstraintQuotedColumn(BaseConstraintQuotedColumn):
             "my_model.sql": my_model_with_quoted_column_name_sql,
             # we replace text type with varchar
             # do not replace text with string, because then string is replaced with a capital TEXT that leads to failure
-            "constraints_schema.yml": model_quoted_column_schema_yml.replace("text", "varchar"),
+            "constraints_schema.yml": model_quoted_column_schema_yml,
         }
 
     @pytest.fixture(scope="class")
