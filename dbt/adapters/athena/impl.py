@@ -122,6 +122,7 @@ class AthenaAdapter(SQLAdapter):
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
     AdapterSpecificConfigs = AthenaConfig
+    Column = AthenaColumn
 
     # There is no such concept as constraints in Athena
     CONSTRAINT_SUPPORT = {
