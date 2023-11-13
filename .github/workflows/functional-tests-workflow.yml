@@ -20,6 +20,7 @@ env:
   DBT_TEST_ATHENA_WORK_GROUP: athena-dbt-tests
   DBT_TEST_ATHENA_THREADS: 16
   DBT_TEST_ATHENA_POLL_INTERVAL: 0.5
+  DBT_TEST_ATHENA_NUM_RETRIES: 2
 
 jobs:
   functional-tests:

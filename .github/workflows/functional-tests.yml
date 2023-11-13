@@ -13,6 +13,9 @@ jobs:
     name: Functional Tests - PR
     if: contains(github.event.pull_request.labels.*.name, 'enable-functional-tests')
     uses: ./.github/workflows/functional-tests-workflow.yml
+    concurrency:
+      # global functional tests control to avoid to run more than 1 workflow at the same time across different PRs
+      group: functional_tests_pr
     secrets: inherit
     strategy:
       matrix:
@@ -32,6 +35,8 @@ jobs:
     name: Functional Tests - main
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/functional-tests-workflow.yml
+    concurrency:
+      group: functional_tests_main
     secrets: inherit
     strategy:
       matrix:

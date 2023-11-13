@@ -26,7 +26,7 @@ def dbt_profile_target():
         "region_name": os.getenv("DBT_TEST_ATHENA_REGION_NAME"),
         "threads": int(os.getenv("DBT_TEST_ATHENA_THREADS", "1")),
         "poll_interval": float(os.getenv("DBT_TEST_ATHENA_POLL_INTERVAL", "1.0")),
-        "num_retries": 1,
+        "num_retries": int(os.getenv("DBT_TEST_ATHENA_NUM_RETRIES", "2")),
         "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUP"),
         "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME") or None,
     }
