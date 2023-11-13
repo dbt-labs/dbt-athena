@@ -28,7 +28,7 @@ jobs:
       aws-region: ${{ matrix.aws-region }}
       concurrency:
         # functional tests control to avoid to run more than 1 workflow at the same time across different PRs
-        # functional tests can run in parallel for the same region
+        # functional tests can run in parallel for different regions
         group: functional_tests_pr_${{ matrix.aws-region }}
 
   # workflow that is invoked when a push to main happens
