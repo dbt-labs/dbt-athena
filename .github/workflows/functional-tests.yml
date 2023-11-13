@@ -27,7 +27,8 @@ jobs:
       checkout-repository: ${{ github.event.pull_request.head.repo.full_name }}
       aws-region: ${{ matrix.aws-region }}
       concurrency:
-        # global functional tests control to avoid to run more than 1 workflow at the same time across different PRs
+        # functional tests control to avoid to run more than 1 workflow at the same time across different PRs
+        # functional tests can run in parallel for the same region
         group: functional_tests_pr_${{ matrix.aws-region }}
 
   # workflow that is invoked when a push to main happens
