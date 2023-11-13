@@ -26,6 +26,7 @@ jobs:
       # this allows to work on fork
       checkout-repository: ${{ github.event.pull_request.head.repo.full_name }}
       aws-region: ${{ matrix.aws-region }}
+      concurrency-group: functional_tests_pr_${{ matrix.aws-region }}
 
   # workflow that is invoked when a push to main happens
   functional-tests-main:
@@ -43,3 +44,4 @@ jobs:
       checkout-ref: ${{ github.ref }}
       checkout-repository: ${{ github.repository }}
       aws-region: ${{ matrix.aws-region }}
+      concurrency-group: functional_tests_main_${{ matrix.aws-region }}
