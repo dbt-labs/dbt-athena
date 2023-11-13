@@ -13,9 +13,6 @@ jobs:
     name: Functional Tests - PR
     if: contains(github.event.pull_request.labels.*.name, 'enable-functional-tests')
     uses: ./.github/workflows/functional-tests-workflow.yml
-    concurrency:
-      # global functional tests control to avoid to run more than 1 workflow at the same time across different PRs
-      group: functional_tests_pr
     secrets: inherit
     strategy:
       matrix:
@@ -29,14 +26,15 @@ jobs:
       # this allows to work on fork
       checkout-repository: ${{ github.event.pull_request.head.repo.full_name }}
       aws-region: ${{ matrix.aws-region }}
+      concurrency:
+        # global functional tests control to avoid to run more than 1 workflow at the same time across different PRs
+        group: functional_tests_pr_${{ matrix.aws-region }}
 
   # workflow that is invoked when a push to main happens
   functional-tests-main:
     name: Functional Tests - main
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/functional-tests-workflow.yml
-    concurrency:
-      group: functional_tests_main
     secrets: inherit
     strategy:
       matrix:
@@ -48,3 +46,5 @@ jobs:
       checkout-ref: ${{ github.ref }}
       checkout-repository: ${{ github.repository }}
       aws-region: ${{ matrix.aws-region }}
+      concurrency:
+        group: functional_tests_main_${{ matrix.aws-region }}
