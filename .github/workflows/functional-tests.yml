@@ -14,8 +14,7 @@ jobs:
     if: contains(github.event.pull_request.labels.*.name, 'enable-functional-tests')
     uses: ./.github/workflows/functional-tests-workflow.yml
     concurrency:
-      group: functional_tests_${{ github.head_ref || github.ref_name }}
-      cancel-in-progress: true
+      group: functional_tests_pr
     secrets: inherit
     strategy:
       matrix:
