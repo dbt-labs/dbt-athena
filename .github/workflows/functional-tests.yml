@@ -13,8 +13,6 @@ jobs:
     name: Functional Tests - PR
     if: contains(github.event.pull_request.labels.*.name, 'enable-functional-tests')
     uses: ./.github/workflows/functional-tests-workflow.yml
-    concurrency:
-      group: functional_tests_pr
     secrets: inherit
     strategy:
       matrix:
@@ -25,6 +23,9 @@ jobs:
     with:
       # this allows to pick the branch from the PR
       checkout-ref: ${{ github.event.pull_request.head.ref }}
+      concurrency:
+        group: functional_tests_${{ github.head_ref || github.ref_name }}_${{ matrix.aws-region }}
+        cancel-in-progress: true
       # this allows to work on fork
       checkout-repository: ${{ github.event.pull_request.head.repo.full_name }}
       aws-region: ${{ matrix.aws-region }}
