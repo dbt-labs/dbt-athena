@@ -397,9 +397,13 @@ class AthenaAdapter(SQLAdapter):
         if table_location := self.get_glue_table_location(relation):
             self.delete_from_s3(table_location)
 
+    @classmethod
+    def quote(cls, column: str) -> str:
+        return f'"{column}"'
+
     @available
     def quote_seed_column(self, column: str, quote_config: Optional[bool]) -> str:
-        return str(super().quote_seed_column(column, False))
+        return str(super().quote_seed_column(column, quote_config))
 
     @available
     def upload_seed_to_s3(
