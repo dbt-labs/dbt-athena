@@ -725,7 +725,6 @@ class AthenaAdapter(SQLAdapter):
                             quote_policy=quote_policy,
                             type=_type,
                             detailed_table_type=table["Parameters"]["table_type"],
-                            test=table["test"]["test"],
                         )
                     )
         except ClientError as e:
