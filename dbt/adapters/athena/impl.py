@@ -124,6 +124,8 @@ class AthenaAdapter(SQLAdapter):
     AdapterSpecificConfigs = AthenaConfig
     Column = AthenaColumn
 
+    quote_character: str = '"'  # Presto quote character
+
     # There is no such concept as constraints in Athena
     CONSTRAINT_SUPPORT = {
         ConstraintType.check: ConstraintSupport.NOT_SUPPORTED,
@@ -397,13 +399,22 @@ class AthenaAdapter(SQLAdapter):
         if table_location := self.get_glue_table_location(relation):
             self.delete_from_s3(table_location)
 
-    @classmethod
-    def quote(cls, column: str) -> str:
-        return f'"{column}"'
+    def quote(self, identifier: str) -> str:
+        return f"{self.quote_character}{identifier}{self.quote_character}"
 
     @available
-    def quote_seed_column(self, column: str, quote_config: Optional[bool]) -> str:
-        return str(super().quote_seed_column(column, quote_config))
+    def quote_seed_column(
+        self, column: str, quote_config: Optional[bool], quote_character: Optional[str] = None
+    ) -> str:
+        if quote_character:
+            old_value = self.quote_character
+            object.__setattr__(self, "quote_character", quote_character)
+            quoted_column = str(super().quote_seed_column(column, quote_config))
+            object.__setattr__(self, "quote_character", old_value)
+        else:
+            quoted_column = str(super().quote_seed_column(column, quote_config))
+
+        return quoted_column
 
     @available
     def upload_seed_to_s3(
