@@ -857,18 +857,25 @@ class TestAthenaAdapter:
     def _test_list_relations_without_caching(self, schema_relation):
         self.adapter.acquire_connection("dummy")
         relations = self.adapter.list_relations_without_caching(schema_relation)
-        assert len(relations) == 3
+        assert len(relations) == 4
         assert all(isinstance(rel, AthenaRelation) for rel in relations)
         relations.sort(key=lambda rel: rel.name)
-        other = relations[0]
-        table = relations[1]
-        view = relations[2]
+        iceberg_table = relations[0]
+        other = relations[1]
+        table = relations[2]
+        view = relations[3]
+        assert iceberg_table.name == "iceberg"
+        assert iceberg_table.type == "table"
+        assert iceberg_table.detailed_table_type == "ICEBERG"
         assert other.name == "other"
         assert other.type == "table"
+        assert other.detailed_table_type == ""
         assert table.name == "table"
         assert table.type == "table"
+        assert table.detailed_table_type == ""
         assert view.name == "view"
         assert view.type == "view"
+        assert view.detailed_table_type == ""
 
     @mock_athena
     @mock_glue
@@ -880,6 +887,7 @@ class TestAthenaAdapter:
         mock_aws_service.create_table("other")
         mock_aws_service.create_view("view")
         mock_aws_service.create_table_without_table_type("without_table_type")
+        mock_aws_service.create_iceberg_table("iceberg")
         schema_relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -897,6 +905,7 @@ class TestAthenaAdapter:
         mock_aws_service.create_table("other")
         mock_aws_service.create_view("view")
         mock_aws_service.create_table_without_table_type("without_table_type")
+        mock_aws_service.create_iceberg_table("iceberg")
         schema_relation = self.adapter.Relation.create(
             database=data_catalog_name,
             schema=DATABASE_NAME,
