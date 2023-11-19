@@ -9,7 +9,6 @@ get_detailed_table_type_sql = """
     {% if execute %}
     {% set relation = api.Relation.create(database="awsdatacatalog", schema=schema) %}
     {% set schema_tables = adapter.list_relations_without_caching(schema_relation = relation) %}
-    {{ log(schema_tables) }}
     {% for rel in schema_tables %}
         {% do log('Detailed Table Type: ' ~ rel.detailed_table_type, info=True) %}
     {% endfor %}
@@ -20,7 +19,7 @@ get_detailed_table_type_sql = """
 # Model SQL for an Iceberg table
 iceberg_model_sql = """
   select 1 as id, 'iceberg' as name
-  {{ config(materialized='table', schema='default', table_type='iceberg') }}
+  {{ config(materialized='table', table_type='iceberg') }}
 """
 
 
@@ -39,8 +38,7 @@ class TestDetailedTableType:
         run_results = run_dbt(["run"])
         assert len(run_results) == 1  # Ensure model ran successfully
 
-        iceberg_schema = run_results.results[0].node.schema
-        args_str = f'{{"schema": "{iceberg_schema}"}}'
+        args_str = f'{{"schema": "{project.test_schema}"}}'
         run_macro, stdout = run_dbt_and_capture(["run-operation", "get_detailed_table_type", "--args", args_str])
         iceberg_table_type = re.search(r"Detailed Table Type: (\w+)", stdout).group(1)
         assert iceberg_table_type == "ICEBERG"
