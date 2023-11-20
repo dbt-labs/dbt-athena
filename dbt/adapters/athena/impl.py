@@ -727,6 +727,7 @@ class AthenaAdapter(SQLAdapter):
                         LOGGER.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
                         continue
                     _type = table["TableType"]
+                    _detailed_table_type = table["Parameters"].get("table_type", "")
                     if _type == "VIRTUAL_VIEW":
                         _type = self.Relation.View
                     else:
@@ -739,6 +740,7 @@ class AthenaAdapter(SQLAdapter):
                             identifier=table["Name"],
                             quote_policy=quote_policy,
                             type=_type,
+                            detailed_table_type=_detailed_table_type,
                         )
                     )
         except ClientError as e:
