@@ -188,6 +188,9 @@ class MockAWSService:
                     "Location": "",
                 },
                 "TableType": "VIRTUAL_VIEW",
+                "Parameters": {
+                    "TableOwner": "John Doe",
+                },
             },
         )
 
@@ -329,7 +332,7 @@ class MockAWSService:
                 "TableType": "EXTERNAL_TABLE",
                 "Parameters": {
                     "metadata_location": f"s3://{BUCKET}/tables/metadata/{table_name}/123.json",
-                    "table_type": "iceberg",
+                    "table_type": "ICEBERG",
                 },
             },
         )
@@ -348,6 +351,9 @@ class MockAWSService:
                         },
                     ],
                     "Location": f"s3://{BUCKET}/tables/{table_name}",
+                },
+                "Parameters": {
+                    "TableOwner": "John Doe",
                 },
             },
         )
