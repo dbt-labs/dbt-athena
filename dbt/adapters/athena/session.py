@@ -8,6 +8,7 @@ from uuid import UUID
 import boto3
 import boto3.session
 
+from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.constants import DEFAULT_THREAD_COUNT, LOGGER
 from dbt.contracts.connection import Connection
 from dbt.exceptions import DbtRuntimeError
@@ -22,6 +23,16 @@ def get_boto3_session(connection: Connection) -> boto3.session.Session:
         aws_session_token=connection.credentials.aws_session_token,
         region_name=connection.credentials.region_name,
         profile_name=connection.credentials.aws_profile_name,
+    )
+
+
+def get_boto3_session_from_credentials(credentials: Any) -> boto3.session.Session:
+    return boto3.session.Session(
+        aws_access_key_id=credentials.aws_access_key_id,
+        aws_secret_access_key=credentials.aws_secret_access_key,
+        aws_session_token=credentials.aws_session_token,
+        region_name=credentials.region_name,
+        profile_name=credentials.aws_profile_name,
     )
 
 
@@ -53,7 +64,7 @@ class AthenaSparkSessionManager:
         Get the number of Spark threads.
 
         Returns:
-            Any: The number of Spark threads. If not found in the profile, returns the default thread count.
+            int: The number of Spark threads. If not found in the profile, returns the default thread count.
         """
         if not self.credentials.spark_threads:
             LOGGER.debug(
@@ -69,7 +80,7 @@ class AthenaSparkSessionManager:
         Get the Spark work group.
 
         Returns:
-            Any: The Spark work group. Raises an exception if not found in the profile.
+            str: The Spark work group. Raises an exception if not found in the profile.
         """
         if not self.credentials.spark_work_group:
             raise DbtRuntimeError(f"Expected spark_work_group in profile. Got: {self.credentials.spark_work_group}")
@@ -87,9 +98,9 @@ class AthenaSparkSessionManager:
             Any: The Athena client object.
 
         """
-        return boto3.session.Session(
-            region_name=self.credentials.region_name, profile_name=self.credentials.aws_profile_name
-        ).client("athena")
+        return get_boto3_session_from_credentials(self.credentials).client(
+            "athena", config=get_boto3_config(num_retries=self.credentials.effective_num_retries)
+        )
 
     def get_new_sessions(self) -> List[UUID]:
         """
