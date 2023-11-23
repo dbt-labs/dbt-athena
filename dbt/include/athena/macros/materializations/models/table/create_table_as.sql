@@ -169,9 +169,12 @@
 
 {%- endmacro %}
 
-{% macro safe_create_table_as(temporary, relation, compiled_code, language='sql') -%}
+{% macro safe_create_table_as(temporary, relation, compiled_code, language='sql', force_batch=False) -%}
     {%- if language != 'sql' -%}
         {{ return(create_table_as(temporary, relation, compiled_code, language)) }}
+    {%- elif force_batch -%}
+      {%- do create_table_as_with_partitions(temporary, relation, compiled_code, language) -%}
+      {%- set query_result = relation ~ ' with many partitions created' -%}
     {%- else -%}
         {%- if temporary -%}
           {%- do run_query(create_table_as(temporary, relation, compiled_code, language, true)) -%}

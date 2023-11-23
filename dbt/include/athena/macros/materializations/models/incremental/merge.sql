@@ -47,6 +47,25 @@
     {{ "," if not is_last }}
 {%- endmacro -%}
 
+
+{% macro batch_iceberg_merge(tmp_relation, target_relation, merge_part, dest_cols_csv) %}
+    {% set partitions_batches = get_partition_batches(tmp_relation) %}
+    {% do log('BATCHES TO PROCESS: ' ~ partitions_batches | length) %}
+    {%- for batch in partitions_batches -%}
+        {%- do log('BATCH PROCESSING: ' ~ loop.index ~ ' OF ' ~ partitions_batches | length) -%}
+        {%- set src_batch_part -%}
+            merge into {{ target_relation }} as target
+            using (select {{ dest_cols_csv }} from {{ tmp_relation }} where {{ batch }}) as src
+        {%- endset -%}
+        {%- set merge_batch -%}
+          {{ src_batch_part }}
+          {{ merge_part }}
+        {%- endset -%}
+        {%- do run_query(merge_batch) -%}
+    {%- endfor -%}
+{%- endmacro -%}
+
+
 {% macro iceberg_merge(
     on_schema_change,
     tmp_relation,
@@ -56,6 +75,8 @@
     existing_relation,
     delete_condition,
     update_condition,
+    insert_condition,
+    force_batch,
     statement_name="main"
   )
 %}
@@ -84,10 +105,6 @@
     {%- endfor -%}
     {%- set update_columns = get_merge_update_columns(merge_update_columns, merge_exclude_columns, dest_columns_wo_keys) -%}
     {%- set src_cols_csv = src_columns_quoted | join(', ') -%}
-
-    {%- set src_part -%}
-        merge into {{ target_relation }} as target using {{ tmp_relation }} as src
-    {%- endset -%}
 
     {%- set merge_part -%}
       on (
@@ -118,33 +135,27 @@
               {%- endif -%}
             {%- endfor %}
       {%- endif %}
-      when not matched
+      when not matched {% if insert_condition is not none -%} and {{ insert_condition }} {%- endif %}
         then insert ({{ dest_cols_csv }})
          values ({{ src_cols_csv }})
     {%- endset -%}
 
-    {%- set merge_full -%}
-        {{ src_part }}
-        {{ merge_part }}
-    {%- endset -%}
+    {%- if force_batch -%}
+      {% do batch_iceberg_merge(tmp_relation, target_relation, merge_part, dest_cols_csv) %}
+    {%- else -%}
+      {%- set src_part -%}
+          merge into {{ target_relation }} as target using {{ tmp_relation }} as src
+      {%- endset -%}
+      {%- set merge_full -%}
+          {{ src_part }}
+          {{ merge_part }}
+      {%- endset -%}
 
-    {%- set query_result =  adapter.run_query_with_partitions_limit_catching(merge_full) -%}
-    {%- do log('QUERY RESULT: ' ~ query_result) -%}
-    {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
-      {% set partitions_batches = get_partition_batches(tmp_relation) %}
-      {% do log('BATCHES TO PROCESS: ' ~ partitions_batches | length) %}
-      {%- for batch in partitions_batches -%}
-          {%- do log('BATCH PROCESSING: ' ~ loop.index ~ ' OF ' ~ partitions_batches | length) -%}
-          {%- set src_batch_part -%}
-              merge into {{ target_relation }} as target
-              using (select * from {{ tmp_relation }} where {{ batch }}) as src
-          {%- endset -%}
-          {%- set merge_batch -%}
-            {{ src_batch_part }}
-            {{ merge_part }}
-          {%- endset -%}
-          {%- do run_query(merge_batch) -%}
-      {%- endfor -%}
+      {%- set query_result =  adapter.run_query_with_partitions_limit_catching(merge_full) -%}
+      {%- do log('QUERY RESULT: ' ~ query_result) -%}
+      {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
+        {% do batch_iceberg_merge(tmp_relation, target_relation, merge_part, dest_cols_csv) %}
+      {%- endif -%}
     {%- endif -%}
 
     SELECT '{{query_result}}'

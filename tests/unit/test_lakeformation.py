@@ -2,6 +2,7 @@ import boto3
 import pytest
 from tests.unit.constants import AWS_REGION, DATA_CATALOG_NAME, DATABASE_NAME
 
+import dbt.adapters.athena.lakeformation as lakeformation
 from dbt.adapters.athena.lakeformation import LfTagsConfig, LfTagsManager
 from dbt.adapters.athena.relation import AthenaRelation
 
@@ -74,3 +75,70 @@ class TestLfTagsManager:
         manager = LfTagsManager(lf_client, relation, LfTagsConfig())
         manager._parse_and_log_lf_response(response, columns, lf_tags, verb)
         assert expected in dbt_debug_caplog.getvalue()
+
+    @pytest.mark.parametrize(
+        "lf_tags_columns,lf_inherited_tags,expected",
+        [
+            pytest.param(
+                [{"Name": "my_column", "LFTags": [{"TagKey": "inherited", "TagValues": ["oh-yes-i-am"]}]}],
+                {"inherited"},
+                {},
+                id="retains-inherited-tag",
+            ),
+            pytest.param(
+                [{"Name": "my_column", "LFTags": [{"TagKey": "not-inherited", "TagValues": ["oh-no-im-not"]}]}],
+                {},
+                {"not-inherited": {"oh-no-im-not": ["my_column"]}},
+                id="removes-non-inherited-tag",
+            ),
+            pytest.param(
+                [
+                    {
+                        "Name": "my_column",
+                        "LFTags": [
+                            {"TagKey": "not-inherited", "TagValues": ["oh-no-im-not"]},
+                            {"TagKey": "inherited", "TagValues": ["oh-yes-i-am"]},
+                        ],
+                    }
+                ],
+                {"inherited"},
+                {"not-inherited": {"oh-no-im-not": ["my_column"]}},
+                id="removes-non-inherited-tag-among-inherited",
+            ),
+            pytest.param([], {}, {}, id="handles-empty"),
+        ],
+    )
+    def test__column_tags_to_remove(self, lf_tags_columns, lf_inherited_tags, expected):
+        assert lakeformation.LfTagsManager._column_tags_to_remove(lf_tags_columns, lf_inherited_tags) == expected
+
+    @pytest.mark.parametrize(
+        "lf_tags_table,lf_tags,lf_inherited_tags,expected",
+        [
+            pytest.param(
+                [
+                    {"TagKey": "not-inherited", "TagValues": ["oh-no-im-not"]},
+                    {"TagKey": "inherited", "TagValues": ["oh-yes-i-am"]},
+                ],
+                {"not-inherited": "some-preexisting-value"},
+                {"inherited"},
+                {},
+                id="retains-being-set-and-inherited",
+            ),
+            pytest.param(
+                [
+                    {"TagKey": "not-inherited", "TagValues": ["oh-no-im-not"]},
+                    {"TagKey": "inherited", "TagValues": ["oh-yes-i-am"]},
+                ],
+                {},
+                {"inherited"},
+                {"not-inherited": ["oh-no-im-not"]},
+                id="removes-preexisting-not-being-set",
+            ),
+            pytest.param(
+                [{"TagKey": "inherited", "TagValues": ["oh-yes-i-am"]}], {}, {"inherited"}, {}, id="retains-inherited"
+            ),
+            pytest.param([], None, {}, {}, id="handles-empty"),
+        ],
+    )
+    def test__table_tags_to_remove(self, lf_tags_table, lf_tags, lf_inherited_tags, expected):
+        assert lakeformation.LfTagsManager._table_tags_to_remove(lf_tags_table, lf_tags, lf_inherited_tags) == expected

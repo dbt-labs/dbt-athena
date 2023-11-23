@@ -9,6 +9,7 @@
   {% set lf_tags_config = config.get('lf_tags_config') %}
   {% set lf_grants = config.get('lf_grants') %}
   {% set partitioned_by = config.get('partitioned_by') %}
+  {% set force_batch = config.get('force_batch', False) | as_bool -%}
   {% set target_relation = this.incorporate(type='table') %}
   {% set existing_relation = load_relation(this) %}
   {% set tmp_relation = make_temp_relation(this) %}
@@ -25,7 +26,7 @@
 
   {% set to_drop = [] %}
   {% if existing_relation is none %}
-    {% set query_result = safe_create_table_as(False, target_relation, compiled_code, model_language) -%}
+    {% set query_result = safe_create_table_as(False, target_relation, compiled_code, model_language, force_batch) -%}
     {%- if model_language == 'python' -%}
       {% call statement('create_table', language=model_language) %}
         {{ query_result }}
@@ -34,7 +35,7 @@
     {% set build_sql = "select '" ~ query_result ~ "'" -%}
   {% elif existing_relation.is_view or should_full_refresh() %}
     {% do drop_relation(existing_relation) %}
-    {% set query_result = safe_create_table_as(False, target_relation, compiled_code, model_language) -%}
+    {% set query_result = safe_create_table_as(False, target_relation, compiled_code, model_language, force_batch) -%}
     {%- if model_language == 'python' -%}
       {% call statement('create_table', language=model_language) %}
         {{ query_result }}
@@ -46,33 +47,40 @@
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language) -%}
+    {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language, force_batch) -%}
     {%- if model_language == 'python' -%}
       {% call statement('create_table', language=model_language) %}
         {{ query_result }}
       {% endcall %}
     {%- endif -%}
     {% do delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by) %}
-    {% set build_sql = incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation) %}
+    {% set build_sql = incremental_insert(
+        on_schema_change, tmp_relation, target_relation, existing_relation, force_batch
+      )
+    %}
     {% do to_drop.append(tmp_relation) %}
   {% elif strategy == 'append' %}
     {% set tmp_relation = make_temp_relation(target_relation) %}
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language) -%}
+    {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language, force_batch) -%}
     {%- if model_language == 'python' -%}
       {% call statement('create_table', language=model_language) %}
         {{ query_result }}
       {% endcall %}
     {%- endif -%}
-    {% set build_sql = incremental_insert(on_schema_change, tmp_relation, target_relation, existing_relation) %}
+    {% set build_sql = incremental_insert(
+        on_schema_change, tmp_relation, target_relation, existing_relation, force_batch
+      )
+    %}
     {% do to_drop.append(tmp_relation) %}
   {% elif strategy == 'merge' and table_type == 'iceberg' %}
     {% set unique_key = config.get('unique_key') %}
     {% set incremental_predicates = config.get('incremental_predicates') %}
     {% set delete_condition = config.get('delete_condition') %}
     {% set update_condition = config.get('update_condition') %}
+    {% set insert_condition = config.get('insert_condition') %}
     {% set empty_unique_key -%}
       Merge strategy must implement unique_key as a single column or a list of columns.
     {%- endset %}
@@ -91,7 +99,7 @@
     {% if tmp_relation is not none %}
       {% do drop_relation(tmp_relation) %}
     {% endif %}
-    {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language) -%}
+    {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language, force_batch) -%}
     {%- if model_language == 'python' -%}
       {% call statement('create_table', language=model_language) %}
         {{ query_result }}
@@ -106,6 +114,8 @@
         existing_relation=existing_relation,
         delete_condition=delete_condition,
         update_condition=update_condition,
+        insert_condition=insert_condition,
+        force_batch=force_batch,
       )
     %}
     {% do to_drop.append(tmp_relation) %}

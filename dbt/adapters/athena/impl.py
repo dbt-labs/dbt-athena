@@ -49,14 +49,19 @@ from dbt.adapters.athena.s3 import S3DataNaming
 from dbt.adapters.athena.utils import (
     AthenaCatalogType,
     clean_sql_comment,
+    ellipsis_comment,
     get_catalog_id,
     get_catalog_type,
     get_chunks,
+    is_valid_table_parameter_key,
+    stringify_table_parameter_value,
 )
 from dbt.adapters.base import ConstraintSupport, PythonJobHelper, available
 from dbt.adapters.base.impl import AdapterConfig
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
+from dbt.clients.agate_helper import table_from_rows
+from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.connection import AdapterResponse
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import CompiledNode, ConstraintType
@@ -89,6 +94,7 @@ class AthenaConfig(AdapterConfig):
         lf_tags_config: AWS lakeformation tags to associate with the table and columns.
         seed_s3_upload_args: Dictionary containing boto3 ExtraArgs when uploading to S3.
         partitions_limit: Maximum numbers of partitions when batching.
+        force_batch: Skip creating the table as ctas and run the operation directly in batch insert mode.
     """
 
     work_group: Optional[str] = None
@@ -108,6 +114,7 @@ class AthenaConfig(AdapterConfig):
     lf_tags_config: Optional[Dict[str, Any]] = None
     seed_s3_upload_args: Optional[Dict[str, Any]] = None
     partitions_limit: Optional[int] = None
+    force_batch: bool = False
 
 
 class AthenaAdapter(SQLAdapter):
@@ -117,6 +124,7 @@ class AthenaAdapter(SQLAdapter):
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
     AdapterSpecificConfigs = AthenaConfig
+    Column = AthenaColumn
 
     # There is no such concept as constraints in Athena
     CONSTRAINT_SUPPORT = {
@@ -147,11 +155,16 @@ class AthenaAdapter(SQLAdapter):
     @available
     def add_lf_tags_to_database(self, relation: AthenaRelation) -> None:
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
         if lf_tags := conn.credentials.lf_tags_database:
             config = LfTagsConfig(enabled=True, tags=lf_tags)
             with boto3_client_lock:
-                lf_client = client.session.client("lakeformation", client.region_name, config=get_boto3_config())
+                lf_client = client.session.client(
+                    "lakeformation",
+                    client.region_name,
+                    config=get_boto3_config(num_retries=creds.effective_num_retries),
+                )
             manager = LfTagsManager(lf_client, relation, config)
             manager.process_lf_tags_database()
         else:
@@ -162,9 +175,14 @@ class AthenaAdapter(SQLAdapter):
         config = LfTagsConfig(**lf_tags_config)
         if config.enabled:
             conn = self.connections.get_thread_connection()
+            creds = conn.credentials
             client = conn.handle
             with boto3_client_lock:
-                lf_client = client.session.client("lakeformation", client.region_name, config=get_boto3_config())
+                lf_client = client.session.client(
+                    "lakeformation",
+                    client.region_name,
+                    config=get_boto3_config(num_retries=creds.effective_num_retries),
+                )
             manager = LfTagsManager(lf_client, relation, config)
             manager.process_lf_tags()
             return
@@ -175,9 +193,14 @@ class AthenaAdapter(SQLAdapter):
         lf_config = LfGrantsConfig(**lf_grants_config)
         if lf_config.data_cell_filters.enabled:
             conn = self.connections.get_thread_connection()
+            creds = conn.credentials
             client = conn.handle
             with boto3_client_lock:
-                lf = client.session.client("lakeformation", region_name=client.region_name, config=get_boto3_config())
+                lf = client.session.client(
+                    "lakeformation",
+                    region_name=client.region_name,
+                    config=get_boto3_config(num_retries=creds.effective_num_retries),
+                )
             catalog = self._get_data_catalog(relation.database)
             catalog_id = get_catalog_id(catalog)
             lf_permissions = LfPermissions(catalog_id, relation, lf)  # type: ignore
@@ -191,7 +214,11 @@ class AthenaAdapter(SQLAdapter):
         client = conn.handle
 
         with boto3_client_lock:
-            athena_client = client.session.client("athena", region_name=client.region_name, config=get_boto3_config())
+            athena_client = client.session.client(
+                "athena",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
 
         if creds.work_group:
             work_group = athena_client.get_work_group(WorkGroup=creds.work_group)
@@ -280,13 +307,18 @@ class AthenaAdapter(SQLAdapter):
         Helper function to get a relation via Glue
         """
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
 
         data_catalog = self._get_data_catalog(relation.database)
         catalog_id = get_catalog_id(data_catalog)
 
         with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+            glue_client = client.session.client(
+                "glue",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
 
         try:
             table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)
@@ -335,12 +367,21 @@ class AthenaAdapter(SQLAdapter):
     @available
     def clean_up_partitions(self, relation: AthenaRelation, where_condition: str) -> None:
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
 
+        data_catalog = self._get_data_catalog(relation.database)
+        catalog_id = get_catalog_id(data_catalog)
+
         with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+            glue_client = client.session.client(
+                "glue",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
         paginator = glue_client.get_paginator("get_partitions")
         partition_params = {
+            "CatalogId": catalog_id,
             "DatabaseName": relation.schema,
             "TableName": relation.identifier,
             "Expression": where_condition,
@@ -373,6 +414,7 @@ class AthenaAdapter(SQLAdapter):
         seed_s3_upload_args: Optional[Dict[str, Any]] = None,
     ) -> str:
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
 
         # TODO: consider using the workgroup default location when configured
@@ -385,7 +427,11 @@ class AthenaAdapter(SQLAdapter):
         object_name = path.join(prefix, file_name)
 
         with boto3_client_lock:
-            s3_client = client.session.client("s3", region_name=client.region_name, config=get_boto3_config())
+            s3_client = client.session.client(
+                "s3",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
             # This ensures cross-platform support, tempfile.NamedTemporaryFile does not
             tmpfile = os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
             table.to_csv(tmpfile, quoting=csv.QUOTE_NONNUMERIC)
@@ -402,10 +448,15 @@ class AthenaAdapter(SQLAdapter):
         a DbtRuntimeError in case it included errors.
         """
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
         bucket_name, prefix = self._parse_s3_path(s3_path)
         if self._s3_path_exists(bucket_name, prefix):
-            s3_resource = client.session.resource("s3", region_name=client.region_name, config=get_boto3_config())
+            s3_resource = client.session.resource(
+                "s3",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
             s3_bucket = s3_resource.Bucket(bucket_name)
             LOGGER.debug(f"Deleting table data: path='{s3_path}', bucket='{bucket_name}', prefix='{prefix}'")
             response = s3_bucket.objects.filter(Prefix=prefix).delete()
@@ -441,9 +492,14 @@ class AthenaAdapter(SQLAdapter):
     def _s3_path_exists(self, s3_bucket: str, s3_prefix: str) -> bool:
         """Checks whether a given s3 path exists."""
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
         with boto3_client_lock:
-            s3_client = client.session.client("s3", region_name=client.region_name, config=get_boto3_config())
+            s3_client = client.session.client(
+                "s3",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
         response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
         return True if "Contents" in response else False
 
@@ -520,14 +576,22 @@ class AthenaAdapter(SQLAdapter):
         schemas: Dict[str, Optional[Set[str]]],
         manifest: Manifest,
     ) -> agate.Table:
+        """
+        This function is invoked by Adapter.get_catalog for each schema.
+        """
         data_catalog = self._get_data_catalog(information_schema.path.database)
         data_catalog_type = get_catalog_type(data_catalog)
 
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
         if data_catalog_type == AthenaCatalogType.GLUE:
             with boto3_client_lock:
-                glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+                glue_client = client.session.client(
+                    "glue",
+                    region_name=client.region_name,
+                    config=get_boto3_config(num_retries=creds.effective_num_retries),
+                )
 
             catalog = []
             paginator = glue_client.get_paginator("get_tables")
@@ -550,7 +614,9 @@ class AthenaAdapter(SQLAdapter):
         else:
             with boto3_client_lock:
                 athena_client = client.session.client(
-                    "athena", region_name=client.region_name, config=get_boto3_config()
+                    "athena",
+                    region_name=client.region_name,
+                    config=get_boto3_config(num_retries=creds.effective_num_retries),
                 )
 
             catalog = []
@@ -562,7 +628,7 @@ class AthenaAdapter(SQLAdapter):
                     MaxResults=50,  # Limit supported by this operation
                 ):
                     for table in page["TableMetadataList"]:
-                        if relations and table["Name"] in relations:
+                        if relations and table["Name"].lower() in relations:
                             catalog.extend(
                                 self._get_one_table_for_non_glue_catalog(
                                     table, schema, information_schema.path.database
@@ -574,6 +640,10 @@ class AthenaAdapter(SQLAdapter):
         return self._join_catalog_table_owners(filtered_table, manifest)
 
     def _get_catalog_schemas(self, manifest: Manifest) -> AthenaSchemaSearchMap:
+        """
+        Get the schemas from the catalog.
+        It's called by the `get_catalog` method.
+        """
         info_schema_name_map = AthenaSchemaSearchMap()
         nodes: Iterator[CompiledNode] = chain(
             [node for node in manifest.nodes.values() if (node.is_relational and not node.is_ephemeral_model)],
@@ -587,14 +657,23 @@ class AthenaAdapter(SQLAdapter):
     def _get_data_catalog(self, database: str) -> Optional[DataCatalogTypeDef]:
         if database:
             conn = self.connections.get_thread_connection()
+            creds = conn.credentials
             client = conn.handle
             if database.lower() == "awsdatacatalog":
                 with boto3_client_lock:
-                    sts = client.session.client("sts", region_name=client.region_name, config=get_boto3_config())
+                    sts = client.session.client(
+                        "sts",
+                        region_name=client.region_name,
+                        config=get_boto3_config(num_retries=creds.effective_num_retries),
+                    )
                 catalog_id = sts.get_caller_identity()["Account"]
                 return {"Name": database, "Type": "GLUE", "Parameters": {"catalog-id": catalog_id}}
             with boto3_client_lock:
-                athena = client.session.client("athena", region_name=client.region_name, config=get_boto3_config())
+                athena = client.session.client(
+                    "athena",
+                    region_name=client.region_name,
+                    config=get_boto3_config(num_retries=creds.effective_num_retries),
+                )
             return athena.get_data_catalog(Name=database)["DataCatalog"]
         return None
 
@@ -606,9 +685,14 @@ class AthenaAdapter(SQLAdapter):
             return super().list_relations_without_caching(schema_relation)  # type: ignore
 
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
         with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+            glue_client = client.session.client(
+                "glue",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
         paginator = glue_client.get_paginator("get_tables")
 
         kwargs = {
@@ -630,6 +714,7 @@ class AthenaAdapter(SQLAdapter):
                         LOGGER.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
                         continue
                     _type = table["TableType"]
+                    _detailed_table_type = table["Parameters"].get("table_type", "")
                     if _type == "VIRTUAL_VIEW":
                         _type = self.Relation.View
                     else:
@@ -642,6 +727,7 @@ class AthenaAdapter(SQLAdapter):
                             identifier=table["Name"],
                             quote_policy=quote_policy,
                             type=_type,
+                            detailed_table_type=_detailed_table_type,
                         )
                     )
         except ClientError as e:
@@ -651,31 +737,73 @@ class AthenaAdapter(SQLAdapter):
 
         return relations
 
+    def _get_one_catalog_by_relations(
+        self,
+        information_schema: InformationSchema,
+        relations: List[BaseRelation],
+        manifest: Manifest,
+    ) -> agate.Table:
+        """
+        Overwrite of _get_one_catalog_by_relations for Athena, in order to use glue apis.
+        This function is invoked by Adapter.get_catalog_by_relations.
+        """
+        _table_definitions = []
+        for _rel in relations:
+            glue_table_definition = self.get_glue_table(_rel)
+            if glue_table_definition:
+                _table_definition = self._get_one_table_for_catalog(glue_table_definition["Table"], _rel.database)
+                _table_definitions.extend(_table_definition)
+        table = agate.Table.from_object(_table_definitions)
+        # picked from _catalog_filter_table, force database + schema to be strings
+        table_casted = table_from_rows(
+            table.rows,
+            table.column_names,
+            text_only_columns=["table_database", "table_schema", "table_name"],
+        )
+        return self._join_catalog_table_owners(table_casted, manifest)
+
     @available
     def swap_table(self, src_relation: AthenaRelation, target_relation: AthenaRelation) -> None:
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
 
         data_catalog = self._get_data_catalog(src_relation.database)
         src_catalog_id = get_catalog_id(data_catalog)
 
         with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+            glue_client = client.session.client(
+                "glue",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
 
         src_table = glue_client.get_table(
             CatalogId=src_catalog_id, DatabaseName=src_relation.schema, Name=src_relation.identifier
         ).get("Table")
 
-        src_table_partitions = glue_client.get_partitions(
-            CatalogId=src_catalog_id, DatabaseName=src_relation.schema, TableName=src_relation.identifier
-        ).get("Partitions")
+        src_table_get_partitions_paginator = glue_client.get_paginator("get_partitions")
+        src_table_partitions_result = src_table_get_partitions_paginator.paginate(
+            **{
+                "CatalogId": src_catalog_id,
+                "DatabaseName": src_relation.schema,
+                "TableName": src_relation.identifier,
+            }
+        )
+        src_table_partitions = src_table_partitions_result.build_full_result().get("Partitions")
 
         data_catalog = self._get_data_catalog(src_relation.database)
         target_catalog_id = get_catalog_id(data_catalog)
 
-        target_table_partitions = glue_client.get_partitions(
-            CatalogId=target_catalog_id, DatabaseName=target_relation.schema, TableName=target_relation.identifier
-        ).get("Partitions")
+        target_get_partitions_paginator = glue_client.get_paginator("get_partitions")
+        target_table_partitions_result = target_get_partitions_paginator.paginate(
+            **{
+                "CatalogId": target_catalog_id,
+                "DatabaseName": target_relation.schema,
+                "TableName": target_relation.identifier,
+            }
+        )
+        target_table_partitions = target_table_partitions_result.build_full_result().get("Partitions")
 
         target_table_version = {
             "Name": target_relation.identifier,
@@ -725,10 +853,15 @@ class AthenaAdapter(SQLAdapter):
         Given a table and the amount of its version to keep, it returns the versions to delete
         """
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
 
         with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+            glue_client = client.session.client(
+                "glue",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
 
         paginator = glue_client.get_paginator("get_table_versions")
         response_iterator = paginator.paginate(
@@ -747,13 +880,18 @@ class AthenaAdapter(SQLAdapter):
         self, relation: AthenaRelation, to_keep: int, delete_s3: bool
     ) -> List[TableVersionTypeDef]:
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
 
         data_catalog = self._get_data_catalog(relation.database)
         catalog_id = get_catalog_id(data_catalog)
 
         with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+            glue_client = client.session.client(
+                "glue",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
 
         versions_to_delete = self._get_glue_table_versions_to_expire(relation, to_keep)
         LOGGER.debug(f"Versions to delete: {[v['VersionId'] for v in versions_to_delete]}")
@@ -803,60 +941,91 @@ class AthenaAdapter(SQLAdapter):
             Every dbt run should create not more than one table version.
         """
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
 
         data_catalog = self._get_data_catalog(relation.database)
         catalog_id = get_catalog_id(data_catalog)
 
         with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+            glue_client = client.session.client(
+                "glue",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
 
         # By default, there is no need to update Glue Table
-        need_udpate_table = False
+        need_to_update_table = False
         # Get Table from Glue
         table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.name)["Table"]
         # Prepare new version of Glue Table picking up significant fields
-        updated_table = self._get_table_input(table)
+        table_input = self._get_table_input(table)
+        table_parameters = table_input["Parameters"]
         # Update table description
         if persist_relation_docs:
             # Prepare dbt description
-            clean_table_description = clean_sql_comment(model["description"])
+            clean_table_description = ellipsis_comment(clean_sql_comment(model["description"]))
             # Get current description from Glue
             glue_table_description = table.get("Description", "")
             # Get current description parameter from Glue
             glue_table_comment = table["Parameters"].get("comment", "")
             # Update description if it's different
             if clean_table_description != glue_table_description or clean_table_description != glue_table_comment:
-                updated_table["Description"] = clean_table_description
-                updated_table_parameters: Dict[str, str] = dict(updated_table["Parameters"])
-                updated_table_parameters["comment"] = clean_table_description
-                updated_table["Parameters"] = updated_table_parameters
-                need_udpate_table = True
+                table_input["Description"] = clean_table_description
+                table_parameters["comment"] = clean_table_description
+                need_to_update_table = True
+
+            # Get dbt model meta if available
+            meta: Dict[str, Any] = model.get("config", {}).get("meta", {})
+            # Add some of dbt model config fields as table meta
+            meta["unique_id"] = model.get("unique_id")
+            meta["materialized"] = model.get("config", {}).get("materialized")
+            # Get dbt runtime config to be able to get dbt project metadata
+            runtime_config: RuntimeConfig = self.config
+            # Add dbt project metadata to table meta
+            meta["dbt_project_name"] = runtime_config.project_name
+            meta["dbt_project_version"] = runtime_config.version
+            # Prepare meta values for table properties and check if update is required
+            for meta_key, meta_value_raw in meta.items():
+                if is_valid_table_parameter_key(meta_key):
+                    meta_value = stringify_table_parameter_value(meta_value_raw)
+                    if meta_value is not None:
+                        # Check that meta value is already attached to Glue table
+                        current_meta_value: Optional[str] = table_parameters.get(meta_key)
+                        if current_meta_value is None or current_meta_value != meta_value:
+                            # Update Glue table parameter only if needed
+                            table_parameters[meta_key] = meta_value
+                            need_to_update_table = True
+                    else:
+                        LOGGER.warning(f"Meta value for key '{meta_key}' is not supported and will be ignored")
+                else:
+                    LOGGER.warning(f"Meta key '{meta_key}' is not supported and will be ignored")
 
         # Update column comments
         if persist_column_docs:
             # Process every column
-            for col_obj in updated_table["StorageDescriptor"]["Columns"]:
+            for col_obj in table_input["StorageDescriptor"]["Columns"]:
                 # Get column description from dbt
                 col_name = col_obj["Name"]
                 if col_name in model["columns"]:
                     col_comment = model["columns"][col_name]["description"]
                     # Prepare column description from dbt
-                    clean_col_comment = clean_sql_comment(col_comment)
+                    clean_col_comment = ellipsis_comment(clean_sql_comment(col_comment))
                     # Get current column comment from Glue
                     glue_col_comment = col_obj.get("Comment", "")
                     # Update column description if it's different
                     if glue_col_comment != clean_col_comment:
                         col_obj["Comment"] = clean_col_comment
-                        need_udpate_table = True
+                        need_to_update_table = True
 
         # Update Glue Table only if table/column description is modified.
         # It prevents redundant schema version creating after incremental runs.
-        if need_udpate_table:
+        if need_to_update_table:
+            table_input["Parameters"] = table_parameters
             glue_client.update_table(
                 CatalogId=catalog_id,
                 DatabaseName=relation.schema,
-                TableInput=updated_table,
+                TableInput=table_input,
                 SkipArchive=skip_archive_table_version,
             )
 
@@ -876,10 +1045,15 @@ class AthenaAdapter(SQLAdapter):
     @available
     def list_schemas(self, database: str) -> List[str]:
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
 
         with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+            glue_client = client.session.client(
+                "glue",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
 
         paginator = glue_client.get_paginator("get_databases")
         result = []
@@ -899,13 +1073,18 @@ class AthenaAdapter(SQLAdapter):
     @available
     def get_columns_in_relation(self, relation: AthenaRelation) -> List[AthenaColumn]:
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
 
         data_catalog = self._get_data_catalog(relation.database)
         catalog_id = get_catalog_id(data_catalog)
 
         with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+            glue_client = client.session.client(
+                "glue",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
 
         try:
             table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)[
@@ -936,13 +1115,18 @@ class AthenaAdapter(SQLAdapter):
         table_name = relation.identifier
 
         conn = self.connections.get_thread_connection()
+        creds = conn.credentials
         client = conn.handle
 
         data_catalog = self._get_data_catalog(relation.database)
         catalog_id = get_catalog_id(data_catalog)
 
         with boto3_client_lock:
-            glue_client = client.session.client("glue", region_name=client.region_name, config=get_boto3_config())
+            glue_client = client.session.client(
+                "glue",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
 
         try:
             glue_client.delete_table(CatalogId=catalog_id, DatabaseName=schema_name, Name=table_name)

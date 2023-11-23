@@ -1,27 +1,32 @@
 """AWS Lakeformation permissions management helper utilities."""
 
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Sequence, Set, Union
 
 from mypy_boto3_lakeformation import LakeFormationClient
 from mypy_boto3_lakeformation.type_defs import (
     AddLFTagsToResourceResponseTypeDef,
     BatchPermissionsRequestEntryTypeDef,
+    ColumnLFTagTypeDef,
     DataCellsFilterTypeDef,
     GetResourceLFTagsResponseTypeDef,
+    LFTagPairTypeDef,
     RemoveLFTagsFromResourceResponseTypeDef,
     ResourceTypeDef,
 )
 from pydantic import BaseModel
 
-from dbt.adapters.athena.constants import LOGGER
 from dbt.adapters.athena.relation import AthenaRelation
+from dbt.events import AdapterLogger
 from dbt.exceptions import DbtRuntimeError
+
+logger = AdapterLogger("AthenaLakeFormation")
 
 
 class LfTagsConfig(BaseModel):
     enabled: bool = False
     tags: Optional[Dict[str, str]] = None
     tags_columns: Optional[Dict[str, Dict[str, List[str]]]] = None
+    inherited_tags: Optional[List[str]] = None
 
 
 class LfTagsManager:
@@ -31,6 +36,7 @@ class LfTagsManager:
         self.table = relation.identifier
         self.lf_tags = lf_tags_config.tags
         self.lf_tags_columns = lf_tags_config.tags_columns
+        self.lf_inherited_tags = set(lf_tags_config.inherited_tags) if lf_tags_config.inherited_tags else set()
 
     def process_lf_tags_database(self) -> None:
         if self.lf_tags:
@@ -47,22 +53,32 @@ class LfTagsManager:
         self._apply_lf_tags_table(table_resource, existing_lf_tags)
         self._apply_lf_tags_columns()
 
+    @staticmethod
+    def _column_tags_to_remove(
+        lf_tags_columns: List[ColumnLFTagTypeDef], lf_inherited_tags: Set[str]
+    ) -> Dict[str, Dict[str, List[str]]]:
+        to_remove = {}
+
+        for column in lf_tags_columns:
+            non_inherited_tags = [tag for tag in column["LFTags"] if not tag["TagKey"] in lf_inherited_tags]
+            for tag in non_inherited_tags:
+                tag_key = tag["TagKey"]
+                tag_value = tag["TagValues"][0]
+                if tag_key not in to_remove:
+                    to_remove[tag_key] = {tag_value: [column["Name"]]}
+                elif tag_value not in to_remove[tag_key]:
+                    to_remove[tag_key][tag_value] = [column["Name"]]
+                else:
+                    to_remove[tag_key][tag_value].append(column["Name"])
+
+        return to_remove
+
     def _remove_lf_tags_columns(self, existing_lf_tags: GetResourceLFTagsResponseTypeDef) -> None:
         lf_tags_columns = existing_lf_tags.get("LFTagsOnColumns", [])
-        LOGGER.debug(f"COLUMNS: {lf_tags_columns}")
+        logger.debug(f"COLUMNS: {lf_tags_columns}")
         if lf_tags_columns:
-            to_remove = {}
-            for column in lf_tags_columns:
-                for tag in column["LFTags"]:
-                    tag_key = tag["TagKey"]
-                    tag_value = tag["TagValues"][0]
-                    if tag_key not in to_remove:
-                        to_remove[tag_key] = {tag_value: [column["Name"]]}
-                    elif tag_value not in to_remove[tag_key]:
-                        to_remove[tag_key][tag_value] = [column["Name"]]
-                    else:
-                        to_remove[tag_key][tag_value].append(column["Name"])
-            LOGGER.debug(f"TO REMOVE: {to_remove}")
+            to_remove = LfTagsManager._column_tags_to_remove(lf_tags_columns, self.lf_inherited_tags)
+            logger.debug(f"TO REMOVE: {to_remove}")
             for tag_key, tag_config in to_remove.items():
                 for tag_value, columns in tag_config.items():
                     resource = {
@@ -73,19 +89,27 @@ class LfTagsManager:
                     )
                     self._parse_and_log_lf_response(response, columns, {tag_key: tag_value}, "remove")
 
+    @staticmethod
+    def _table_tags_to_remove(
+        lf_tags_table: List[LFTagPairTypeDef], lf_tags: Optional[Dict[str, str]], lf_inherited_tags: Set[str]
+    ) -> Dict[str, Sequence[str]]:
+        return {
+            tag["TagKey"]: tag["TagValues"]
+            for tag in lf_tags_table
+            if tag["TagKey"] not in (lf_tags or {})
+            if tag["TagKey"] not in lf_inherited_tags
+        }
+
     def _apply_lf_tags_table(
         self, table_resource: ResourceTypeDef, existing_lf_tags: GetResourceLFTagsResponseTypeDef
     ) -> None:
         lf_tags_table = existing_lf_tags.get("LFTagsOnTable", [])
-        LOGGER.debug(f"EXISTING TABLE TAGS: {lf_tags_table}")
-        LOGGER.debug(f"CONFIG TAGS: {self.lf_tags}")
+        logger.debug(f"EXISTING TABLE TAGS: {lf_tags_table}")
+        logger.debug(f"CONFIG TAGS: {self.lf_tags}")
 
-        to_remove = {
-            tag["TagKey"]: tag["TagValues"]
-            for tag in lf_tags_table
-            if tag["TagKey"] not in self.lf_tags  # type: ignore
-        }
-        LOGGER.debug(f"TAGS TO REMOVE: {to_remove}")
+        to_remove = LfTagsManager._table_tags_to_remove(lf_tags_table, self.lf_tags, self.lf_inherited_tags)
+
+        logger.debug(f"TAGS TO REMOVE: {to_remove}")
         if to_remove:
             response = self.lf_client.remove_lf_tags_from_resource(
                 Resource=table_resource, LFTags=[{"TagKey": k, "TagValues": v} for k, v in to_remove.items()]
@@ -126,9 +150,9 @@ class LfTagsManager:
             for failure in failures:
                 tag = failure.get("LFTag", {}).get("TagKey")
                 error = failure.get("Error", {}).get("ErrorMessage")
-                LOGGER.error(f"Failed to {verb} {tag} for " + resource_msg + f" - {error}")
+                logger.error(f"Failed to {verb} {tag} for " + resource_msg + f" - {error}")
             raise DbtRuntimeError(base_msg)
-        LOGGER.debug(f"Success: {verb} LF tags {lf_tags} to " + resource_msg)
+        logger.debug(f"Success: {verb} LF tags {lf_tags} to " + resource_msg)
 
 
 class FilterConfig(BaseModel):
@@ -176,10 +200,10 @@ class LfPermissions:
 
     def process_filters(self, config: LfGrantsConfig) -> None:
         current_filters = self.get_filters()
-        LOGGER.debug(f"CURRENT FILTERS: {current_filters}")
+        logger.debug(f"CURRENT FILTERS: {current_filters}")
 
         to_drop = [f for name, f in current_filters.items() if name not in config.data_cell_filters.filters]
-        LOGGER.debug(f"FILTERS TO DROP: {to_drop}")
+        logger.debug(f"FILTERS TO DROP: {to_drop}")
         for f in to_drop:
             self.lf_client.delete_data_cells_filter(
                 TableCatalogId=f["TableCatalogId"],
@@ -193,7 +217,7 @@ class LfPermissions:
             for name, f in config.data_cell_filters.filters.items()
             if name not in current_filters
         ]
-        LOGGER.debug(f"FILTERS TO ADD: {to_add}")
+        logger.debug(f"FILTERS TO ADD: {to_add}")
         for f in to_add:
             self.lf_client.create_data_cells_filter(TableData=f)
 
@@ -202,13 +226,13 @@ class LfPermissions:
             for name, f in config.data_cell_filters.filters.items()
             if name in current_filters and f.to_update(current_filters[name])
         ]
-        LOGGER.debug(f"FILTERS TO UPDATE: {to_update}")
+        logger.debug(f"FILTERS TO UPDATE: {to_update}")
         for f in to_update:
             self.lf_client.update_data_cells_filter(TableData=f)
 
     def process_permissions(self, config: LfGrantsConfig) -> None:
         for name, f in config.data_cell_filters.filters.items():
-            LOGGER.debug(f"Start processing permissions for filter: {name}")
+            logger.debug(f"Start processing permissions for filter: {name}")
             current_permissions = self.lf_client.list_permissions(
                 Resource={
                     "DataCellsFilter": {
@@ -229,9 +253,9 @@ class LfPermissions:
                     Entries=[self._permission_entry(name, principal, idx) for idx, principal in enumerate(to_revoke)],
                 )
                 revoke_principals_msg = "\n".join(to_revoke)
-                LOGGER.debug(f"Revoked permissions for filter {name} from principals:\n{revoke_principals_msg}")
+                logger.debug(f"Revoked permissions for filter {name} from principals:\n{revoke_principals_msg}")
             else:
-                LOGGER.debug(f"No redundant permissions found for filter: {name}")
+                logger.debug(f"No redundant permissions found for filter: {name}")
 
             to_add = {p for p in f.principals if p not in current_principals}
             if to_add:
@@ -240,11 +264,11 @@ class LfPermissions:
                     Entries=[self._permission_entry(name, principal, idx) for idx, principal in enumerate(to_add)],
                 )
                 add_principals_msg = "\n".join(to_add)
-                LOGGER.debug(f"Granted permissions for filter {name} to principals:\n{add_principals_msg}")
+                logger.debug(f"Granted permissions for filter {name} to principals:\n{add_principals_msg}")
             else:
-                LOGGER.debug(f"No new permissions added for filter {name}")
+                logger.debug(f"No new permissions added for filter {name}")
 
-            LOGGER.debug(f"Permissions are set to be consistent with config for filter: {name}")
+            logger.debug(f"Permissions are set to be consistent with config for filter: {name}")
 
     def _permission_entry(self, filter_name: str, principal: str, idx: int) -> BatchPermissionsRequestEntryTypeDef:
         return {

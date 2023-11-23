@@ -13,6 +13,9 @@ on:
       aws-region:
         required: true
         type: string
+      concurrency-group:
+        required: true
+        type: string
 
 env:
   DBT_TEST_ATHENA_DATABASE: awsdatacatalog
@@ -20,11 +23,15 @@ env:
   DBT_TEST_ATHENA_WORK_GROUP: athena-dbt-tests
   DBT_TEST_ATHENA_THREADS: 16
   DBT_TEST_ATHENA_POLL_INTERVAL: 0.5
+  DBT_TEST_ATHENA_NUM_RETRIES: 3
 
 jobs:
   functional-tests:
     name: Functional Tests
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ inputs.concurrency-group }}
+      cancel-in-progress: false
     env:
       DBT_TEST_ATHENA_S3_STAGING_DIR: s3://dbt-athena-query-results-${{ inputs.aws-region }}/staging/
       DBT_TEST_ATHENA_S3_TMP_TABLE_DIR: s3://dbt-athena-query-results-${{ inputs.aws-region }}/tmp_tables/
@@ -35,10 +42,10 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
           repository: ${{ inputs.checkout-repository }}
-      - name: Set up Python 3.10
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.8'
       - name: Install dependencies
         run: |
           make install_deps

@@ -8,8 +8,9 @@ import pytest
 import dbt
 from dbt.adapters.athena.connections import AthenaCredentials
 from dbt.events.base_types import EventLevel
-from dbt.events.eventmgr import LineFormat, NoFilter
+from dbt.events.eventmgr import LineFormat
 from dbt.events.functions import EVENT_MANAGER, _get_stdout_config
+from dbt.events.logger import NoFilter
 
 from .unit.constants import (
     ATHENA_WORKGROUP,
@@ -39,7 +40,7 @@ def dbt_profile_target():
         "region_name": os.getenv("DBT_TEST_ATHENA_REGION_NAME"),
         "threads": int(os.getenv("DBT_TEST_ATHENA_THREADS", "1")),
         "poll_interval": float(os.getenv("DBT_TEST_ATHENA_POLL_INTERVAL", "1.0")),
-        "num_retries": 0,
+        "num_retries": int(os.getenv("DBT_TEST_ATHENA_NUM_RETRIES", "2")),
         "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUP"),
         "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME") or None,
         "spark_work_group": os.getenv("DBT_TEST_ATHENA_SPARK_WORK_GROUP"),

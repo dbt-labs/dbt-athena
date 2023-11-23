@@ -15,6 +15,7 @@
   {%- set is_full_refresh_mode = (flags.FULL_REFRESH == True or full_refresh_config == True) -%}
   {%- set versions_to_keep = config.get('versions_to_keep', default=4) -%}
   {%- set external_location = config.get('external_location', default=none) -%}
+  {%- set force_batch = config.get('force_batch', False) | as_bool -%}
   {%- set target_relation = api.Relation.create(identifier=identifier,
                                                 schema=schema,
                                                 database=database,
@@ -50,7 +51,7 @@
       {%- endif -%}
 
       -- create tmp table
-      {%- set query_result = safe_create_table_as(False, tmp_relation, compiled_code, language=language) -%}
+      {%- set query_result = safe_create_table_as(False, tmp_relation, compiled_code, language, force_batch) -%}
 
       -- swap table
       {%- set swap_table = adapter.swap_table(tmp_relation, target_relation) -%}
@@ -65,7 +66,7 @@
       {%- if old_relation is not none -%}
         {{ drop_relation(old_relation) }}
       {%- endif -%}
-      {%- set query_result = safe_create_table_as(False, target_relation, compiled_code, language) -%}
+      {%- set query_result = safe_create_table_as(False, target_relation, compiled_code, language, force_batch) -%}
     {%- endif -%}
 
     {%- if language != 'python' -%}
@@ -75,10 +76,10 @@
   {%- else -%}
 
     {%- if old_relation is none -%}
-      {%- set query_result = safe_create_table_as(False, target_relation, compiled_code, language) -%}
+      {%- set query_result = safe_create_table_as(False, target_relation, compiled_code, language, force_batch) -%}
     {%- else -%}
       {%- if old_relation.is_view -%}
-        {%- set query_result = safe_create_table_as(False, tmp_relation, compiled_code, language) -%}
+        {%- set query_result = safe_create_table_as(False, tmp_relation, compiled_code, language, force_batch) -%}
         {%- do drop_relation(old_relation) -%}
         {%- do rename_relation(tmp_relation, target_relation) -%}
       {%- else -%}
@@ -96,7 +97,7 @@
           {%- do drop_relation(old_relation_bkp) -%}
         {%- endif -%}
 
-        {% set query_result = safe_create_table_as(False, tmp_relation, compiled_code, language) %}
+        {% set query_result = safe_create_table_as(False, tmp_relation, compiled_code, language, force_batch) %}
 
         {{ rename_relation(old_relation, old_relation_bkp) }}
         {{ rename_relation(tmp_relation, target_relation) }}

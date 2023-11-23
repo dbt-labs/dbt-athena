@@ -51,10 +51,12 @@ class AthenaCredentials(Credentials):
     aws_profile_name: Optional[str] = None
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
+    aws_session_token: Optional[str] = None
     poll_interval: float = 1.0
     debug_query_state: bool = False
     _ALIASES = {"catalog": "database"}
     num_retries: int = 5
+    num_boto3_retries: Optional[int] = None
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
     spark_work_group: Optional[str] = None
@@ -73,6 +75,10 @@ class AthenaCredentials(Credentials):
     def unique_field(self) -> str:
         return f"athena-{hashlib.md5(self.s3_staging_dir.encode()).hexdigest()}"
 
+    @property
+    def effective_num_retries(self) -> int:
+        return self.num_boto3_retries or self.num_retries
+
     def _connection_keys(self) -> Tuple[str, ...]:
         return (
             "s3_staging_dir",
@@ -84,6 +90,7 @@ class AthenaCredentials(Credentials):
             "aws_profile_name",
             "aws_access_key_id",
             "aws_secret_access_key",
+            "aws_session_token",
             "endpoint_url",
             "s3_data_dir",
             "s3_data_naming",
@@ -235,7 +242,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                     attempt=creds.num_retries + 1,
                     exceptions=("ThrottlingException", "TooManyRequestsException", "InternalServerException"),
                 ),
-                config=get_boto3_config(),
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
             connection.state = ConnectionState.OPEN

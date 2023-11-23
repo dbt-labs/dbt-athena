@@ -509,6 +509,7 @@ class TestAthenaAdapter:
     @mock_glue
     @mock_s3
     @mock_athena
+    @mock_sts
     def test_clean_up_partitions_will_work(self, dbt_debug_caplog, mock_aws_service):
         table_name = "table"
         mock_aws_service.create_data_catalog()
@@ -651,11 +652,55 @@ class TestAthenaAdapter:
             ("awsdatacatalog", "baz", "qux", "table", None, "id", 0, "string", None, "data-engineers"),
             ("awsdatacatalog", "baz", "qux", "table", None, "country", 1, "string", None, "data-engineers"),
         ]
-
         assert actual.column_names == expected_column_names
         assert len(actual.rows) == len(expected_rows)
         for row in actual.rows.values():
             assert row.values() in expected_rows
+
+    @mock_glue
+    @mock_athena
+    @mock_sts
+    def test__get_one_catalog_by_relations(self, mock_aws_service):
+        mock_aws_service.create_data_catalog()
+        mock_aws_service.create_database("foo")
+        mock_aws_service.create_database("quux")
+        mock_aws_service.create_table(database_name="foo", table_name="bar")
+        # we create another relations
+        mock_aws_service.create_table(table_name="bar", database_name="quux")
+
+        mock_information_schema = mock.MagicMock()
+        mock_information_schema.path.database = "awsdatacatalog"
+
+        self.adapter.acquire_connection("dummy")
+
+        rel_1 = self.adapter.Relation.create(
+            database="awsdatacatalog",
+            schema="foo",
+            identifier="bar",
+        )
+
+        expected_column_names = (
+            "table_database",
+            "table_schema",
+            "table_name",
+            "table_type",
+            "table_comment",
+            "column_name",
+            "column_index",
+            "column_type",
+            "column_comment",
+            "table_owner",
+        )
+
+        expected_rows = [
+            ("awsdatacatalog", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
+            ("awsdatacatalog", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
+            ("awsdatacatalog", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
+        ]
+
+        actual = self.adapter._get_one_catalog_by_relations(mock_information_schema, [rel_1], self.mock_manifest)
+        assert actual.column_names == expected_column_names
+        assert actual.rows == expected_rows
 
     @mock_glue
     @mock_athena
@@ -812,18 +857,25 @@ class TestAthenaAdapter:
     def _test_list_relations_without_caching(self, schema_relation):
         self.adapter.acquire_connection("dummy")
         relations = self.adapter.list_relations_without_caching(schema_relation)
-        assert len(relations) == 3
+        assert len(relations) == 4
         assert all(isinstance(rel, AthenaRelation) for rel in relations)
         relations.sort(key=lambda rel: rel.name)
-        other = relations[0]
-        table = relations[1]
-        view = relations[2]
+        iceberg_table = relations[0]
+        other = relations[1]
+        table = relations[2]
+        view = relations[3]
+        assert iceberg_table.name == "iceberg"
+        assert iceberg_table.type == "table"
+        assert iceberg_table.detailed_table_type == "ICEBERG"
         assert other.name == "other"
         assert other.type == "table"
+        assert other.detailed_table_type == ""
         assert table.name == "table"
         assert table.type == "table"
+        assert table.detailed_table_type == ""
         assert view.name == "view"
         assert view.type == "view"
+        assert view.detailed_table_type == ""
 
     @mock_athena
     @mock_glue
@@ -835,6 +887,7 @@ class TestAthenaAdapter:
         mock_aws_service.create_table("other")
         mock_aws_service.create_view("view")
         mock_aws_service.create_table_without_table_type("without_table_type")
+        mock_aws_service.create_iceberg_table("iceberg")
         schema_relation = self.adapter.Relation.create(
             database=DATA_CATALOG_NAME,
             schema=DATABASE_NAME,
@@ -852,6 +905,7 @@ class TestAthenaAdapter:
         mock_aws_service.create_table("other")
         mock_aws_service.create_view("view")
         mock_aws_service.create_table_without_table_type("without_table_type")
+        mock_aws_service.create_iceberg_table("iceberg")
         schema_relation = self.adapter.Relation.create(
             database=data_catalog_name,
             schema=DATABASE_NAME,
