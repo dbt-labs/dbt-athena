@@ -6,7 +6,9 @@ from botocore import config
 
 from dbt.adapters.athena.constants import (
     DEFAULT_POLLING_INTERVAL,
-    DEFAULT_SPARK_ENGINE_CONFIG,
+    DEFAULT_SPARK_COORDINATOR_DPU_SIZE,
+    DEFAULT_SPARK_EXECUTOR_DPU_SIZE,
+    DEFAULT_SPARK_MAX_CONCURRENT_DPUS,
     DEFAULT_SPARK_SESSION_TIMEOUT,
     LOGGER,
 )
@@ -97,7 +99,14 @@ class AthenaSparkSessionConfig:
             TypeError: If the engine configuration is not of type dict.
             KeyError: If the keys of the engine configuration dictionary do not match the expected format.
         """
-        engine_config = self.config.get("engine_config", DEFAULT_SPARK_ENGINE_CONFIG)
+        engine_config = self.config.get(
+            "engine_config",
+            {
+                "CoordinatorDpuSize": DEFAULT_SPARK_COORDINATOR_DPU_SIZE,
+                "MaxConcurrentDpus": DEFAULT_SPARK_MAX_CONCURRENT_DPUS,
+                "DefaultExecutorDpuSize": DEFAULT_SPARK_EXECUTOR_DPU_SIZE,
+            },
+        )
         if not isinstance(engine_config, dict):
             raise TypeError("Engine configuration has to be of type dict")
 
