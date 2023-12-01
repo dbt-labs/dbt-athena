@@ -1012,7 +1012,7 @@ class AthenaAdapter(SQLAdapter):
                     clean_col_comment = ellipsis_comment(clean_sql_comment(col_comment))
                     # Get current column comment from Glue
                     glue_col_comment = col_obj.get("Comment", "")
-                    # Check that meta column description is already attached to Glue table
+                    # Check that column description is already attached to Glue table
                     if glue_col_comment != clean_col_comment:
                         need_to_update_table = True
                     # Save column description from dbt
