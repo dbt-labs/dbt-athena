@@ -969,9 +969,9 @@ class AthenaAdapter(SQLAdapter):
             glue_table_comment = table["Parameters"].get("comment", "")
             # Update description if it's different
             if clean_table_description != glue_table_description or clean_table_description != glue_table_comment:
-                table_input["Description"] = clean_table_description
-                table_parameters["comment"] = clean_table_description
                 need_to_update_table = True
+            table_input["Description"] = clean_table_description
+            table_parameters["comment"] = clean_table_description
 
             # Get dbt model meta if available
             meta: Dict[str, Any] = model.get("config", {}).get("meta", {})
@@ -992,8 +992,8 @@ class AthenaAdapter(SQLAdapter):
                         current_meta_value: Optional[str] = table_parameters.get(meta_key)
                         if current_meta_value is None or current_meta_value != meta_value:
                             # Update Glue table parameter only if needed
-                            table_parameters[meta_key] = meta_value
                             need_to_update_table = True
+                        table_parameters[meta_key] = meta_value
                     else:
                         LOGGER.warning(f"Meta value for key '{meta_key}' is not supported and will be ignored")
                 else:
