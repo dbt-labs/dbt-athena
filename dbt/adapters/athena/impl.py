@@ -1013,8 +1013,8 @@ class AthenaAdapter(SQLAdapter):
                     glue_col_comment = col_obj.get("Comment", "")
                     # Update column description if it's different
                     if glue_col_comment != clean_col_comment:
-                        col_obj["Comment"] = clean_col_comment
                         need_to_update_table = True
+                    col_obj["Comment"] = clean_col_comment
 
         # Update Glue Table only if table/column description is modified.
         # It prevents redundant schema version creating after incremental runs.
