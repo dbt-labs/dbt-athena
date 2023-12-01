@@ -963,16 +963,16 @@ class AthenaAdapter(SQLAdapter):
         if persist_relation_docs:
             # Prepare dbt description
             clean_table_description = ellipsis_comment(clean_sql_comment(model["description"]))
-            table_input["Description"] = clean_table_description
-            table_parameters["comment"] = clean_table_description
             # Get current description from Glue
             glue_table_description = table.get("Description", "")
             # Get current description parameter from Glue
             glue_table_comment = table["Parameters"].get("comment", "")
-
-            # Update description if it's different
+            # Check that description is already attached to Glue table
             if clean_table_description != glue_table_description or clean_table_description != glue_table_comment:
                 need_to_update_table = True
+            # Save dbt description
+            table_input["Description"] = clean_table_description
+            table_parameters["comment"] = clean_table_description
 
             # Get dbt model meta if available
             meta: Dict[str, Any] = model.get("config", {}).get("meta", {})
@@ -991,11 +991,10 @@ class AthenaAdapter(SQLAdapter):
                     if meta_value is not None:
                         # Check that meta value is already attached to Glue table
                         current_meta_value: Optional[str] = table_parameters.get(meta_key)
-                        table_parameters[meta_key] = meta_value
-
-                        # Update Glue table parameter only if needed
                         if current_meta_value is None or current_meta_value != meta_value:
                             need_to_update_table = True
+                        # Save Glue table parameter
+                        table_parameters[meta_key] = meta_value
                     else:
                         LOGGER.warning(f"Meta value for key '{meta_key}' is not supported and will be ignored")
                 else:
@@ -1013,11 +1012,11 @@ class AthenaAdapter(SQLAdapter):
                     clean_col_comment = ellipsis_comment(clean_sql_comment(col_comment))
                     # Get current column comment from Glue
                     glue_col_comment = col_obj.get("Comment", "")
-                    col_obj["Comment"] = clean_col_comment
-
-                    # Update column description if it's different
+                    # Check that meta column description is already attached to Glue table
                     if glue_col_comment != clean_col_comment:
                         need_to_update_table = True
+                    # Save column description from dbt
+                    col_obj["Comment"] = clean_col_comment
 
         # Update Glue Table only if table/column description is modified.
         # It prevents redundant schema version creating after incremental runs.
