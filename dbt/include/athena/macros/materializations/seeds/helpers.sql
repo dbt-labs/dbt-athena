@@ -64,7 +64,7 @@
           {%- set type = column_override.get(col_name, inferred_type) -%}
           {%- set type = type if type != "string" else "varchar" -%}
           {%- set column_name = (col_name | string) -%}
-          {{ adapter.quote_seed_column(column_name, quote_seed_column) }} {{ ddl_data_type(type) }} {%- if not loop.last -%}, {% endif -%}
+          {{ adapter.quote_seed_column(column_name, quote_seed_column, "`") }} {{ ddl_data_type(type) }} {%- if not loop.last -%}, {% endif -%}
         {%- endfor -%}
     )
     location '{{ location }}'
@@ -131,7 +131,7 @@
     create external table {{ tmp_relation.render_hive() }} (
         {%- for col_name in agate_table.column_names -%}
             {%- set column_name = (col_name | string) -%}
-            {{ adapter.quote_seed_column(column_name, quote_seed_column) }} string {%- if not loop.last -%}, {% endif -%}
+            {{ adapter.quote_seed_column(column_name, quote_seed_column, "`") }} string {%- if not loop.last -%}, {% endif -%}
         {%- endfor -%}
     )
     row format serde 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
