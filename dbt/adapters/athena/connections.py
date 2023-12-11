@@ -121,7 +121,7 @@ class AthenaCursor(Cursor):
             query_execution = self.__poll(query_id)
         except KeyboardInterrupt as e:
             if self._kill_on_interrupt:
-                logger.warning("Query canceled by user.")
+                logger.warning(f"Query canceled by user: {query_id}.")
                 self._cancel(query_id)
                 query_execution = self.__poll(query_id)
             else:
@@ -139,7 +139,9 @@ class AthenaCursor(Cursor):
                 return query_execution
 
             if self.connection.cursor_kwargs.get("debug_query_state", False):
-                logger.debug(f"Query state is: {query_execution.state}. Sleeping for {self._poll_interval}...")
+                logger.debug(
+                    f"Query state for {query_id} is: {query_execution.state}. Sleeping for {self._poll_interval}..."
+                )
             time.sleep(self._poll_interval)
 
     def execute(  # type: ignore
@@ -163,6 +165,9 @@ class AthenaCursor(Cursor):
                 cache_size=cache_size,
                 cache_expiration_time=cache_expiration_time,
             )
+
+            logger.debug(f"Athena query ID {query_id}")
+
             query_execution = self._executor.submit(self._collect_result_set, query_id).result()
             if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
                 self.result_set = self._result_set_class(
