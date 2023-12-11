@@ -5,8 +5,8 @@
     {% do adapter.persist_docs_to_glue(
             relation=relation,
             model=model,
-            persist_relation_docs=persist_relation_docs=persist_relation_docs,
-            persist_column_docs=persist_column_docs=persist_column_docs,
+            persist_relation_docs=persist_relation_docs,
+            persist_column_docs=persist_column_docs,
             skip_archive_table_version=true
          )
     %}}
