@@ -4,7 +4,7 @@
   {% set table_type = config.get('table_type', default='hive') | lower %}
   {% set strategy = validate_get_incremental_strategy(raw_strategy, table_type) %}
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
-
+  {%- set versions_to_keep = config.get('versions_to_keep', 1) | as_number -%}
   {% set lf_tags_config = config.get('lf_tags_config') %}
   {% set lf_grants = config.get('lf_grants') %}
   {% set partitioned_by = config.get('partitioned_by') %}
@@ -124,6 +124,8 @@
   {% endif %}
 
   {% do persist_docs(target_relation, model) %}
+
+  {% do adapter.expire_glue_table_versions(target_relation, versions_to_keep, False) %}
 
   {{ return({'relations': [target_relation]}) }}
 
