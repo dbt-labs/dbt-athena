@@ -889,9 +889,7 @@ class AthenaAdapter(SQLAdapter):
         return table_versions_ordered[int(to_keep) :]
 
     @available
-    def expire_glue_table_versions(
-        self, relation: AthenaRelation, to_keep: int, delete_s3: bool
-    ) -> List[TableVersionTypeDef]:
+    def expire_glue_table_versions(self, relation: AthenaRelation, to_keep: int, delete_s3: bool) -> List[str]:
         conn = self.connections.get_thread_connection()
         creds = conn.credentials
         client = conn.handle
@@ -924,11 +922,9 @@ class AthenaAdapter(SQLAdapter):
                 LOGGER.debug(f"Deleted version {version} of table {relation.render()} ")
                 if delete_s3:
                     self.delete_from_s3(location)
+                    LOGGER.debug(f"{location} was deleted")
             except Exception as err:
                 LOGGER.debug(f"There was an error when expiring table version {version} with error: {err}")
-
-            LOGGER.debug(f"{location} was deleted")
-
         return deleted_versions
 
     @available
