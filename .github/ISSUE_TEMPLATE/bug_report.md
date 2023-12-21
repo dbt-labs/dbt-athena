@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD041 MD033 -->
 name: 🐞 Bug
-description: Report a bug or an issue you've found with dbt
+description: Report a bug or an issue you've found in dbt-athena
 title: "[Bug] <title>"
 labels: ["bug"]
 body:
@@ -13,8 +13,6 @@ body:
     attributes:
       label: Is this a new bug in dbt-athena?
       description: >
-
-        If this is a bug in an adapter plugin, please open an issue in the adapter's repository.
         If this is a request for help or troubleshooting code in your own dbt project,
         please join [dbt Community Slack](https://www.getdbt.com/community/join-the-community/)
         #db-athena or open a [Discussion question](https://github.com/dbt-athena/dbt-athena/discussions).
