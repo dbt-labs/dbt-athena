@@ -2,8 +2,10 @@ import csv
 import os
 import posixpath as path
 import re
+import struct
 import tempfile
 from dataclasses import dataclass
+from datetime import date, datetime
 from itertools import chain
 from textwrap import dedent
 from threading import Lock
@@ -12,6 +14,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import agate
+import mmh3
 from botocore.exceptions import ClientError
 from mypy_boto3_athena.type_defs import DataCatalogTypeDef
 from mypy_boto3_glue.type_defs import (
@@ -118,6 +121,7 @@ class AthenaConfig(AdapterConfig):
 class AthenaAdapter(SQLAdapter):
     BATCH_CREATE_PARTITION_API_LIMIT = 100
     BATCH_DELETE_PARTITION_API_LIMIT = 25
+    INTEGER_MAX_VALUE_32_BIT_SIGNED = 0x7FFFFFFF
 
     ConnectionManager = AthenaConnectionManager
     Relation = AthenaRelation
@@ -1262,6 +1266,47 @@ class AthenaAdapter(SQLAdapter):
 
     @available
     def format_one_partition_key(self, partition_key: str) -> str:
-        """Check if partition key uses Iceberg hidden partitioning"""
+        """Check if partition key uses Iceberg hidden partitioning or bucket partitioning"""
         hidden = re.search(r"^(hour|day|month|year)\((.+)\)", partition_key.lower())
-        return f"date_trunc('{hidden.group(1)}', {hidden.group(2)})" if hidden else partition_key.lower()
+        bucket = re.search(r"bucket\((.+),", partition_key.lower())
+        if hidden:
+            return f"date_trunc('{hidden.group(1)}', {hidden.group(2)})"
+        elif bucket:
+            return bucket.group(1)
+        else:
+            return partition_key.lower()
+
+    @available
+    def murmur3_hash(self, value: Any, num_buckets: int) -> Any:
+        """Computes a hash for the given value using the MurmurHash3 algorithm and returns a bucket number."""
+        if isinstance(value, int):  # int, long
+            hash_value = mmh3.hash(struct.pack("<q", value))
+        elif isinstance(value, (datetime, date)):  # date, time, timestamp, timestampz
+            timestamp = int(value.timestamp()) if isinstance(value, datetime) else int(value.strftime("%s"))
+            hash_value = mmh3.hash(struct.pack("<q", timestamp))
+        elif isinstance(value, (str, bytes)):  # string
+            hash_value = mmh3.hash(value)
+        else:
+            raise TypeError(f"Need to add support data type for hashing: {type(value)}")
+
+        return (hash_value & self.INTEGER_MAX_VALUE_32_BIT_SIGNED) % num_buckets
+
+    @available
+    def format_value_for_partition(self, value: str, column_type: str) -> Tuple[str, str]:
+        """Formats a value based on its column type for inclusion in a SQL query."""
+        comp_func = "="  # Default comparison function
+        if value is None:
+            return "null", " is "
+        elif column_type == "integer":
+            return str(value), comp_func
+        elif column_type == "string":
+            # Properly escape single quotes in the string value
+            escaped_value = str(value).replace("'", "''")
+            return f"'{escaped_value}'", comp_func
+        elif column_type == "date":
+            return f"DATE'{value}'", comp_func
+        elif column_type == "timestamp":
+            return f"TIMESTAMP'{value}'", comp_func
+        else:
+            # Raise an error for unsupported column types
+            raise ValueError(f"Unsupported column type: {column_type}")
