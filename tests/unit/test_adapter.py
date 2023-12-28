@@ -1492,9 +1492,9 @@ class TestAthenaAdapter:
             "=",
         )
 
-    def test_format_unsupported_type(self, adapter):
+    def test_format_unsupported_type(self):
         with pytest.raises(ValueError):
-            adapter.format_value_for_partition("test", "unsupported_type")
+            self.adapter.format_value_for_partition("test", "unsupported_type")
 
 
 class TestAthenaFilterCatalog:
