@@ -1292,7 +1292,7 @@ class AthenaAdapter(SQLAdapter):
         return (hash_value & self.INTEGER_MAX_VALUE_32_BIT_SIGNED) % num_buckets
 
     @available
-    def format_value_for_partition(self, value: str, column_type: str) -> Tuple[str, str]:
+    def format_value_for_partition(self, value: Any, column_type: str) -> Tuple[str, str]:
         """Formats a value based on its column type for inclusion in a SQL query."""
         comp_func = "="  # Default comparison function
         if value is None:
