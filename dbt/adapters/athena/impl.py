@@ -1277,8 +1277,12 @@ class AthenaAdapter(SQLAdapter):
             return partition_key.lower()
 
     @available
-    def murmur3_hash(self, value: Any, num_buckets: int) -> Any:
-        """Computes a hash for the given value using the MurmurHash3 algorithm and returns a bucket number."""
+    def murmur3_hash(self, value: Any, num_buckets: int) -> int:
+        """
+        Computes a hash for the given value using the MurmurHash3 algorithm and returns a bucket number.
+
+        This method was adopted from https://github.com/apache/iceberg-python/blob/main/pyiceberg/transforms.py#L240
+        """
         if isinstance(value, int):  # int, long
             hash_value = mmh3.hash(struct.pack("<q", value))
         elif isinstance(value, (datetime, date)):  # date, time, timestamp, timestampz
@@ -1289,7 +1293,7 @@ class AthenaAdapter(SQLAdapter):
         else:
             raise TypeError(f"Need to add support data type for hashing: {type(value)}")
 
-        return (hash_value & self.INTEGER_MAX_VALUE_32_BIT_SIGNED) % num_buckets
+        return int((hash_value & self.INTEGER_MAX_VALUE_32_BIT_SIGNED) % num_buckets)
 
     @available
     def format_value_for_partition(self, value: Any, column_type: str) -> Tuple[str, str]:

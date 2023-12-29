@@ -1443,15 +1443,28 @@ class TestAthenaAdapter:
     def test__is_current_column(self, column, expected):
         assert self.adapter._is_current_column(column) == expected
 
-    def test_format_partition_keys(self):
-        partition_keys = ["year(date_col)", "bucket(col_name, 10)", "default_partition_key"]
-        expected_output = "date_trunc('year', date_col), col_name, default_partition_key"
-        assert self.adapter.format_partition_keys(partition_keys) == expected_output
+    @pytest.mark.parametrize(
+        "partition_keys, expected_result",
+        [
+            (
+                ["year(date_col)", "bucket(col_name, 10)", "default_partition_key"],
+                "date_trunc('year', date_col), col_name, default_partition_key",
+            ),
+        ],
+    )
+    def test_format_partition_keys(self, partition_keys, expected_result):
+        assert self.adapter.format_partition_keys(partition_keys) == expected_result
 
-    def test_format_one_partition_key(self):
-        assert self.adapter.format_one_partition_key("month(hidden)") == "date_trunc('month', hidden)"
-        assert self.adapter.format_one_partition_key("bucket(bucket_col, 10)") == "bucket_col"
-        assert self.adapter.format_one_partition_key("regular_col") == "regular_col"
+    @pytest.mark.parametrize(
+        "partition_key, expected_result",
+        [
+            ("month(hidden)", "date_trunc('month', hidden)"),
+            ("bucket(bucket_col, 10)", "bucket_col"),
+            ("regular_col", "regular_col"),
+        ],
+    )
+    def test_format_one_partition_key(self, partition_key, expected_result):
+        assert self.adapter.format_one_partition_key(partition_key) == expected_result
 
     def test_murmur3_hash_with_int(self):
         bucket_number = self.adapter.murmur3_hash(123, 100)
@@ -1481,16 +1494,19 @@ class TestAthenaAdapter:
         with pytest.raises(TypeError):
             self.adapter.murmur3_hash([1, 2, 3], 100)
 
-    def test_format_value_for_partition(self):
-        assert self.adapter.format_value_for_partition(None, "integer") == ("null", " is ")
-        assert self.adapter.format_value_for_partition(42, "integer") == ("42", "=")
-        assert self.adapter.format_value_for_partition("O'Reilly", "string") == ("'O''Reilly'", "=")
-        assert self.adapter.format_value_for_partition("test", "string") == ("'test'", "=")
-        assert self.adapter.format_value_for_partition("2021-01-01", "date") == ("DATE'2021-01-01'", "=")
-        assert self.adapter.format_value_for_partition("2021-01-01 12:00:00", "timestamp") == (
-            "TIMESTAMP'2021-01-01 12:00:00'",
-            "=",
-        )
+    @pytest.mark.parametrize(
+        "value, column_type, expected_result",
+        [
+            (None, "integer", ("null", " is ")),
+            (42, "integer", ("42", "=")),
+            ("O'Reilly", "string", ("'O''Reilly'", "=")),
+            ("test", "string", ("'test'", "=")),
+            ("2021-01-01", "date", ("DATE'2021-01-01'", "=")),
+            ("2021-01-01 12:00:00", "timestamp", ("TIMESTAMP'2021-01-01 12:00:00'", "=")),
+        ],
+    )
+    def test_format_value_for_partition(self, value, column_type, expected_result):
+        assert self.adapter.format_value_for_partition(value, column_type) == expected_result
 
     def test_format_unsupported_type(self):
         with pytest.raises(ValueError):
