@@ -9,7 +9,8 @@
     {% set merge_schema = optional_args.get("merge_schema", true) %}
     {% set bucket_count = optional_args.get("bucket_count") %}
     {% set field_delimiter = optional_args.get("field_delimiter") %}
-
+    {% set spark_ctas = optional_args.get("spark_ctas", "") %}
+    
 import pyspark
 
 
@@ -23,6 +24,14 @@ def materialize(spark_session, df, target_relation):
     else:
         msg = f"{type(df)} is not a supported type for dbt Python materialization"
         raise Exception(msg)
+
+{% if spark_ctas|length > 0 %}
+    df.createOrReplaceTempView("{{ target_relation.schema}}_{{ target_relation.identifier }}_tmpvw")
+    spark_session.sql("""
+    {{ spark_ctas }}
+    select * from {{ target_relation.schema}}_{{ target_relation.identifier }}_tmpvw
+    """)
+{% else %}
     writer = df.write \
     .format("{{ format }}") \
     .mode("{{ mode }}") \
@@ -36,10 +45,13 @@ def materialize(spark_session, df, target_relation):
         writer = writer.bucketBy({{ bucket_count }},{{ bucketed_by }})
     if {{ sorted_by }} is not None:
         writer = writer.sortBy({{ sorted_by }})
+
     writer.saveAsTable(
         name="{{ target_relation.schema}}.{{ target_relation.identifier }}",
     )
-    return "OK"
+{% endif %}
+    
+    return "Success: {{ target_relation.schema}}.{{ target_relation.identifier }}"
 
 {{ athena__py_get_spark_dbt_object() }}
 

@@ -314,8 +314,8 @@ class TestAthenaSparkSessionManager:
         ):
             spark_session_manager.update_spark_session_locks()
             for each_session in get_session_response:
-                assert each_session in session.spark_session_locks.keys()
-                assert type(session.spark_session_locks[each_session]) is not None
+                assert each_session in session.spark_session_list.keys()
+                assert type(session.spark_session_list[each_session]) is not None
 
     def test_get_session_id(self):
         pass
@@ -376,5 +376,5 @@ class TestAthenaSparkSessionManager:
             terminate_session=Mock(return_value=terminate_session_response),
         ):
             spark_session_manager.release_session_lock(test_session_id)
-            assert UUID(test_session_id) in session.spark_session_locks.keys()
-            assert type(session.spark_session_locks[UUID(test_session_id)]) is not None
+            assert UUID(test_session_id) in session.spark_session_list.keys()
+            assert type(session.spark_session_list[UUID(test_session_id)]) is not None

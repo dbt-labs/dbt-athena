@@ -9,7 +9,8 @@ from dbt.adapters.athena.constants import (
     DEFAULT_SPARK_COORDINATOR_DPU_SIZE,
     DEFAULT_SPARK_EXECUTOR_DPU_SIZE,
     DEFAULT_SPARK_MAX_CONCURRENT_DPUS,
-    DEFAULT_SPARK_SESSION_TIMEOUT,
+    DEFAULT_CALCULATION_TIMEOUT,
+    DEFAULT_SPARK_PROPERTIES,
     LOGGER,
 )
 
@@ -46,7 +47,7 @@ class AthenaSparkSessionConfig:
             ValueError: If the timeout value is not a positive integer.
 
         """
-        timeout = self.config.get("timeout", DEFAULT_SPARK_SESSION_TIMEOUT)
+        timeout = self.config.get("timeout", DEFAULT_CALCULATION_TIMEOUT)
         if not isinstance(timeout, int):
             raise TypeError("Timeout must be an integer")
         if timeout <= 0:
@@ -99,20 +100,59 @@ class AthenaSparkSessionConfig:
             TypeError: If the engine configuration is not of type dict.
             KeyError: If the keys of the engine configuration dictionary do not match the expected format.
         """
-        engine_config = self.config.get(
-            "engine_config",
-            {
-                "CoordinatorDpuSize": DEFAULT_SPARK_COORDINATOR_DPU_SIZE,
-                "MaxConcurrentDpus": DEFAULT_SPARK_MAX_CONCURRENT_DPUS,
-                "DefaultExecutorDpuSize": DEFAULT_SPARK_EXECUTOR_DPU_SIZE,
-            },
-        )
+        table_type = self.config.get("table_type", "hive")
+        spark_encryption = self.config.get("spark_encryption", False)
+        spark_cross_account_catalog = self.config.get("spark_cross_account_catalog", False)
+        spark_requester_pays = self.config.get("spark_requester_pays", False)
+
+        default_spark_properties = {}
+        if table_type.lower() in ["iceberg", "hudi", "delta_lake"]:
+            default_spark_properties = default_spark_properties | DEFAULT_SPARK_PROPERTIES.get(table_type)
+        if spark_encryption:
+            default_spark_properties = default_spark_properties | DEFAULT_SPARK_PROPERTIES.get("spark_encryption")
+        if spark_cross_account_catalog:
+            default_spark_properties = default_spark_properties | DEFAULT_SPARK_PROPERTIES.get("spark_cross_account_catalog")
+        if spark_requester_pays:
+            default_spark_properties = default_spark_properties | DEFAULT_SPARK_PROPERTIES.get("spark_requester_pays")
+
+        default_engine_config = {
+            "CoordinatorDpuSize": DEFAULT_SPARK_COORDINATOR_DPU_SIZE,
+            "MaxConcurrentDpus": DEFAULT_SPARK_MAX_CONCURRENT_DPUS,
+            "DefaultExecutorDpuSize": DEFAULT_SPARK_EXECUTOR_DPU_SIZE,
+            "SparkProperties": default_spark_properties,
+        }
+        engine_config = self.config.get("engine_config", None)
+
+        if engine_config:
+            provided_spark_properties = engine_config.get("SparkProperties", None)
+            if provided_spark_properties:
+                default_spark_properties.update(provided_spark_properties)
+                default_engine_config["SparkProperties"] = default_spark_properties
+                engine_config.pop("SparkProperties")
+            default_engine_config.update(engine_config)
+        engine_config = default_engine_config
+
         if not isinstance(engine_config, dict):
             raise TypeError("Engine configuration has to be of type dict")
 
-        expected_keys = {"CoordinatorDpuSize", "MaxConcurrentDpus", "DefaultExecutorDpuSize"}
-        if set(engine_config.keys()) != expected_keys:
-            raise KeyError(f"The keys of the dictionary entered do not match the expected format: {expected_keys}")
+        expected_keys = {
+            "CoordinatorDpuSize",
+            "MaxConcurrentDpus",
+            "DefaultExecutorDpuSize",
+            "SparkProperties",
+            "AdditionalConfigs",
+        }
+
+        if set(engine_config.keys()) - {
+            "CoordinatorDpuSize",
+            "MaxConcurrentDpus",
+            "DefaultExecutorDpuSize",
+            "SparkProperties",
+            "AdditionalConfigs",
+        }:
+            raise KeyError(
+                f"The engine configuration keys provided do not match the expected athena engine keys: {expected_keys}"
+            )
 
         if engine_config["MaxConcurrentDpus"] == 1:
             raise KeyError("The lowest value supported for MaxConcurrentDpus is 2")

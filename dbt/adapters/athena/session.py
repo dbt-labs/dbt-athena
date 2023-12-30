@@ -2,18 +2,22 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 from functools import cached_property
+from hashlib import md5
 from typing import Any, Dict, List
 from uuid import UUID
-
 import boto3
 import boto3.session
+import json
 
 from dbt.adapters.athena.config import get_boto3_config
-from dbt.adapters.athena.constants import DEFAULT_THREAD_COUNT, LOGGER
+from dbt.adapters.athena.constants import DEFAULT_THREAD_COUNT, LOGGER, SESSION_IDLE_TIMEOUT_MIN
 from dbt.contracts.connection import Connection
+from dbt.events.functions import get_invocation_id
 from dbt.exceptions import DbtRuntimeError
 
-spark_session_locks: Dict[UUID, threading.Lock] = {}
+invocation_id = get_invocation_id()
+spark_session_list: Dict[UUID, str] = {}
+spark_session_load: Dict[UUID, int] = {}
 
 
 def get_boto3_session(connection: Connection) -> boto3.session.Session:
@@ -41,7 +45,7 @@ class AthenaSparkSessionManager:
     A helper class to manage Athena Spark Sessions.
     """
 
-    def __init__(self, credentials: Any, timeout: int, polling_interval: float, engine_config: Dict[str, int]) -> None:
+    def __init__(self, credentials: Any, timeout: int, polling_interval: float, engine_config: Dict[str, int], relation_name: str = None) -> None:
         """
         Initialize the AthenaSparkSessionManager instance.
 
@@ -57,6 +61,7 @@ class AthenaSparkSessionManager:
         self.polling_interval = polling_interval
         self.engine_config = engine_config
         self.lock = threading.Lock()
+        self.relation_name = relation_name
 
     @cached_property
     def spark_threads(self) -> int:
@@ -102,99 +107,56 @@ class AthenaSparkSessionManager:
             "athena", config=get_boto3_config(num_retries=self.credentials.effective_num_retries)
         )
 
-    def get_new_sessions(self) -> List[UUID]:
+    @cached_property
+    def session_description(self) -> str:
         """
-        Retrieves a list of new sessions by subtracting the existing sessions from the complete session list.
-        If no new sessions are found a new session is created provided the number of sessions is less than the
-        number of allowed spark threads.
+        Converts the engine configuration to md5 hash value
 
         Returns:
-            List[UUID]: A list of new session UUIDs.
-
+            str: A concatenated text of dbt invocation_id and engine configuration's md5 hash
         """
-        sessions = self.list_sessions()
-        existing_sessions = set(spark_session_locks.keys())
-        new_sessions = [session for session in sessions if session not in existing_sessions]
+        hash_desc = md5(json.dumps(self.engine_config, sort_keys=True, ensure_ascii=True).encode("utf-8")).hexdigest()
+        return f"dbt: {invocation_id} - {hash_desc}"
 
-        if len(new_sessions) == 0:
-            if len(spark_session_locks) < self.spark_threads:
-                return [self.start_session()]
-            LOGGER.warning(
-                f"""Maximum spark session count: {self.spark_threads} reached.
-            Cannot start new spark session."""
-            )
-        LOGGER.debug(f"Setting sessions: {new_sessions}")
-        return new_sessions
-
-    def update_spark_session_locks(self) -> None:
-        """
-        Update session locks for each session.
-
-        This function iterates over the existing sessions and ensures that a session lock is created for each session.
-        If a session lock already exists, it is left unchanged.
-
-        Args:
-            self: The instance of the class.
-
-        Returns:
-            None
-        """
-        for session_uuid in self.get_new_sessions():
-            spark_session_locks.setdefault(session_uuid, threading.Lock())
-        LOGGER.debug(f"Updated session locks: {spark_session_locks}")
-
-    def get_session_id(self) -> UUID:
+    def get_session_id(self, session_query_capacity: int = 1) -> UUID:
         """
         Get a session ID for the Spark session.
+        When does a new session get created:
+        - When thread limit not reached
+        - When thread limit reached but same engine configuration session is not available
+        - When thread limit reached and same engine configuration session exist and it is busy running a python model and has one python model in queue (determined by session_query_capacity).
 
         Returns:
             UUID: The session ID.
-
-        Notes:
-            This method acquires a lock on an existing available Spark session. If no session is available,
-            it waits for a certain period and retries until a session becomes available or a timeout is reached.
-            The session ID of the acquired session is returned.
-
         """
-        polling_interval = self.polling_interval
-        self.update_spark_session_locks()
-        while True:
-            for session_uuid, lock in spark_session_locks.items():
-                if not lock.locked():
-                    LOGGER.debug(f"Locking existing session: {session_uuid}")
-                    lock.acquire(blocking=False)
-                    return session_uuid
+        session_list = list(spark_session_list.items())
+
+        if len(session_list) < self.spark_threads:
             LOGGER.debug(
-                f"""All available spark sessions: {spark_session_locks.keys()} are locked.
-                Going to sleep: {polling_interval} seconds."""
+                f"Within thread limit, creating new session for model: {self.relation_name} with session description: {self.session_description}."
             )
-            time.sleep(polling_interval)
-            polling_interval *= 2
-
-    def list_sessions(self, state: str = "IDLE") -> List[UUID]:
-        """
-        List the sessions based on the specified state.
-
-        Args:
-            state (str, optional): The state to filter the sessions. Defaults to "IDLE".
-
-        Returns:
-            List[UUID]: A list of session IDs matching the specified state.
-
-        Notes:
-            This method utilizes the Athena client to list sessions in the Spark work group.
-            The sessions are filtered based on the provided state.
-            If no sessions are found or the response does not contain any sessions, an empty list is returned.
-
-        """
-        response = self.athena_client.list_sessions(
-            WorkGroup=self.spark_work_group,
-            MaxResults=self.spark_threads,
-            StateFilter=state,
-        )
-        if response.get("Sessions") is None:
-            return []
-        return [UUID(session_string["SessionId"]) for session_string in response.get("Sessions")]
+            return self.start_session()
+        else:
+            matching_session_id = next(
+                (
+                    session_id
+                    for session_id, description in session_list
+                    if description == self.session_description
+                    and spark_session_load.get(session_id, 0) <= session_query_capacity
+                ),
+                None,
+            )
+            if matching_session_id:
+                LOGGER.debug(
+                    f"Over thread limit, matching session found for model: {self.relation_name} with session description: {self.session_description} and has capacity."
+                )
+                self.set_spark_session_load(str(matching_session_id), 1)
+                return matching_session_id
+            else:
+                LOGGER.debug(
+                    f"Over thread limit, matching session not found or found with over capacity. Creating new session for model: {self.relation_name} with session description: {self.session_description}."
+                )
+                return self.start_session()
 
     def start_session(self) -> UUID:
         """
@@ -208,13 +170,22 @@ class AthenaSparkSessionManager:
             dict: The session information dictionary.
 
         """
+        description = self.session_description
         response = self.athena_client.start_session(
+            Description=description,
             WorkGroup=self.credentials.spark_work_group,
             EngineConfiguration=self.engine_config,
+            SessionIdleTimeoutInMinutes=SESSION_IDLE_TIMEOUT_MIN,
         )
+        session_id = response["SessionId"]
         if response["State"] != "IDLE":
-            self.poll_until_session_creation(response["SessionId"])
-        return UUID(response["SessionId"])
+            self.poll_until_session_creation(session_id)
+
+        with self.lock:
+            spark_session_list[UUID(session_id)] = self.session_description
+            spark_session_load[UUID(session_id)] = 1
+
+        return UUID(session_id)
 
     def poll_until_session_creation(self, session_id: str) -> None:
         """
@@ -233,39 +204,22 @@ class AthenaSparkSessionManager:
         """
         polling_interval = self.polling_interval
         while True:
-            creation_status = self.get_session_status(session_id)["State"]
-            if creation_status in ["FAILED", "TERMINATED", "DEGRADED"]:
-                raise DbtRuntimeError(f"Unable to create session: {session_id}. Got status: {creation_status}.")
-            elif creation_status == "IDLE":
+            timer = 0
+            creation_status_response = self.get_session_status(session_id)
+            creation_status_state = creation_status_response.get("State", "")
+            creation_status_reason = creation_status_response.get("StateChangeReason", "")
+            if creation_status_state in ["FAILED", "TERMINATED", "DEGRADED"]:
+                raise DbtRuntimeError(
+                    f"Unable to create session: {session_id}. Got status: {creation_status_state} with reason: {creation_status_reason}."
+                )
+            elif creation_status_state == "IDLE":
                 LOGGER.debug(f"Session: {session_id} created")
                 break
             time.sleep(polling_interval)
-            polling_interval *= 2
-            if polling_interval > self.timeout:
+            timer += polling_interval
+            if timer > self.timeout:
+                self.remove_terminated_session(session_id)
                 raise DbtRuntimeError(f"Session {session_id} did not create within {self.timeout} seconds.")
-
-    def release_session_lock(self, session_id: str) -> None:
-        """
-        Terminate the current Athena session.
-
-        This function terminates the current Athena session if it is in IDLE or BUSY state and has exceeded the
-        configured timeout period. It retrieves the session status, and if the session state is IDLE or BUSY and the
-        duration since the session start time exceeds the timeout period, the session is terminated. The session ID is
-        used to terminate the session via the Athena client.
-
-        Returns:
-            None
-
-        """
-        session_status = self.get_session_status(session_id)
-        if session_status["State"] in ["IDLE", "BUSY"] and (
-            session_status["StartDateTime"] - datetime.now(tz=timezone.utc) > timedelta(seconds=self.timeout)
-        ):
-            LOGGER.debug(f"Terminating session: {session_id}")
-            self.athena_client.terminate_session(SessionId=session_id)
-        with self.lock:
-            LOGGER.debug(f"Releasing lock for session: {session_id}")
-            spark_session_locks[UUID(session_id)].release()
 
     def get_session_status(self, session_id: str) -> Any:
         """
@@ -275,3 +229,22 @@ class AthenaSparkSessionManager:
             Any: The status of the session
         """
         return self.athena_client.get_session_status(SessionId=session_id)["Status"]
+
+    def remove_terminated_session(self, session_id: str) -> None:
+        """
+        Removes session uuid from session list variable
+
+        Returns: None
+        """
+        with self.lock:
+            spark_session_list.pop(UUID(session_id), "Session id not found")
+            spark_session_load.pop(UUID(session_id), "Session id not found")
+
+    def set_spark_session_load(self, session_id: str, change: int) -> None:
+        """
+        Increase or decrease the session load variable
+
+        Returns: None
+        """
+        with self.lock:
+            spark_session_load[UUID(session_id)] = spark_session_load.get(UUID(session_id), 0) + change

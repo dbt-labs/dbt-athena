@@ -52,7 +52,12 @@
 
       -- create tmp table
       {%- set query_result = safe_create_table_as(False, tmp_relation, compiled_code, language, force_batch) -%}
-
+      -- Execute python code that is available in query result object
+      {%- if language == 'python' -%}
+        {% call statement('create_table', language=language) %}
+          {{ query_result }}
+        {% endcall %}
+      {%- endif -%}
       -- swap table
       {%- set swap_table = adapter.swap_table(tmp_relation, target_relation) -%}
 
@@ -67,6 +72,12 @@
         {{ drop_relation(old_relation) }}
       {%- endif -%}
       {%- set query_result = safe_create_table_as(False, target_relation, compiled_code, language, force_batch) -%}
+      -- Execute python code that is available in query result object
+      {%- if language == 'python' -%}
+        {% call statement('create_table', language=language) %}
+          {{ query_result }}
+        {% endcall %}
+      {%- endif -%}
     {%- endif -%}
 
     {%- if language != 'python' -%}
@@ -77,9 +88,21 @@
 
     {%- if old_relation is none -%}
       {%- set query_result = safe_create_table_as(False, target_relation, compiled_code, language, force_batch) -%}
+      -- Execute python code that is available in query result object
+      {%- if language == 'python' -%}
+        {% call statement('create_table', language=language) %}
+          {{ query_result }}
+        {% endcall %}
+      {%- endif -%}
     {%- else -%}
       {%- if old_relation.is_view -%}
         {%- set query_result = safe_create_table_as(False, tmp_relation, compiled_code, language, force_batch) -%}
+        -- Execute python code that is available in query result object
+        {%- if language == 'python' -%}
+          {% call statement('create_table', language=language) %}
+            {{ query_result }}
+          {% endcall %}
+        {%- endif -%}
         {%- do drop_relation(old_relation) -%}
         {%- do rename_relation(tmp_relation, target_relation) -%}
       {%- else -%}
@@ -98,7 +121,12 @@
         {%- endif -%}
 
         {% set query_result = safe_create_table_as(False, tmp_relation, compiled_code, language, force_batch) %}
-
+        -- Execute python code that is available in query result object
+        {%- if language == 'python' -%}
+          {% call statement('create_table', language=language) %}
+            {{ query_result }}
+          {% endcall %}
+        {%- endif -%}
         {{ rename_relation(old_relation, old_relation_bkp) }}
         {{ rename_relation(tmp_relation, target_relation) }}
 
@@ -111,8 +139,6 @@
   {% call statement("main", language=language) %}
     {%- if language=='sql' -%}
       SELECT '{{ query_result }}';
-    {%- else -%}
-      {{ query_result }}
     {%- endif -%}
   {% endcall %}
 

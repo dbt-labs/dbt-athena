@@ -30,13 +30,14 @@ class AthenaPythonJobHelper(PythonJobHelper):
             parsed_model (Dict[Any, Any]): The parsed python model.
             credentials (AthenaCredentials): Credentials for Athena connection.
         """
+        self.relation_name = parsed_model.get("relation_name", None)
         self.config = AthenaSparkSessionConfig(
             parsed_model.get("config", {}),
             polling_interval=credentials.poll_interval,
             retry_attempts=credentials.num_retries,
         )
         self.spark_connection = AthenaSparkSessionManager(
-            credentials, self.timeout, self.polling_interval, self.engine_config
+            credentials, self.timeout, self.polling_interval, self.engine_config, self.relation_name
         )
 
     @cached_property
@@ -98,25 +99,6 @@ class AthenaPythonJobHelper(PythonJobHelper):
         """
         return self.spark_connection.get_session_status(self.session_id)
 
-    def poll_until_session_idle(self) -> None:
-        """
-        Polls the session status until it becomes idle or exceeds the timeout.
-
-        Raises:
-            DbtRuntimeError: If the session chosen is not available or if it does not become idle within the timeout.
-        """
-        polling_interval = self.polling_interval
-        while True:
-            session_status = self.get_current_session_status()["State"]
-            if session_status in ["FAILED", "TERMINATED", "DEGRADED"]:
-                raise DbtRuntimeError(f"The session chosen was not available. Got status: {session_status}")
-            if session_status == "IDLE":
-                break
-            time.sleep(polling_interval)
-            polling_interval *= 2
-            if polling_interval > self.timeout:
-                raise DbtRuntimeError(f"Session {self.session_id} did not become free within {self.timeout} seconds.")
-
     def submit(self, compiled_code: str) -> Any:
         """
         Submit a calculation to Athena.
@@ -139,6 +121,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         """
         while True:
             try:
+                LOGGER.debug(f"Model {self.relation_name} - Using session: {self.session_id} to start calculation execution.")
                 calculation_execution_id = self.athena_client.start_calculation_execution(
                     SessionId=self.session_id, CodeBlock=compiled_code.lstrip()
                 )["CalculationExecutionId"]
@@ -153,27 +136,57 @@ class AthenaPythonJobHelper(PythonJobHelper):
                     LOGGER.exception("Going to poll until session is IDLE")
                     self.poll_until_session_idle()
             except Exception as e:
-                raise DbtRuntimeError(f"Unable to complete python execution. Got: {e}")
+                raise DbtRuntimeError(f"Unable to start spark python code execution. Got: {e}")
         execution_status = self.poll_until_execution_completion(calculation_execution_id)
-        LOGGER.debug(f"Received execution status {execution_status}")
+        LOGGER.debug(f"Model {self.relation_name} - Received execution status {execution_status}")
         if execution_status == "COMPLETED":
             try:
                 result = self.athena_client.get_calculation_execution(CalculationExecutionId=calculation_execution_id)[
                     "Result"
                 ]
             except Exception as e:
-                LOGGER.error(f"Unable to poll execution status: Got: {e}")
+                LOGGER.error(f"Unable to retrieve results: Got: {e}")
                 result = {}
-        self.spark_connection.release_session_lock(self.session_id)
         return result
+
+    def poll_until_session_idle(self) -> None:
+        """
+        Polls the session status until it becomes idle or exceeds the timeout.
+
+        Raises:
+            DbtRuntimeError: If the session chosen is not available or if it does not become idle within the timeout.
+        """
+        polling_interval = self.polling_interval
+        while True:
+            timer = 0
+            session_status = self.get_current_session_status()["State"]
+            if session_status in ["TERMINATING", "TERMINATED", "DEGRADED", "FAILED"]:
+                LOGGER.debug(
+                    f"Model {self.relation_name} - The session: {self.session_id} was not available. Got status: {session_status}. Will try with a different session."
+                )
+                self.spark_connection.remove_terminated_session(self.session_id)
+                if "session_id" in self.__dict__:
+                    del self.__dict__["session_id"]
+                break
+            if session_status == "IDLE":
+                break
+            time.sleep(polling_interval)
+            timer += polling_interval
+            if timer > self.timeout:
+                LOGGER.debug(
+                    f"Model {self.relation_name} - Session {self.session_id} did not become free within {self.timeout} seconds. Will try with a different session."
+                )
+                if "session_id" in self.__dict__:
+                    del self.__dict__["session_id"]
+                break
 
     def poll_until_execution_completion(self, calculation_execution_id: str) -> Any:
         """
-        Poll the status of a calculation execution until it is completed, failed, or cancelled.
+        Poll the status of a calculation execution until it is completed, failed, or canceled.
 
         This function polls the status of a calculation execution identified by the given `calculation_execution_id`
-        until it is completed, failed, or cancelled. It uses the Athena client to retrieve the status of the execution
-        and checks if the state is one of "COMPLETED", "FAILED", or "CANCELLED". If the execution is not yet completed,
+        until it is completed, failed, or canceled. It uses the Athena client to retrieve the status of the execution
+        and checks if the state is one of "COMPLETED", "FAILED", or "CANCELED". If the execution is not yet completed,
         the function sleeps for a certain polling interval, which starts with the value of `self.polling_interval` and
         doubles after each iteration until it reaches the `self.timeout` period. If the execution does not complete
         within the timeout period, a `DbtRuntimeError` is raised.
@@ -182,27 +195,51 @@ class AthenaPythonJobHelper(PythonJobHelper):
             calculation_execution_id (str): The ID of the calculation execution to poll.
 
         Returns:
-            str: The final state of the calculation execution, which can be one of "COMPLETED", "FAILED" or "CANCELLED".
+            str: The final state of the calculation execution, which can be one of "COMPLETED", "FAILED" or "CANCELED".
 
         Raises:
             DbtRuntimeError: If the calculation execution does not complete within the timeout period.
 
         """
-        polling_interval = self.polling_interval
-        while True:
-            execution_status = self.athena_client.get_calculation_execution_status(
-                CalculationExecutionId=calculation_execution_id
-            )["Status"]["State"]
-            if execution_status in ["FAILED", "CANCELLED"]:
-                raise DbtRuntimeError(
-                    f"""Execution {calculation_execution_id} did not complete successfully.
-                    Got: {execution_status} status."""
+        try:
+            polling_interval = self.polling_interval
+            while True:
+                timer = 0
+                execution_response = self.athena_client.get_calculation_execution(
+                    CalculationExecutionId=calculation_execution_id
                 )
-            if execution_status == "COMPLETED":
-                return execution_status
-            time.sleep(polling_interval)
-            polling_interval *= 2
-            if polling_interval > self.timeout:
-                raise DbtRuntimeError(
-                    f"Execution {calculation_execution_id} did not complete within {self.timeout} seconds."
-                )
+                execution_session = execution_response.get("SessionId", None)
+                execution_status = execution_response.get("Status", None)
+                execution_result = execution_response.get("Result", None)
+                execution_stderr_s3_path = ""
+                if execution_result:
+                    execution_stderr_s3_path = execution_result.get("StdErrorS3Uri", None)
+
+                execution_status_state = ""
+                execution_status_reason = ""
+                if execution_status:
+                    execution_status_state = execution_status.get("State", None)
+                    execution_status_reason = execution_status.get("StateChangeReason", None)
+
+                if execution_status_state in ["FAILED", "CANCELED"]:
+                    raise DbtRuntimeError(
+                        f"""Calculation Id:   {calculation_execution_id}
+Session Id:     {execution_session}
+Status:         {execution_status_state}
+Reason:         {execution_status_reason}
+Stderr s3 path: {execution_stderr_s3_path}
+"""
+                    )
+
+                if execution_status_state == "COMPLETED":
+                    return execution_status_state
+
+                time.sleep(polling_interval)
+                timer += polling_interval
+                if timer > self.timeout:
+                    self.athena_client.stop_calculation_execution(CalculationExecutionId=calculation_execution_id)
+                    raise DbtRuntimeError(
+                        f"Execution {calculation_execution_id} did not complete within {self.timeout} seconds."
+                    )
+        finally:
+            self.spark_connection.set_spark_session_load(self.session_id, -1)
