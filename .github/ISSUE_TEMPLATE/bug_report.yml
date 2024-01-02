@@ -53,20 +53,20 @@ body:
         - **Python**: 3.9.12 (`python3 --version`)
         - **dbt-core**: 1.1.1 (`dbt --version`)
         - **dbt-athena-community**: 1.1.1
-      value: |
-        - OS:
-        - Python:
-        - dbt:
-        - dbt-athena-community
-      render: markdown
-    validations:
-      required: false
+    value: |
+      - OS:
+      - Python:
+      - dbt:
+      - dbt-athena-community:
+    render: markdown
+  validations:
+    required: false
 - type: textarea
   attributes:
     label: Additional Context
     description: |
       Links? References? Anything that will give us more context about the issue you are encountering!
 
-      Tip: You can attach images or log files by clicking this area to highlight it and then dragging files in.
+      **Tip**: You can attach images or log files by clicking this area to highlight it and then dragging files in.
   validations:
     required: false
