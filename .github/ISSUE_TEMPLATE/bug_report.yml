@@ -59,8 +59,8 @@ body:
         - dbt:
         - dbt-athena-community
       render: markdown
-    validations:
-      required: false
+  validations:
+    required: false
 - type: textarea
   attributes:
     label: Additional Context
