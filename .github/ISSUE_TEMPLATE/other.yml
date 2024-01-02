@@ -1,0 +1,30 @@
+name: Other
+description: Anything that is not a bug or a feature
+title: "<title>"
+labels: []
+body:
+- type: checkboxes
+  attributes:
+    label: Is this your first time submitting an issue in dbt-athena?
+    description: >
+      We want to make sure that features are distinct and discoverable,
+      so that other members of the community can find them and offer their thoughts.
+
+      Issues are the right place to request straightforward extensions of existing dbt functionality.
+      For "big ideas" about future capabilities of dbt, we ask that you open a
+    options:
+      - label: I have searched the existing issues, and I could not find an existing issue for this feature
+        required: true
+- type: textarea
+  attributes:
+    label: Describe your request/question
+    description: A clear and concise description of what you want to happen.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Anything else?
+    description: |
+      Links? References? Anything that will give us more context about the requests or question
+  validations:
+    required: false
