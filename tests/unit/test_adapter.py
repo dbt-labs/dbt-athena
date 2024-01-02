@@ -600,10 +600,17 @@ class TestAthenaAdapter:
         objs = s3.list_objects_v2(Bucket=BUCKET)
         assert objs["KeyCount"] == 0
 
-    @patch("dbt.adapters.athena.impl.SQLAdapter.quote_seed_column")
-    def test_quote_seed_column(self, parent_quote_seed_column):
-        self.adapter.quote_seed_column("col", None)
-        parent_quote_seed_column.assert_called_once_with("col", False)
+    @pytest.mark.parametrize(
+        "column,quote_config,quote_character,expected",
+        [
+            pytest.param("col", False, None, "col"),
+            pytest.param("col", True, None, '"col"'),
+            pytest.param("col", False, "`", "col"),
+            pytest.param("col", True, "`", "`col`"),
+        ],
+    )
+    def test_quote_seed_column(self, column, quote_config, quote_character, expected):
+        assert self.adapter.quote_seed_column(column, quote_config, quote_character) == expected
 
     @mock_glue
     @mock_athena
