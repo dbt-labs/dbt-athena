@@ -8,7 +8,7 @@
 
     {% set to_return = create_or_replace_view(run_outside_transaction_hooks=False) %}
 
-    {% do adapter.expire_glue_table_versions(target_relation, versions_to_keep, True) %}
+    {% do adapter.expire_glue_table_versions(target_relation, versions_to_keep, False) %}
 
     {% set target_relation = this.incorporate(type='view') %}
     {% do persist_docs(target_relation, model) %}
