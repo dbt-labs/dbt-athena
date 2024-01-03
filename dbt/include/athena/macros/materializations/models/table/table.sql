@@ -7,6 +7,9 @@
 
   {%- set table_type = config.get('table_type', default='hive') | lower -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
+  {%- set old_tmp_relation = adapter.get_relation(identifier=identifier ~ '__ha',
+                                             schema=schema,
+                                             database=database) -%}
   {%- set is_ha = config.get('ha', default=false) -%}
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
   {%- set s3_data_naming = config.get('s3_data_naming', default='table_unique') -%}
@@ -44,9 +47,9 @@
 
     -- for ha tables that are not in full refresh mode and when the relation exists we use the swap behavior
     {%- if is_ha and not is_full_refresh_mode and old_relation is not none -%}
-      -- drop the tmp_relation
-      {%- if tmp_relation is not none -%}
-        {%- do adapter.delete_from_glue_catalog(tmp_relation) -%}
+      -- drop the old_tmp_relation if it exists
+      {%- if old_tmp_relation is not none -%}
+        {%- do adapter.delete_from_glue_catalog(old_tmp_relation) -%}
       {%- endif -%}
 
       -- create tmp table
@@ -69,7 +72,6 @@
     {%- endif -%}
 
     {{ set_table_classification(target_relation) }}
-
   {%- else -%}
 
     {%- if old_relation is none -%}
@@ -80,9 +82,9 @@
         {%- do drop_relation(old_relation) -%}
         {%- do rename_relation(tmp_relation, target_relation) -%}
       {%- else -%}
-
-        {%- if tmp_relation is not none -%}
-          {%- do drop_relation(tmp_relation) -%}
+        -- delete old tmp iceberg table if it exists
+        {%- if old_tmp_relation is not none -%}
+          {%- do drop_relation(old_tmp_relation) -%}
         {%- endif -%}
 
         {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
