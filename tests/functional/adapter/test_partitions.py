@@ -305,7 +305,39 @@ class TestIcebergTablePartitionsBuckets:
             "test_bucket_partitions.sql": test_bucket_partitions_sql,
         }
 
-    def test__check_incremental_run_with_bucket_in_partitions(self, project):
+    def test__check_run_with_bucket_and_partitions(self, project):
+        relation_name = "test_bucket_partitions"
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
+
+        first_model_run = run_dbt(["run", "--select", relation_name])
+        first_model_run_result = first_model_run.results[0]
+
+        # check that the model run successfully
+        assert first_model_run_result.status == RunStatus.Success
+
+        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
+
+        assert records_count_first_run == 615
+
+
+class TestIcebergTableBuckets:
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            "models": {
+                "+table_type": "iceberg",
+                "+materialized": "table",
+                "+partitioned_by": ["bucket(non_random_str, 5)"],
+            }
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "test_bucket_partitions.sql": test_bucket_partitions_sql,
+        }
+
+    def test__check_run_with_bucket_in_partitions(self, project):
         relation_name = "test_bucket_partitions"
         model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
 

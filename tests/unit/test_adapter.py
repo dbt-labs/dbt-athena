@@ -1472,9 +1472,17 @@ class TestAthenaAdapter:
         assert 0 <= bucket_number < 100
         assert bucket_number == 54
 
+    def test_murmur3_hash_with_date(self):
+        d = datetime.date.today()
+        bucket_number = self.adapter.murmur3_hash(d, 100)
+        assert isinstance(d, datetime.date)
+        assert isinstance(bucket_number, int)
+        assert 0 <= bucket_number < 100
+
     def test_murmur3_hash_with_datetime(self):
         dt = datetime.datetime.now()
         bucket_number = self.adapter.murmur3_hash(dt, 100)
+        assert isinstance(dt, datetime.datetime)
         assert isinstance(bucket_number, int)
         assert 0 <= bucket_number < 100
 

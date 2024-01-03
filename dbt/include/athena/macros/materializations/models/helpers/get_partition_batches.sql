@@ -22,27 +22,16 @@
     {# Process each partition row #}
     {%- for row in rows -%}
         {%- set single_partition = [] -%}
+        {# Loop through each column in the row #}
         {%- for col, partition_key in zip(row, partitioned_by) -%}
-            {# Determine the column type and check if it's a bucketed column #}
-            {%- set column_type = adapter.convert_type(table, loop.index0) -%}
+            {# Process bucketed columns using the bucket macro #}
+            {%- do process_bucket_column(col, partition_key, table, ns) -%}
+
+            {# Logic for non-bucketed columns #}
             {%- set bucket_match = modules.re.search('bucket\((.+),.+([0-9]+)\)', partition_key) -%}
-
-            {%- if bucket_match -%}
-                {# For bucketed columns, compute bucket numbers and conditions #}
-                {%- set ns.is_bucketed = true -%}
-                {%- set ns.bucket_column = bucket_match[1] -%}
-                {%- set bucket_num = adapter.murmur3_hash(col, bucket_match[2] | int) -%}
-                {%- set formatted_value, comp_func = adapter.format_value_for_partition(col, column_type) -%}
-
-                {%- if bucket_num not in ns.bucket_numbers %}
-                    {%- do ns.bucket_numbers.append(bucket_num) %}
-                    {%- do ns.bucket_conditions.update({bucket_num: [formatted_value]}) -%}
-                {%- elif formatted_value not in ns.bucket_conditions[bucket_num] %}
-                    {%- do ns.bucket_conditions[bucket_num].append(formatted_value) -%}
-                {%- endif -%}
-
-            {%- else -%}
+            {%- if not bucket_match -%}
                 {# For non-bucketed columns, format partition key and value #}
+                {%- set column_type = adapter.convert_type(table, loop.index0) -%}
                 {%- set value, comp_func = adapter.format_value_for_partition(col, column_type) -%}
                 {%- set partition_key_formatted = adapter.format_one_partition_key(partitioned_by[loop.index0]) -%}
                 {%- do single_partition.append(partition_key_formatted + comp_func + value) -%}
@@ -62,10 +51,10 @@
     {%- else -%}
         {%- set total_batches = ns.partitions | length -%}
     {%- endif -%}
+    {% do log('TOTAL PARTITIONS TO PROCESS: ' ~ total_batches) %}
 
     {# Determine the number of batches per partition limit #}
     {%- set batches_per_partition_limit = (total_batches // athena_partitions_limit) + (total_batches % athena_partitions_limit > 0) -%}
-    {% do log('TOTAL PARTITIONS TO PROCESS: ' ~ total_batches) %}
 
     {# Create conditions for each batch #}
     {%- set partitions_batches = [] -%}
