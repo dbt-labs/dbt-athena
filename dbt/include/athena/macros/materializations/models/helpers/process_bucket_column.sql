@@ -1,6 +1,6 @@
 {% macro process_bucket_column(col, partition_key, table, ns, col_index) %}
     {# Extract bucket information from the partition key #}
-    {%- set bucket_match = modules.re.search('bucket\((.+),.+([0-9]+)\)', partition_key) -%}
+    {%- set bucket_match = modules.re.search('bucket\((.+?),\s*(\d+)\)', partition_key) -%}
 
     {%- if bucket_match -%}
         {# For bucketed columns, compute bucket numbers and conditions #}
