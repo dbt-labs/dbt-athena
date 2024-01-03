@@ -119,35 +119,44 @@ class AthenaPythonJobHelper(PythonJobHelper):
             DbtRuntimeError: If the execution ends in a state other than "COMPLETED".
 
         """
-        while True:
-            try:
-                LOGGER.debug(f"Model {self.relation_name} - Using session: {self.session_id} to start calculation execution.")
-                calculation_execution_id = self.athena_client.start_calculation_execution(
-                    SessionId=self.session_id, CodeBlock=compiled_code.lstrip()
-                )["CalculationExecutionId"]
-                break
-            except botocore.exceptions.ClientError as ce:
-                LOGGER.exception(f"Encountered client error: {ce}")
-                if (
-                    ce.response["Error"]["Code"] == "InvalidRequestException"
-                    and "Session is in the BUSY state; needs to be IDLE to accept Calculations."
-                    in ce.response["Error"]["Message"]
-                ):
-                    LOGGER.exception("Going to poll until session is IDLE")
-                    self.poll_until_session_idle()
-            except Exception as e:
-                raise DbtRuntimeError(f"Unable to start spark python code execution. Got: {e}")
-        execution_status = self.poll_until_execution_completion(calculation_execution_id)
-        LOGGER.debug(f"Model {self.relation_name} - Received execution status {execution_status}")
-        if execution_status == "COMPLETED":
-            try:
-                result = self.athena_client.get_calculation_execution(CalculationExecutionId=calculation_execution_id)[
-                    "Result"
-                ]
-            except Exception as e:
-                LOGGER.error(f"Unable to retrieve results: Got: {e}")
-                result = {}
-        return result
+        # I am seeing an empty calculation along with main python model code calculation is submitted for almost every model
+        # Also, if not returning the result json, we are getting green ERROR messages instead of OK messages.
+        # And with this handling, I am not seeing the run model code in target folder every model under run folder seems to be empty. 
+        # Need to fix this work around solution
+        if compiled_code.strip():
+            while True:
+                try:
+                    LOGGER.debug(
+                        f"Model {self.relation_name} - Using session: {self.session_id} to start calculation execution."
+                    )
+                    calculation_execution_id = self.athena_client.start_calculation_execution(
+                        SessionId=self.session_id, CodeBlock=compiled_code.lstrip()
+                    )["CalculationExecutionId"]
+                    break
+                except botocore.exceptions.ClientError as ce:
+                    LOGGER.exception(f"Encountered client error: {ce}")
+                    if (
+                        ce.response["Error"]["Code"] == "InvalidRequestException"
+                        and "Session is in the BUSY state; needs to be IDLE to accept Calculations."
+                        in ce.response["Error"]["Message"]
+                    ):
+                        LOGGER.exception("Going to poll until session is IDLE")
+                        self.poll_until_session_idle()
+                except Exception as e:
+                    raise DbtRuntimeError(f"Unable to start spark python code execution. Got: {e}")
+            execution_status = self.poll_until_execution_completion(calculation_execution_id)
+            LOGGER.debug(f"Model {self.relation_name} - Received execution status {execution_status}")
+            if execution_status == "COMPLETED":
+                try:
+                    result = self.athena_client.get_calculation_execution(
+                        CalculationExecutionId=calculation_execution_id
+                    )["Result"]
+                except Exception as e:
+                    LOGGER.error(f"Unable to retrieve results: Got: {e}")
+                    result = {}
+            return result
+        else: 
+            return {"ResultS3Uri": "string", "ResultType": "string", "StdErrorS3Uri": "string", "StdOutS3Uri": "string"}
 
     def poll_until_session_idle(self) -> None:
         """
