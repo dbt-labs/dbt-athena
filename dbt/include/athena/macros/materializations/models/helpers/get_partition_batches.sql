@@ -22,20 +22,24 @@
     {# Process each partition row #}
     {%- for row in rows -%}
         {%- set single_partition = [] -%}
+        {# Initialize a manual counter for the index #}
+        {%- set counter = namespace(value=0) -%}
         {# Loop through each column in the row #}
-        {%- for col_index, (col, partition_key) in enumerate(zip(row, partitioned_by)) -%}
+        {%- for col, partition_key in zip(row, partitioned_by) -%}
             {# Process bucketed columns using the new macro with the index #}
-            {%- do process_bucket_column(col, partition_key, table, ns, col_index) -%}
+            {%- do process_bucket_column(col, partition_key, table, ns, counter.value) -%}
 
             {# Logic for non-bucketed columns #}
             {%- set bucket_match = modules.re.search('bucket\((.+),.+([0-9]+)\)', partition_key) -%}
             {%- if not bucket_match -%}
                 {# For non-bucketed columns, format partition key and value #}
-                {%- set column_type = adapter.convert_type(table, col_index) -%}
+                {%- set column_type = adapter.convert_type(table, counter.value) -%}
                 {%- set value, comp_func = adapter.format_value_for_partition(col, column_type) -%}
-                {%- set partition_key_formatted = adapter.format_one_partition_key(partitioned_by[col_index]) -%}
+                {%- set partition_key_formatted = adapter.format_one_partition_key(partitioned_by[counter.value]) -%}
                 {%- do single_partition.append(partition_key_formatted + comp_func + value) -%}
             {%- endif -%}
+            {# Increment the counter #}
+            {%- do counter.update(value=counter.value + 1) -%}
         {%- endfor -%}
 
         {# Concatenate conditions for a single partition #}
