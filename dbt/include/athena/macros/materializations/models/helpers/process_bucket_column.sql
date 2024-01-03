@@ -1,10 +1,10 @@
-{% macro process_bucket_column(col, partition_key, table, ns) %}
+{% macro process_bucket_column(col, partition_key, table, ns, col_index) %}
     {# Extract bucket information from the partition key #}
     {%- set bucket_match = modules.re.search('bucket\((.+),.+([0-9]+)\)', partition_key) -%}
 
     {%- if bucket_match -%}
         {# For bucketed columns, compute bucket numbers and conditions #}
-        {%- set column_type = adapter.convert_type(table, loop.index0) -%}
+        {%- set column_type = adapter.convert_type(table, col_index) -%}
         {%- set ns.is_bucketed = true -%}
         {%- set ns.bucket_column = bucket_match[1] -%}
         {%- set bucket_num = adapter.murmur3_hash(col, bucket_match[2] | int) -%}
