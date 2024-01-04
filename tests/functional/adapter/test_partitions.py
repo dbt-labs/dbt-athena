@@ -78,6 +78,28 @@ select
     NULL as date_column
 """
 
+test_bucket_partitions_sql = """
+with non_random_strings as (
+    select
+        chr(cast(65 + (row_number() over () % 26) as bigint)) ||
+    chr(cast(65 + ((row_number() over () + 1) % 26) as bigint)) ||
+    chr(cast(65 + ((row_number() over () + 4) % 26) as bigint)) as non_random_str
+    from
+        (select 1 union all select 2 union all select 3) as temp_table
+)
+select
+    cast(date_column as date) as date_column,
+    doy(date_column) as doy,
+    nrnd.non_random_str
+from (
+    values (
+        sequence(from_iso8601_date('2023-01-01'), from_iso8601_date('2023-07-24'), interval '1' day)
+    )
+) as t1(date_array)
+cross join unnest(date_array) as t2(date_column)
+join non_random_strings nrnd on true
+"""
+
 
 class TestHiveTablePartitions:
     @pytest.fixture(scope="class")
@@ -264,3 +286,67 @@ class TestHiveSingleNullValuedPartition:
         records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
 
         assert records_count_first_run == 202
+
+
+class TestIcebergTablePartitionsBuckets:
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            "models": {
+                "+table_type": "iceberg",
+                "+materialized": "table",
+                "+partitioned_by": ["DAY(date_column)", "doy", "bucket(non_random_str, 5)"],
+            }
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "test_bucket_partitions.sql": test_bucket_partitions_sql,
+        }
+
+    def test__check_run_with_bucket_and_partitions(self, project):
+        relation_name = "test_bucket_partitions"
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
+
+        first_model_run = run_dbt(["run", "--select", relation_name])
+        first_model_run_result = first_model_run.results[0]
+
+        # check that the model run successfully
+        assert first_model_run_result.status == RunStatus.Success
+
+        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
+
+        assert records_count_first_run == 615
+
+
+class TestIcebergTableBuckets:
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            "models": {
+                "+table_type": "iceberg",
+                "+materialized": "table",
+                "+partitioned_by": ["bucket(non_random_str, 5)"],
+            }
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "test_bucket_partitions.sql": test_bucket_partitions_sql,
+        }
+
+    def test__check_run_with_bucket_in_partitions(self, project):
+        relation_name = "test_bucket_partitions"
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
+
+        first_model_run = run_dbt(["run", "--select", relation_name])
+        first_model_run_result = first_model_run.results[0]
+
+        # check that the model run successfully
+        assert first_model_run_result.status == RunStatus.Success
+
+        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
+
+        assert records_count_first_run == 615
