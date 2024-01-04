@@ -1,3 +1,4 @@
+import datetime
 import decimal
 from unittest import mock
 from unittest.mock import patch
@@ -1441,6 +1442,83 @@ class TestAthenaAdapter:
     )
     def test__is_current_column(self, column, expected):
         assert self.adapter._is_current_column(column) == expected
+
+    @pytest.mark.parametrize(
+        "partition_keys, expected_result",
+        [
+            (
+                ["year(date_col)", "bucket(col_name, 10)", "default_partition_key"],
+                "date_trunc('year', date_col), col_name, default_partition_key",
+            ),
+        ],
+    )
+    def test_format_partition_keys(self, partition_keys, expected_result):
+        assert self.adapter.format_partition_keys(partition_keys) == expected_result
+
+    @pytest.mark.parametrize(
+        "partition_key, expected_result",
+        [
+            ("month(hidden)", "date_trunc('month', hidden)"),
+            ("bucket(bucket_col, 10)", "bucket_col"),
+            ("regular_col", "regular_col"),
+        ],
+    )
+    def test_format_one_partition_key(self, partition_key, expected_result):
+        assert self.adapter.format_one_partition_key(partition_key) == expected_result
+
+    def test_murmur3_hash_with_int(self):
+        bucket_number = self.adapter.murmur3_hash(123, 100)
+        assert isinstance(bucket_number, int)
+        assert 0 <= bucket_number < 100
+        assert bucket_number == 54
+
+    def test_murmur3_hash_with_date(self):
+        d = datetime.date.today()
+        bucket_number = self.adapter.murmur3_hash(d, 100)
+        assert isinstance(d, datetime.date)
+        assert isinstance(bucket_number, int)
+        assert 0 <= bucket_number < 100
+
+    def test_murmur3_hash_with_datetime(self):
+        dt = datetime.datetime.now()
+        bucket_number = self.adapter.murmur3_hash(dt, 100)
+        assert isinstance(dt, datetime.datetime)
+        assert isinstance(bucket_number, int)
+        assert 0 <= bucket_number < 100
+
+    def test_murmur3_hash_with_str(self):
+        bucket_number = self.adapter.murmur3_hash("test_string", 100)
+        assert isinstance(bucket_number, int)
+        assert 0 <= bucket_number < 100
+        assert bucket_number == 88
+
+    def test_murmur3_hash_uniqueness(self):
+        # Ensuring different inputs produce different hashes
+        hash1 = self.adapter.murmur3_hash("string1", 100)
+        hash2 = self.adapter.murmur3_hash("string2", 100)
+        assert hash1 != hash2
+
+    def test_murmur3_hash_with_unsupported_type(self):
+        with pytest.raises(TypeError):
+            self.adapter.murmur3_hash([1, 2, 3], 100)
+
+    @pytest.mark.parametrize(
+        "value, column_type, expected_result",
+        [
+            (None, "integer", ("null", " is ")),
+            (42, "integer", ("42", "=")),
+            ("O'Reilly", "string", ("'O''Reilly'", "=")),
+            ("test", "string", ("'test'", "=")),
+            ("2021-01-01", "date", ("DATE'2021-01-01'", "=")),
+            ("2021-01-01 12:00:00", "timestamp", ("TIMESTAMP'2021-01-01 12:00:00'", "=")),
+        ],
+    )
+    def test_format_value_for_partition(self, value, column_type, expected_result):
+        assert self.adapter.format_value_for_partition(value, column_type) == expected_result
+
+    def test_format_unsupported_type(self):
+        with pytest.raises(ValueError):
+            self.adapter.format_value_for_partition("test", "unsupported_type")
 
 
 class TestAthenaFilterCatalog:
