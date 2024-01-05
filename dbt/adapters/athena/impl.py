@@ -29,6 +29,7 @@ from pyathena.error import OperationalError
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.config import get_boto3_config
+from dbt.adapters.athena.connections import AthenaCursor
 from dbt.adapters.athena.constants import LOGGER
 from dbt.adapters.athena.exceptions import (
     S3LocationException,
@@ -1320,10 +1321,10 @@ class AthenaAdapter(SQLAdapter):
                 if "ICEBERG_OPTIMIZE_MORE_RUNS_NEEDED" not in str(e):
                     raise e
 
-    def _run_query(self, sql: str, catch_partitions_limit: bool) -> Any:
+    def _run_query(self, sql: str, catch_partitions_limit: bool) -> AthenaCursor:
         query = self.connections._add_query_comment(sql)
         conn = self.connections.get_thread_connection()
-        cursor = conn.handle.cursor()
+        cursor: AthenaCursor = conn.handle.cursor()
         LOGGER.debug(f"Running Athena query:\n{query}")
         try:
             cursor.execute(query, catch_partitions_limit=catch_partitions_limit)
