@@ -29,6 +29,7 @@ from pyathena.error import OperationalError
 from dbt.adapters.athena import AthenaConnectionManager
 from dbt.adapters.athena.column import AthenaColumn
 from dbt.adapters.athena.config import get_boto3_config
+from dbt.adapters.athena.connections import AthenaCursor
 from dbt.adapters.athena.constants import LOGGER
 from dbt.adapters.athena.exceptions import (
     S3LocationException,
@@ -1247,14 +1248,9 @@ class AthenaAdapter(SQLAdapter):
 
     @available
     def run_query_with_partitions_limit_catching(self, sql: str) -> str:
-        query = self.connections._add_query_comment(sql)
-        conn = self.connections.get_thread_connection()
-        cursor = conn.handle.cursor()
-        LOGGER.debug(f"Running Athena query:\n{query}")
         try:
-            cursor.execute(query, catch_partitions_limit=True)
+            cursor = self._run_query(sql, catch_partitions_limit=True)
         except OperationalError as e:
-            LOGGER.debug(f"CAUGHT EXCEPTION: {e}")
             if "TOO_MANY_OPEN_PARTITIONS" in str(e):
                 return "TOO_MANY_OPEN_PARTITIONS"
             raise e
@@ -1314,3 +1310,25 @@ class AthenaAdapter(SQLAdapter):
         else:
             # Raise an error for unsupported column types
             raise ValueError(f"Unsupported column type: {column_type}")
+
+    @available
+    def run_optimize_with_partition_limit_catching(self, optimize_query: str) -> None:
+        while True:
+            try:
+                self._run_query(optimize_query, catch_partitions_limit=False)
+                break
+            except OperationalError as e:
+                if "ICEBERG_OPTIMIZE_MORE_RUNS_NEEDED" not in str(e):
+                    raise e
+
+    def _run_query(self, sql: str, catch_partitions_limit: bool) -> AthenaCursor:
+        query = self.connections._add_query_comment(sql)
+        conn = self.connections.get_thread_connection()
+        cursor: AthenaCursor = conn.handle.cursor()
+        LOGGER.debug(f"Running Athena query:\n{query}")
+        try:
+            cursor.execute(query, catch_partitions_limit=catch_partitions_limit)
+        except OperationalError as e:
+            LOGGER.debug(f"CAUGHT EXCEPTION: {e}")
+            raise e
+        return cursor
