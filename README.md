@@ -168,6 +168,7 @@ athena:
 
 - `external_location` (`default=none`)
   - If set, the full S3 path in which the table will be saved.
+  - It works only with incremental models.
   - Does not work with Hive table with `ha` set to true.
 - `partitioned_by` (`default=none`)
   - An array list of columns by which the table will be partitioned
