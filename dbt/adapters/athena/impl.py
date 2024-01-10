@@ -126,6 +126,8 @@ class AthenaAdapter(SQLAdapter):
     AdapterSpecificConfigs = AthenaConfig
     Column = AthenaColumn
 
+    quote_character: str = '"'  # Presto quote character
+
     # There is no such concept as constraints in Athena
     CONSTRAINT_SUPPORT = {
         ConstraintType.check: ConstraintSupport.NOT_SUPPORTED,
@@ -399,9 +401,22 @@ class AthenaAdapter(SQLAdapter):
         if table_location := self.get_glue_table_location(relation):
             self.delete_from_s3(table_location)
 
+    def quote(self, identifier: str) -> str:
+        return f"{self.quote_character}{identifier}{self.quote_character}"
+
     @available
-    def quote_seed_column(self, column: str, quote_config: Optional[bool]) -> str:
-        return str(super().quote_seed_column(column, False))
+    def quote_seed_column(
+        self, column: str, quote_config: Optional[bool], quote_character: Optional[str] = None
+    ) -> str:
+        if quote_character:
+            old_value = self.quote_character
+            object.__setattr__(self, "quote_character", quote_character)
+            quoted_column = str(super().quote_seed_column(column, quote_config))
+            object.__setattr__(self, "quote_character", old_value)
+        else:
+            quoted_column = str(super().quote_seed_column(column, quote_config))
+
+        return quoted_column
 
     @available
     def upload_seed_to_s3(
@@ -876,9 +891,7 @@ class AthenaAdapter(SQLAdapter):
         return table_versions_ordered[int(to_keep) :]
 
     @available
-    def expire_glue_table_versions(
-        self, relation: AthenaRelation, to_keep: int, delete_s3: bool
-    ) -> List[TableVersionTypeDef]:
+    def expire_glue_table_versions(self, relation: AthenaRelation, to_keep: int, delete_s3: bool) -> List[str]:
         conn = self.connections.get_thread_connection()
         creds = conn.credentials
         client = conn.handle
@@ -911,11 +924,9 @@ class AthenaAdapter(SQLAdapter):
                 LOGGER.debug(f"Deleted version {version} of table {relation.render()} ")
                 if delete_s3:
                     self.delete_from_s3(location)
+                    LOGGER.debug(f"{location} was deleted")
             except Exception as err:
                 LOGGER.debug(f"There was an error when expiring table version {version} with error: {err}")
-
-            LOGGER.debug(f"{location} was deleted")
-
         return deleted_versions
 
     @available
@@ -969,11 +980,12 @@ class AthenaAdapter(SQLAdapter):
             glue_table_description = table.get("Description", "")
             # Get current description parameter from Glue
             glue_table_comment = table["Parameters"].get("comment", "")
-            # Update description if it's different
+            # Check that description is already attached to Glue table
             if clean_table_description != glue_table_description or clean_table_description != glue_table_comment:
-                table_input["Description"] = clean_table_description
-                table_parameters["comment"] = clean_table_description
                 need_to_update_table = True
+            # Save dbt description
+            table_input["Description"] = clean_table_description
+            table_parameters["comment"] = clean_table_description
 
             # Get dbt model meta if available
             meta: Dict[str, Any] = model.get("config", {}).get("meta", {})
@@ -993,9 +1005,9 @@ class AthenaAdapter(SQLAdapter):
                         # Check that meta value is already attached to Glue table
                         current_meta_value: Optional[str] = table_parameters.get(meta_key)
                         if current_meta_value is None or current_meta_value != meta_value:
-                            # Update Glue table parameter only if needed
-                            table_parameters[meta_key] = meta_value
                             need_to_update_table = True
+                        # Save Glue table parameter
+                        table_parameters[meta_key] = meta_value
                     else:
                         LOGGER.warning(f"Meta value for key '{meta_key}' is not supported and will be ignored")
                 else:
@@ -1013,10 +1025,11 @@ class AthenaAdapter(SQLAdapter):
                     clean_col_comment = ellipsis_comment(clean_sql_comment(col_comment))
                     # Get current column comment from Glue
                     glue_col_comment = col_obj.get("Comment", "")
-                    # Update column description if it's different
+                    # Check that column description is already attached to Glue table
                     if glue_col_comment != clean_col_comment:
-                        col_obj["Comment"] = clean_col_comment
                         need_to_update_table = True
+                    # Save column description from dbt
+                    col_obj["Comment"] = clean_col_comment
 
         # Update Glue Table only if table/column description is modified.
         # It prevents redundant schema version creating after incremental runs.

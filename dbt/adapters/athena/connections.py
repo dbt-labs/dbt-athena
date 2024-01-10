@@ -163,6 +163,9 @@ class AthenaCursor(Cursor):
                 cache_size=cache_size,
                 cache_expiration_time=cache_expiration_time,
             )
+
+            LOGGER.debug(f"Athena query ID {query_id}")
+
             query_execution = self._executor.submit(self._collect_result_set, query_id).result()
             if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
                 self.result_set = self._result_set_class(
