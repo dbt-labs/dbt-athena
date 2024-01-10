@@ -9,4 +9,3 @@ S3_STAGING_DIR = "s3://my-bucket/test-dbt/"
 S3_TMP_TABLE_DIR = "s3://my-bucket/test-dbt-temp/"
 ATHENA_WORKGROUP = "dbt-athena-adapter"
 SPARK_WORKGROUP = "spark"
-SPARK_THREADS = 4

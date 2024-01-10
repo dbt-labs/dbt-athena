@@ -71,13 +71,12 @@ class AthenaSparkSessionManager:
         Returns:
             int: The number of Spark threads. If not found in the profile, returns the default thread count.
         """
-        if not self.credentials.spark_threads:
+        if not DEFAULT_THREAD_COUNT:
             LOGGER.debug(
-                f"""Spark threads not found in profile. Got: {self.credentials.spark_threads}.
-                Using default count: {DEFAULT_THREAD_COUNT}"""
+                f"""Threads not found in profile. Got: {DEFAULT_THREAD_COUNT}"""
             )
-            return DEFAULT_THREAD_COUNT
-        return int(self.credentials.spark_threads)
+            return 1
+        return int(DEFAULT_THREAD_COUNT)
 
     @cached_property
     def spark_work_group(self) -> str:
