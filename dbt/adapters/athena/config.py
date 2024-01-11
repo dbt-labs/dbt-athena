@@ -5,11 +5,11 @@ from typing import Any, Dict
 from botocore import config
 
 from dbt.adapters.athena.constants import (
+    DEFAULT_CALCULATION_TIMEOUT,
     DEFAULT_POLLING_INTERVAL,
     DEFAULT_SPARK_COORDINATOR_DPU_SIZE,
     DEFAULT_SPARK_EXECUTOR_DPU_SIZE,
     DEFAULT_SPARK_MAX_CONCURRENT_DPUS,
-    DEFAULT_CALCULATION_TIMEOUT,
     DEFAULT_SPARK_PROPERTIES,
     LOGGER,
 )
@@ -105,15 +105,14 @@ class AthenaSparkSessionConfig:
         spark_cross_account_catalog = self.config.get("spark_cross_account_catalog", False)
         spark_requester_pays = self.config.get("spark_requester_pays", False)
 
-        default_spark_properties = {}
-        if table_type.lower() in ["iceberg", "hudi", "delta_lake"]:
-            default_spark_properties = default_spark_properties | DEFAULT_SPARK_PROPERTIES.get(table_type)
-        if spark_encryption:
-            default_spark_properties = default_spark_properties | DEFAULT_SPARK_PROPERTIES.get("spark_encryption")
-        if spark_cross_account_catalog:
-            default_spark_properties = default_spark_properties | DEFAULT_SPARK_PROPERTIES.get("spark_cross_account_catalog")
-        if spark_requester_pays:
-            default_spark_properties = default_spark_properties | DEFAULT_SPARK_PROPERTIES.get("spark_requester_pays")
+        default_spark_properties: Dict[str, str] = dict(
+            **DEFAULT_SPARK_PROPERTIES.get(table_type)
+            if table_type.lower() in ["iceberg", "hudi", "delta_lake"]
+            else {},
+            **DEFAULT_SPARK_PROPERTIES.get("spark_encryption") if spark_encryption else {},
+            **DEFAULT_SPARK_PROPERTIES.get("spark_cross_account_catalog") if spark_cross_account_catalog else {},
+            **DEFAULT_SPARK_PROPERTIES.get("spark_requester_pays") if spark_requester_pays else {},
+        )
 
         default_engine_config = {
             "CoordinatorDpuSize": DEFAULT_SPARK_COORDINATOR_DPU_SIZE,

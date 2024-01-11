@@ -10,7 +10,7 @@
     {% set bucket_count = optional_args.get("bucket_count") %}
     {% set field_delimiter = optional_args.get("field_delimiter") %}
     {% set spark_ctas = optional_args.get("spark_ctas", "") %}
-    
+
 import pyspark
 
 
@@ -50,7 +50,7 @@ def materialize(spark_session, df, target_relation):
         name="{{ target_relation.schema}}.{{ target_relation.identifier }}",
     )
 {% endif %}
-    
+
     return "Success: {{ target_relation.schema}}.{{ target_relation.identifier }}"
 
 {{ athena__py_get_spark_dbt_object() }}

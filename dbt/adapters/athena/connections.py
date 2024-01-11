@@ -29,7 +29,7 @@ from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_exponential
 
 from dbt.adapters.athena.config import get_boto3_config
-from dbt.adapters.athena.constants import DEFAULT_THREAD_COUNT, LOGGER
+from dbt.adapters.athena.constants import LOGGER
 from dbt.adapters.athena.session import get_boto3_session
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager

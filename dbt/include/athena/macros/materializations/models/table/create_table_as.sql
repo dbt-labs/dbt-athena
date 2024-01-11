@@ -70,7 +70,7 @@
 
           as
       {%- endset -%}
-    {%- endif -%} 
+    {%- endif -%}
 
     {# {% do log('Creating table with spark and compiled code: ' ~ compiled_code) %} #}
     {{ athena__py_save_table_as(
@@ -111,7 +111,7 @@
       {%- endif -%}
     {%- endif %}
 
-    create table {{ relation }} 
+    create table {{ relation }}
     with (
       table_type='{{ table_type }}',
       is_external={%- if table_type == 'iceberg' -%}false{%- else -%}true{%- endif %},

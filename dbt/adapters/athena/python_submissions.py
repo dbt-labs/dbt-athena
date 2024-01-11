@@ -119,9 +119,9 @@ class AthenaPythonJobHelper(PythonJobHelper):
             DbtRuntimeError: If the execution ends in a state other than "COMPLETED".
 
         """
-        # I am seeing an empty calculation along with main python model code calculation is submitted for almost every model
+        # Seeing an empty calculation along with main python model code calculation is submitted for almost every model
         # Also, if not returning the result json, we are getting green ERROR messages instead of OK messages.
-        # And with this handling, I am not seeing the run model code in target folder every model under run folder seems to be empty. 
+        # And with this handling, the run model code in target folder every model under run folder seems to be empty
         # Need to fix this work around solution
         if compiled_code.strip():
             while True:
@@ -155,7 +155,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
                     LOGGER.error(f"Unable to retrieve results: Got: {e}")
                     result = {}
             return result
-        else: 
+        else:
             return {"ResultS3Uri": "string", "ResultType": "string", "StdErrorS3Uri": "string", "StdOutS3Uri": "string"}
 
     def poll_until_session_idle(self) -> None:
@@ -167,11 +167,12 @@ class AthenaPythonJobHelper(PythonJobHelper):
         """
         polling_interval = self.polling_interval
         while True:
-            timer = 0
+            timer: float = 0
             session_status = self.get_current_session_status()["State"]
             if session_status in ["TERMINATING", "TERMINATED", "DEGRADED", "FAILED"]:
                 LOGGER.debug(
-                    f"Model {self.relation_name} - The session: {self.session_id} was not available. Got status: {session_status}. Will try with a different session."
+                    f"Model {self.relation_name} - The session: {self.session_id} was not available. "
+                    f"Got status: {session_status}. Will try with a different session."
                 )
                 self.spark_connection.remove_terminated_session(self.session_id)
                 if "session_id" in self.__dict__:
@@ -183,7 +184,8 @@ class AthenaPythonJobHelper(PythonJobHelper):
             timer += polling_interval
             if timer > self.timeout:
                 LOGGER.debug(
-                    f"Model {self.relation_name} - Session {self.session_id} did not become free within {self.timeout} seconds. Will try with a different session."
+                    f"Model {self.relation_name} - Session {self.session_id} did not become free within {self.timeout}"
+                    " seconds. Will try with a different session."
                 )
                 if "session_id" in self.__dict__:
                     del self.__dict__["session_id"]
@@ -213,7 +215,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         try:
             polling_interval = self.polling_interval
             while True:
-                timer = 0
+                timer: float = 0
                 execution_response = self.athena_client.get_calculation_execution(
                     CalculationExecutionId=calculation_execution_id
                 )

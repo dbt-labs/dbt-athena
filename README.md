@@ -559,25 +559,32 @@ The adapter supports python models using [`spark`](https://docs.aws.amazon.com/a
 - The spark work group is added to the ~/.dbt/profiles.yml file and the profile is referenced in dbt_project.yml
   that will be created. It is recommended to keep this same as threads.
 
-
 ### Spark specific table configuration
 
 - `timeout` (`default=43200`)
   - Time out in seconds for each python model execution. Defaults to 12 hours/43200 seconds.
 - `spark_encryption` (`default=false`)
-  - If this flag is set to true, encrypts data in transit between Spark nodes and also encrypts data at rest stored locally by Spark.
+  - If this flag is set to true, encrypts data in transit between Spark nodes and also encrypts data at rest stored
+   locally by Spark.
 - `spark_cross_account_catalog` (`default=false`)
-  - In spark, you can query the external account catalog and for that the consumer account has to be configured to access the producer catalog.
-  - If this flag is set to true, "/" can be used as the glue catalog separator. Ex: 999999999999/mydatabase.cloudfront_logs (*where *999999999999* is the external catalog id*)
+  - In spark, you can query the external account catalog and for that the consumer account has to be configured to
+   access the producer catalog.
+  - If this flag is set to true, "/" can be used as the glue catalog separator.
+   Ex: 999999999999/mydatabase.cloudfront_logs (*where *999999999999* is the external catalog id*)
 - `spark_requester_pays` (`default=false`)
-  - When an Amazon S3 bucket is configured as requester pays, the account of the user running the query is charged for data access and data transfer fees associated with the query.
+  - When an Amazon S3 bucket is configured as requester pays, the account of the user running the query is charged for
+   data access and data transfer fees associated with the query.
   - If this flag is set to true, requester pays S3 buckets are enabled in Athena for Spark.
 
 ### Spark notes
+
 - A session is created for each unique engine configuration defined in the models that are part of the invocation.
-- A session's idle timeout is set to 10 minutes. Within the timeout period, if there is a new calculation (spark python model) ready for execution and the engine configuration matches, the process will reuse the same session.
-- Number of python models running at a time depends on the `threads`.  Number of sessions created for the entire run depends on number of unique engine configurations and availability of session to maintain threads concurrency.
-- For iceberg table, it is recommended to use table_properties configuration to set the format_version to 2. This is to maintain compatability between iceberg tables created by Trino with those created by Spark.
+- A session's idle timeout is set to 10 minutes. Within the timeout period, if there is a new calculation
+ (spark python model) ready for execution and the engine configuration matches, the process will reuse the same session.
+- Number of python models running at a time depends on the `threads`.  Number of sessions created for the entire run
+ depends on number of unique engine configurations and availability of session to maintain threads concurrency.
+- For iceberg table, it is recommended to use table_properties configuration to set the format_version to 2. This is to
+ maintain compatability between iceberg tables created by Trino with those created by Spark.
 
 ### Example models
 
@@ -681,7 +688,8 @@ def model(dbt, spark_session):
 
 #### Known issues in python models
 
-- Incremental models do not fully utilize spark capabilities. They depend partially on existing sql based logic which runs on trino.
+- Incremental models do not fully utilize spark capabilities. They depend partially on existing sql based logic which
+ runs on trino.
 - Snapshots materializations are not supported.
 - Spark can only reference tables within the same catalog.
 

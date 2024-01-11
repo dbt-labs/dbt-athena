@@ -1,16 +1,20 @@
+import json
 import threading
 import time
-from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from hashlib import md5
-from typing import Any, Dict, List
+from typing import Any, Dict
 from uuid import UUID
+
 import boto3
 import boto3.session
-import json
 
 from dbt.adapters.athena.config import get_boto3_config
-from dbt.adapters.athena.constants import DEFAULT_THREAD_COUNT, LOGGER, SESSION_IDLE_TIMEOUT_MIN
+from dbt.adapters.athena.constants import (
+    DEFAULT_THREAD_COUNT,
+    LOGGER,
+    SESSION_IDLE_TIMEOUT_MIN,
+)
 from dbt.contracts.connection import Connection
 from dbt.events.functions import get_invocation_id
 from dbt.exceptions import DbtRuntimeError
@@ -45,7 +49,14 @@ class AthenaSparkSessionManager:
     A helper class to manage Athena Spark Sessions.
     """
 
-    def __init__(self, credentials: Any, timeout: int, polling_interval: float, engine_config: Dict[str, int], relation_name: str = None) -> None:
+    def __init__(
+        self,
+        credentials: Any,
+        timeout: int,
+        polling_interval: float,
+        engine_config: Dict[str, int],
+        relation_name: str | None = None,
+    ) -> None:
         """
         Initialize the AthenaSparkSessionManager instance.
 
@@ -72,9 +83,7 @@ class AthenaSparkSessionManager:
             int: The number of Spark threads. If not found in the profile, returns the default thread count.
         """
         if not DEFAULT_THREAD_COUNT:
-            LOGGER.debug(
-                f"""Threads not found in profile. Got: {DEFAULT_THREAD_COUNT}"""
-            )
+            LOGGER.debug(f"""Threads not found in profile. Got: {DEFAULT_THREAD_COUNT}""")
             return 1
         return int(DEFAULT_THREAD_COUNT)
 
@@ -121,9 +130,10 @@ class AthenaSparkSessionManager:
         """
         Get a session ID for the Spark session.
         When does a new session get created:
-        - When thread limit not reached
-        - When thread limit reached but same engine configuration session is not available
-        - When thread limit reached and same engine configuration session exist and it is busy running a python model and has one python model in queue (determined by session_query_capacity).
+        -   When thread limit not reached
+        -   When thread limit reached but same engine configuration session is not available
+        -   When thread limit reached and same engine configuration session exist and it is busy running a python model
+            and has one python model in queue (determined by session_query_capacity).
 
         Returns:
             UUID: The session ID.
@@ -132,7 +142,8 @@ class AthenaSparkSessionManager:
 
         if len(session_list) < self.spark_threads:
             LOGGER.debug(
-                f"Within thread limit, creating new session for model: {self.relation_name} with session description: {self.session_description}."
+                f"Within thread limit, creating new session for model: {self.relation_name}"
+                f" with session description: {self.session_description}."
             )
             return self.start_session()
         else:
@@ -147,13 +158,15 @@ class AthenaSparkSessionManager:
             )
             if matching_session_id:
                 LOGGER.debug(
-                    f"Over thread limit, matching session found for model: {self.relation_name} with session description: {self.session_description} and has capacity."
+                    f"Over thread limit, matching session found for model: {self.relation_name}"
+                    f" with session description: {self.session_description} and has capacity."
                 )
                 self.set_spark_session_load(str(matching_session_id), 1)
                 return matching_session_id
             else:
                 LOGGER.debug(
-                    f"Over thread limit, matching session not found or found with over capacity. Creating new session for model: {self.relation_name} with session description: {self.session_description}."
+                    f"Over thread limit, matching session not found or found with over capacity. Creating new session"
+                    f" for model: {self.relation_name} with session description: {self.session_description}."
                 )
                 return self.start_session()
 
@@ -203,13 +216,14 @@ class AthenaSparkSessionManager:
         """
         polling_interval = self.polling_interval
         while True:
-            timer = 0
+            timer: float = 0
             creation_status_response = self.get_session_status(session_id)
             creation_status_state = creation_status_response.get("State", "")
             creation_status_reason = creation_status_response.get("StateChangeReason", "")
             if creation_status_state in ["FAILED", "TERMINATED", "DEGRADED"]:
                 raise DbtRuntimeError(
-                    f"Unable to create session: {session_id}. Got status: {creation_status_state} with reason: {creation_status_reason}."
+                    f"Unable to create session: {session_id}. Got status: {creation_status_state}"
+                    f" with reason: {creation_status_reason}."
                 )
             elif creation_status_state == "IDLE":
                 LOGGER.debug(f"Session: {session_id} created")
