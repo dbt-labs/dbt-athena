@@ -55,7 +55,7 @@ class AthenaSparkSessionManager:
         timeout: int,
         polling_interval: float,
         engine_config: Dict[str, int],
-        relation_name: str | None = None,
+        relation_name: str = "N/A",
     ) -> None:
         """
         Initialize the AthenaSparkSessionManager instance.
