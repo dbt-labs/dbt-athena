@@ -640,11 +640,11 @@ def model(dbt, spark_session):
         engine_config={
             "CoordinatorDpuSize": 1,
             "MaxConcurrentDpus": 3,
-            "DefaultExecutorDpuSize": 1,
-            "spark_encryption": True,
-            "spark_cross_account_catalog": True,
-            "spark_requester_pays": True
+            "DefaultExecutorDpuSize": 1
         },
+        spark_encryption=True,
+        spark_cross_account_catalog=True,
+        spark_requester_pays=True
         polling_interval=15,
         timeout=120,
     )
