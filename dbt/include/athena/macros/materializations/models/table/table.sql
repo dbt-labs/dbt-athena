@@ -10,6 +10,9 @@
   {%- set old_tmp_relation = adapter.get_relation(identifier=identifier ~ '__ha',
                                              schema=schema,
                                              database=database) -%}
+  {%- set old_bkp_relation = adapter.get_relation(identifier=identifier ~ '__bkp',
+                                             schema=schema,
+                                             database=database) -%}
   {%- set is_ha = config.get('ha', default=false) -%}
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
   {%- set s3_data_naming = config.get('s3_data_naming', default='table_unique') -%}
@@ -92,8 +95,8 @@
         -- afterwards, therefore we are in weird state. The easiest and cleanest should be to remove
         -- the backup relation. It won't have an impact because since we are in the else condition,
         -- that means that old relation exists therefore no downtime yet.
-        {%- if old_relation_bkp is not none -%}
-          {%- do drop_relation(old_relation_bkp) -%}
+        {%- if old_bkp_relation is not none -%}
+          {%- do drop_relation(old_bkp_relation) -%}
         {%- endif -%}
 
         {% set query_result = safe_create_table_as(False, tmp_relation, sql, force_batch) %}
