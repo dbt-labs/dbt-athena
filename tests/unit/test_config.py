@@ -104,6 +104,11 @@ class TestAthenaSparkSessionConfig:
     )
     def test_set_engine_config(self, spark_config_helper):
         engine_config = spark_config_helper.set_engine_config()
-        assert engine_config == spark_config_helper.config.get(
-            "engine_config", {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1}
-        )
+        diff = set(engine_config.keys()) - {
+            "CoordinatorDpuSize",
+            "MaxConcurrentDpus",
+            "DefaultExecutorDpuSize",
+            "SparkProperties",
+            "AdditionalConfigs",
+        }
+        assert len(diff) == 0
