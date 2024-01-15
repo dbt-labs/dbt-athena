@@ -4,7 +4,7 @@ from uuid import UUID
 import botocore.session
 import pytest
 
-from dbt.adapters.athena import AthenaCredentials, session
+from dbt.adapters.athena import AthenaCredentials
 from dbt.adapters.athena.session import AthenaSparkSessionManager, get_boto3_session
 from dbt.contracts.connection import Connection
 from dbt.exceptions import DbtRuntimeError
