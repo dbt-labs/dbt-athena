@@ -166,8 +166,8 @@ class AthenaPythonJobHelper(PythonJobHelper):
             DbtRuntimeError: If the session chosen is not available or if it does not become idle within the timeout.
         """
         polling_interval = self.polling_interval
+        timer: float = 0
         while True:
-            timer: float = 0
             session_status = self.get_current_session_status()["State"]
             if session_status in ["TERMINATING", "TERMINATED", "DEGRADED", "FAILED"]:
                 LOGGER.debug(
@@ -214,8 +214,8 @@ class AthenaPythonJobHelper(PythonJobHelper):
         """
         try:
             polling_interval = self.polling_interval
+            timer: float = 0
             while True:
-                timer: float = 0
                 execution_response = self.athena_client.get_calculation_execution(
                     CalculationExecutionId=calculation_execution_id
                 )

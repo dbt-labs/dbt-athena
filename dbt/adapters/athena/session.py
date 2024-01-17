@@ -215,8 +215,8 @@ class AthenaSparkSessionManager:
 
         """
         polling_interval = self.polling_interval
+        timer: float = 0
         while True:
-            timer: float = 0
             creation_status_response = self.get_session_status(session_id)
             creation_status_state = creation_status_response.get("State", "")
             creation_status_reason = creation_status_response.get("StateChangeReason", "")
