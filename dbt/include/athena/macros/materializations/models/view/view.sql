@@ -11,7 +11,6 @@
     {% do adapter.expire_glue_table_versions(target_relation, versions_to_keep, False) %}
 
     {% set target_relation = this.incorporate(type='view') %}
-
     {% do persist_docs(target_relation, model) %}
 
     {% do return(to_return) %}
