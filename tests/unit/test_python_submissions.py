@@ -1,4 +1,5 @@
 import time
+import uuid
 from unittest.mock import Mock, patch
 
 import pytest
@@ -17,12 +18,14 @@ class TestAthenaPythonJobHelper:
 
     @pytest.fixture
     def parsed_model(self, request):
+        config: dict[str, int] = request.param.get("config", {"timeout": 1, "polling_interval": 5})
+
         return {
             "alias": "test_model",
             "schema": DATABASE_NAME,
             "config": {
-                "timeout": request.param.get("timeout", 7200),
-                "polling_interval": request.param.get("polling_interval", 5),
+                "timeout": config["timeout"],
+                "polling_interval": config["polling_interval"],
                 "engine_config": request.param.get(
                     "engine_config", {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1}
                 ),
@@ -146,10 +149,10 @@ class TestAthenaPythonJobHelper:
     ):
         with patch.multiple(
             athena_spark_session_manager,
-            get_session_id=Mock(return_value="test_session_id"),
+            get_session_id=Mock(return_value=uuid.uuid4()),
         ), patch.multiple(
             athena_client,
-            get_calculation_execution_status=Mock(return_value=execution_status),
+            get_calculation_execution=Mock(return_value=execution_status),
         ):
 
             def mock_sleep(_):
@@ -160,26 +163,26 @@ class TestAthenaPythonJobHelper:
             assert poll_response == expected_response
 
     @pytest.mark.parametrize(
-        "parsed_model, test_calculation_execution_id, test_calculation_execution, test_calculation_execution_status",
+        "parsed_model, test_calculation_execution_id, test_calculation_execution",
         [
             pytest.param(
                 {"config": {"timeout": 1, "polling_interval": 5}},
                 {"CalculationExecutionId": "test_execution_id"},
-                {"Result": {"ResultS3Uri": "test_results_s3_uri"}},
-                {"Status": {"State": "COMPLETED"}},
+                {
+                    "Result": {"ResultS3Uri": "test_results_s3_uri"},
+                    "Status": {"State": "COMPLETED"},
+                },
             ),
             pytest.param(
                 {"config": {"timeout": 1, "polling_interval": 5}},
                 {"CalculationExecutionId": "test_execution_id"},
-                {"Result": {}},
-                {"Status": {"State": "FAILED"}},
+                {"Result": {}, "Status": {"State": "FAILED"}},
                 marks=pytest.mark.xfail,
             ),
             pytest.param(
                 {"config": {"timeout": 1, "polling_interval": 5}},
                 {},
-                {"Result": {}},
-                {"Status": {"State": "FAILED"}},
+                {"Result": {}, "Status": {"State": "FAILED"}},
                 marks=pytest.mark.xfail,
             ),
         ],
@@ -189,20 +192,16 @@ class TestAthenaPythonJobHelper:
         self,
         test_calculation_execution_id,
         test_calculation_execution,
-        test_calculation_execution_status,
         athena_job_helper,
         athena_spark_session_manager,
         athena_client,
     ):
         with patch.multiple(
-            athena_spark_session_manager,
-            get_session_id=Mock(return_value="test_session_id"),
-            release_session_lock=Mock(),
+            athena_spark_session_manager, get_session_id=Mock(return_value=uuid.uuid4())
         ), patch.multiple(
             athena_client,
             start_calculation_execution=Mock(return_value=test_calculation_execution_id),
             get_calculation_execution=Mock(return_value=test_calculation_execution),
-            get_calculation_execution_status=Mock(return_value=test_calculation_execution_status),
         ), patch.multiple(
             athena_job_helper, poll_until_session_idle=Mock(return_value="IDLE")
         ):

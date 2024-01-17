@@ -36,34 +36,43 @@
     {{ get_assert_columns_equivalent(compiled_code) }}
   {%- endif -%}
 
-  {%- if table_type == 'iceberg' -%}
-    {%- set location_property = 'location' -%}
-    {%- set partition_property = 'partitioning' -%}
-    {%- if bucketed_by is not none or bucket_count is not none -%}
-      {%- set ignored_bucket_iceberg -%}
-      bucketed_by or bucket_count cannot be used with Iceberg tables. You have to use the bucket function
-      when partitioning. Will be ignored
-      {%- endset -%}
-      {%- set bucketed_by = none -%}
-      {%- set bucket_count = none -%}
-      {% do log(ignored_bucket_iceberg) %}
-    {%- endif -%}
-    {%- if 'unique' not in s3_data_naming or external_location is not none -%}
-      {%- set error_unique_location_iceberg -%}
-        You need to have an unique table location when creating Iceberg table since we use the RENAME feature
-        to have near-zero downtime.
-      {%- endset -%}
-      {% do exceptions.raise_compiler_error(error_unique_location_iceberg) %}
-    {%- endif -%}
-  {%- endif %}
-
   {%- if native_drop and table_type == 'iceberg' -%}
     {% do log('Config native_drop enabled, skipping direct S3 delete') %}
   {%- else -%}
     {% do adapter.delete_from_s3(location) %}
   {%- endif -%}
+
   {%- if language == 'python' -%}
-    {% do log('Creating table with spark and compiled code: ' ~ compiled_code) %}
+    {%- set spark_ctas = '' -%}
+    {%- if table_type == 'iceberg' -%}
+      {%- set spark_ctas -%}
+          create table {{ relation.schema | replace('\"', '`') }}.{{ relation.identifier | replace('\"', '`') }}
+          using iceberg
+          location '{{ location }}/'
+
+          {%- if partitioned_by is not none %}
+          partitioned by (
+              {%- for prop_value in partitioned_by -%}
+              {{ prop_value }}
+              {%- if not loop.last %},{% endif -%}
+              {%- endfor -%}
+          )
+          {%- endif %}
+
+          {%- if extra_table_properties is not none %}
+          tblproperties(
+              {%- for prop_name, prop_value in extra_table_properties.items() -%}
+              '{{ prop_name }}'='{{ prop_value }}'
+              {%- if not loop.last %},{% endif -%}
+              {%- endfor -%}
+          )
+          {% endif %}
+
+          as
+      {%- endset -%}
+    {%- endif -%}
+
+    {# {% do log('Creating table with spark and compiled code: ' ~ compiled_code) %} #}
     {{ athena__py_save_table_as(
         compiled_code,
         relation,
@@ -75,11 +84,33 @@
           'bucketed_by': bucketed_by,
           'write_compression': write_compression,
           'bucket_count': bucket_count,
-          'field_delimiter': field_delimiter
+          'field_delimiter': field_delimiter,
+          'spark_ctas': spark_ctas
         }
       )
     }}
   {%- else -%}
+    {%- if table_type == 'iceberg' -%}
+      {%- set location_property = 'location' -%}
+      {%- set partition_property = 'partitioning' -%}
+      {%- if bucketed_by is not none or bucket_count is not none -%}
+        {%- set ignored_bucket_iceberg -%}
+        bucketed_by or bucket_count cannot be used with Iceberg tables. You have to use the bucket function
+        when partitioning. Will be ignored
+        {%- endset -%}
+        {%- set bucketed_by = none -%}
+        {%- set bucket_count = none -%}
+        {% do log(ignored_bucket_iceberg) %}
+      {%- endif -%}
+      {%- if 'unique' not in s3_data_naming or external_location is not none -%}
+        {%- set error_unique_location_iceberg -%}
+          You need to have an unique table location when creating Iceberg table since we use the RENAME feature
+          to have near-zero downtime.
+        {%- endset -%}
+        {% do exceptions.raise_compiler_error(error_unique_location_iceberg) %}
+      {%- endif -%}
+    {%- endif %}
+
     create table {{ relation }}
     with (
       table_type='{{ table_type }}',

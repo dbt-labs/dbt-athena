@@ -53,8 +53,8 @@ setup(
     include_package_data=True,
     install_requires=[
         # In order to control dbt-core version and package version
-        "boto3~=1.26",
-        "boto3-stubs[athena,glue,lakeformation,sts]~=1.26",
+        "boto3~=1.34",
+        "boto3-stubs[athena,glue,lakeformation,sts]~=1.34",
         "dbt-core~=1.7.0",
         "pyathena>=2.25,<4.0",
         "pydantic>=1.10,<3.0",
