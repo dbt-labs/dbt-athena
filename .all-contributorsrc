@@ -131,6 +131,35 @@
         "code",
         "bug"
       ]
+    },
+    {
+      "login": "sanromeo",
+      "name": "Roman Korsun",
+      "avatar_url": "https://avatars.githubusercontent.com/u/44975602?v=4",
+      "profile": "https://github.com/sanromeo",
+      "contributions": [
+        "code",
+        "bug"
+      ]
+    },
+    {
+      "login": "Danya-Fpnk",
+      "name": "DanyaF",
+      "avatar_url": "https://avatars.githubusercontent.com/u/122433975?v=4",
+      "profile": "https://github.com/Danya-Fpnk",
+      "contributions": [
+        "code",
+        "bug"
+      ]
+    },
+    {
+      "login": "octiva",
+      "name": "Spencer",
+      "avatar_url": "https://avatars.githubusercontent.com/u/53303191?v=4",
+      "profile": "https://github.com/octiva",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
@@ -138,5 +167,6 @@
   "repoType": "github",
   "repoHost": "https://github.com",
   "projectName": "dbt-athena",
-  "projectOwner": "dbt-athena"
+  "projectOwner": "dbt-athena",
+  "commitType": "docs"
 }

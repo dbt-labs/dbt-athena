@@ -1,5 +1,4 @@
 {% materialization incremental, adapter='athena', supported_languages=['sql', 'python'] -%}
-
   {% set raw_strategy = config.get('incremental_strategy') or 'insert_overwrite' %}
   {% set table_type = config.get('table_type', default='hive') | lower %}
   {% set model_language = model['language'] %}
@@ -12,7 +11,10 @@
   {% set force_batch = config.get('force_batch', False) | as_bool -%}
   {% set target_relation = this.incorporate(type='table') %}
   {% set existing_relation = load_relation(this) %}
-  {% set tmp_relation = make_temp_relation(this) %}
+  {% set old_tmp_relation = adapter.get_relation(identifier=target_relation.identifier ~ '__dbt_tmp',
+                                             schema=schema,
+                                             database=database) %}
+  {% set tmp_relation = make_temp_relation(target_relation, '__dbt_tmp') %}
 
   -- If no partitions are used with insert_overwrite, we fall back to append mode.
   {% if partitioned_by is none and strategy == 'insert_overwrite' %}
@@ -43,9 +45,8 @@
     {%- endif -%}
     {% set build_sql = "select '" ~ query_result ~ "'" -%}
   {% elif partitioned_by is not none and strategy == 'insert_overwrite' %}
-    {% set tmp_relation = make_temp_relation(target_relation) %}
-    {% if tmp_relation is not none %}
-      {% do drop_relation(tmp_relation) %}
+    {% if old_tmp_relation is not none %}
+      {% do drop_relation(old_tmp_relation) %}
     {% endif %}
     {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language, force_batch) -%}
     {%- if model_language == 'python' -%}
@@ -60,9 +61,8 @@
     %}
     {% do to_drop.append(tmp_relation) %}
   {% elif strategy == 'append' %}
-    {% set tmp_relation = make_temp_relation(target_relation) %}
-    {% if tmp_relation is not none %}
-      {% do drop_relation(tmp_relation) %}
+    {% if old_tmp_relation is not none %}
+      {% do drop_relation(old_tmp_relation) %}
     {% endif %}
     {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language, force_batch) -%}
     {%- if model_language == 'python' -%}
@@ -95,9 +95,8 @@
         {% do exceptions.raise_compiler_error(inc_predicates_not_list) %}
       {% endif %}
     {% endif %}
-    {% set tmp_relation = make_temp_relation(target_relation) %}
-    {% if tmp_relation is not none %}
-      {% do drop_relation(tmp_relation) %}
+    {% if old_tmp_relation is not none %}
+      {% do drop_relation(old_tmp_relation) %}
     {% endif %}
     {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language, force_batch) -%}
     {%- if model_language == 'python' -%}

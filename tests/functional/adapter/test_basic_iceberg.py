@@ -6,7 +6,6 @@ Those are run in the hive test suite.
 """
 import pytest
 
-from dbt.contracts.results import RunStatus
 from dbt.tests.adapter.basic.files import (
     base_ephemeral_sql,
     base_materialized_var_sql,
@@ -30,7 +29,6 @@ from dbt.tests.adapter.basic.test_generic_tests import BaseGenericTests
 from dbt.tests.adapter.basic.test_incremental import BaseIncremental
 from dbt.tests.adapter.basic.test_snapshot_check_cols import BaseSnapshotCheckCols
 from dbt.tests.adapter.basic.test_snapshot_timestamp import BaseSnapshotTimestamp
-from dbt.tests.util import run_dbt
 
 iceberg_config_materialized_table = """
   {{ config(materialized="table", table_type="iceberg") }}
@@ -74,44 +72,6 @@ def configure_single_model_to_use_iceberg(model):
 def configure_models_to_use_iceberg(models):
     """Loop over all the dbt models and set the table configuration to iceberg."""
     return {key: configure_single_model_to_use_iceberg(val) for key, val in models.items()}
-
-
-class TestIcebergMergeNonUniqueLocation:
-    """Incremental merge requires a unique location"""
-
-    @pytest.fixture(scope="class")
-    def project_config_update(self):
-        return {
-            "models": {
-                "+materialized": "incremental",
-                "+incremental_strategy": "merge",
-                "+table_type": "iceberg",
-            }
-        }
-
-    @pytest.fixture(scope="class")
-    def models(self):
-        """Setting non-unique S3 naming configs"""
-
-        return {
-            "incremental_model_table.sql": '{{ config(s3_data_naming="table") }} select 1 as col_1',
-            "incremental_model_schema_table.sql": '{{ config(s3_data_naming="schema_table") }} select 1 as col_1',
-        }
-
-    def test__nonunique_location(self, project):
-        """Runs should fail for compilation error"""
-
-        def assert_compilation_error(dbt_run):
-            run_result = dbt_run.results[0]
-            status, message = run_result.status, run_result.message
-            assert status == RunStatus.Error
-            assert message.startswith("Compilation Error")
-
-        run = run_dbt(["run", "--select", "incremental_model_table"], expect_pass=False)
-        assert_compilation_error(run)
-
-        run = run_dbt(["run", "--select", "incremental_model_schema_table"], expect_pass=False)
-        assert_compilation_error(run)
 
 
 @pytest.mark.skip(

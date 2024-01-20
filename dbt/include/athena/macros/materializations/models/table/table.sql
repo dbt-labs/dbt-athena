@@ -8,6 +8,12 @@
 
   {%- set table_type = config.get('table_type', default='hive') | lower -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
+  {%- set old_tmp_relation = adapter.get_relation(identifier=identifier ~ '__ha',
+                                             schema=schema,
+                                             database=database) -%}
+  {%- set old_bkp_relation = adapter.get_relation(identifier=identifier ~ '__bkp',
+                                             schema=schema,
+                                             database=database) -%}
   {%- set is_ha = config.get('ha', default=false) -%}
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
   {%- set s3_data_naming = config.get('s3_data_naming', default='table_unique') -%}
@@ -45,9 +51,9 @@
 
     -- for ha tables that are not in full refresh mode and when the relation exists we use the swap behavior
     {%- if is_ha and not is_full_refresh_mode and old_relation is not none -%}
-      -- drop the tmp_relation
-      {%- if tmp_relation is not none -%}
-        {%- do adapter.delete_from_glue_catalog(tmp_relation) -%}
+      -- drop the old_tmp_relation if it exists
+      {%- if old_tmp_relation is not none -%}
+        {%- do adapter.delete_from_glue_catalog(old_tmp_relation) -%}
       {%- endif -%}
 
       -- create tmp table
@@ -83,7 +89,6 @@
     {%- if language != 'python' -%}
       {{ set_table_classification(target_relation) }}
     {%- endif -%}
-
   {%- else -%}
 
     {%- if old_relation is none -%}
@@ -106,9 +111,9 @@
         {%- do drop_relation(old_relation) -%}
         {%- do rename_relation(tmp_relation, target_relation) -%}
       {%- else -%}
-
-        {%- if tmp_relation is not none -%}
-          {%- do drop_relation(tmp_relation) -%}
+        -- delete old tmp iceberg table if it exists
+        {%- if old_tmp_relation is not none -%}
+          {%- do drop_relation(old_tmp_relation) -%}
         {%- endif -%}
 
         {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
@@ -116,8 +121,8 @@
         -- afterwards, therefore we are in weird state. The easiest and cleanest should be to remove
         -- the backup relation. It won't have an impact because since we are in the else condition,
         -- that means that old relation exists therefore no downtime yet.
-        {%- if old_relation_bkp is not none -%}
-          {%- do drop_relation(old_relation_bkp) -%}
+        {%- if old_bkp_relation is not none -%}
+          {%- do drop_relation(old_bkp_relation) -%}
         {%- endif -%}
 
         {% set query_result = safe_create_table_as(False, tmp_relation, compiled_code, language, force_batch) %}
