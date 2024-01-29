@@ -29,9 +29,9 @@
   {%- endcall %}
 {% endmacro %}
 
-{% macro set_table_classification(relation) -%}
+{% macro _set_table_classification(relation) -%}
   {%- set format = config.get('format', default='parquet') -%}
-  {% call statement('set_table_classification', auto_begin=False) -%}
+  {% call statement('_set_table_classification', auto_begin=False) -%}
     alter table {{ relation.render_hive() }} set tblproperties ('classification' = '{{ format }}')
   {%- endcall %}
 {%- endmacro %}
