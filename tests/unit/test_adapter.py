@@ -7,7 +7,6 @@ import agate
 import boto3
 import botocore
 import pytest
-
 from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
 
