@@ -9,7 +9,7 @@ from datetime import date, datetime
 from itertools import chain
 from textwrap import dedent
 from threading import Lock
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Type
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -41,6 +41,7 @@ from dbt.adapters.athena.lakeformation import (
     LfTagsConfig,
     LfTagsManager,
 )
+from dbt.adapters.athena.python_submissions import AthenaPythonJobHelper
 from dbt.adapters.athena.relation import (
     RELATION_TYPE_MAP,
     AthenaRelation,
@@ -59,12 +60,13 @@ from dbt.adapters.athena.utils import (
     is_valid_table_parameter_key,
     stringify_table_parameter_value,
 )
-from dbt.adapters.base import ConstraintSupport, available
+from dbt.adapters.base import ConstraintSupport, PythonJobHelper, available
 from dbt.adapters.base.impl import AdapterConfig
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.clients.agate_helper import table_from_rows
 from dbt.config.runtime import RuntimeConfig
+from dbt.contracts.connection import AdapterResponse
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import CompiledNode, ConstraintType
 from dbt.exceptions import DbtRuntimeError
@@ -1044,6 +1046,19 @@ class AthenaAdapter(SQLAdapter):
                 TableInput=table_input,
                 SkipArchive=skip_archive_table_version,
             )
+
+    def generate_python_submission_response(self, submission_result: Any) -> AdapterResponse:
+        if not submission_result:
+            return AdapterResponse(_message="ERROR")
+        return AdapterResponse(_message="OK")
+
+    @property
+    def default_python_submission_method(self) -> str:
+        return "athena_helper"
+
+    @property
+    def python_submission_helpers(self) -> Dict[str, Type[PythonJobHelper]]:
+        return {"athena_helper": AthenaPythonJobHelper}
 
     @available
     def list_schemas(self, database: str) -> List[str]:
