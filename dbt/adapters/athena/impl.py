@@ -219,7 +219,7 @@ class AthenaAdapter(SQLAdapter):
     @lru_cache()
     def _get_work_group(self, client: AthenaClient, work_group: str) -> GetWorkGroupOutputTypeDef:
         """
-        Simple helper function to cache the result of the get_work_group to avoid throttling
+        helper function to cache the result of the get_work_group to avoid APIs throttling
         """
         return client.get_work_group(WorkGroup=work_group)
 
