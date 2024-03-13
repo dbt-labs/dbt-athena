@@ -6,6 +6,7 @@ import struct
 import tempfile
 from dataclasses import dataclass
 from datetime import date, datetime
+from functools import lru_cache
 from itertools import chain
 from textwrap import dedent
 from threading import Lock
@@ -16,7 +17,8 @@ from uuid import uuid4
 import agate
 import mmh3
 from botocore.exceptions import ClientError
-from mypy_boto3_athena.type_defs import DataCatalogTypeDef
+from mypy_boto3_athena import AthenaClient
+from mypy_boto3_athena.type_defs import DataCatalogTypeDef, GetWorkGroupOutputTypeDef
 from mypy_boto3_glue.type_defs import (
     ColumnTypeDef,
     GetTableResponseTypeDef,
@@ -214,6 +216,13 @@ class AthenaAdapter(SQLAdapter):
             lf_permissions.process_filters(lf_config)
             lf_permissions.process_permissions(lf_config)
 
+    @lru_cache()
+    def _get_work_group(self, client: AthenaClient, work_group: str) -> GetWorkGroupOutputTypeDef:
+        """
+        helper function to cache the result of the get_work_group to avoid APIs throttling
+        """
+        return client.get_work_group(WorkGroup=work_group)
+
     @available
     def is_work_group_output_location_enforced(self) -> bool:
         conn = self.connections.get_thread_connection()
@@ -228,7 +237,7 @@ class AthenaAdapter(SQLAdapter):
             )
 
         if creds.work_group:
-            work_group = athena_client.get_work_group(WorkGroup=creds.work_group)
+            work_group = self._get_work_group(athena_client, creds.work_group)
             output_location = (
                 work_group.get("WorkGroup", {})
                 .get("Configuration", {})
