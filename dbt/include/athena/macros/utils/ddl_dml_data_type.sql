@@ -1,8 +1,6 @@
 {# Athena has different types between DML and DDL #}
 {# ref: https://docs.aws.amazon.com/athena/latest/ug/data-types.html #}
-{% macro ddl_data_type(col_type) -%}
-  {%- set table_type = config.get('table_type', 'hive') -%}
-
+{% macro ddl_data_type(col_type, table_type = 'hive') -%}
   -- transform varchar
   {% set re = modules.re %}
   {% set data_type = re.sub('(?:varchar|character varying)(?:\(\d+\))?', 'string', col_type) %}

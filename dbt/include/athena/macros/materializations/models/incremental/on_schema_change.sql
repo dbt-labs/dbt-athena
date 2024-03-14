@@ -7,7 +7,7 @@
   {%- set add_to_target_arr = schema_changes_dict['source_not_in_target'] -%}
   {%- if on_schema_change == 'append_new_columns'-%}
      {%- if add_to_target_arr | length > 0 -%}
-       {%- do alter_relation_add_columns(target_relation, add_to_target_arr) -%}
+       {%- do alter_relation_add_columns(target_relation, add_to_target_arr, table_type) -%}
      {%- endif -%}
   {% elif on_schema_change == 'sync_all_columns' %}
      {%- set remove_from_target_arr = schema_changes_dict['target_not_in_source'] -%}
@@ -20,14 +20,14 @@
        {% for remove_col in remove_from_target_arr if remove_col.column.endswith('__dbt_alter') %}
          {%- set origin_col_name = remove_col.column | replace('__dbt_alter', '') -%}
          {% for add_col in add_to_target_arr if add_col.column == origin_col_name %}
-             {%- do alter_relation_rename_column(target_relation, remove_col.name, add_col.name, add_col.data_type) -%}
+             {%- do alter_relation_rename_column(target_relation, remove_col.name, add_col.name, add_col.data_type, table_type) -%}
              {%- do remove_from_target_arr.remove(remove_col) -%}
              {%- do add_to_target_arr.remove(add_col) -%}
          {% endfor %}
        {% endfor %}
 
        {% if add_to_target_arr | length > 0 %}
-         {%- do alter_relation_add_columns(target_relation, add_to_target_arr) -%}
+         {%- do alter_relation_add_columns(target_relation, add_to_target_arr, table_type) -%}
        {% endif %}
        {% if remove_from_target_arr | length > 0 %}
          {%- do alter_relation_drop_columns(target_relation, remove_from_target_arr) -%}
@@ -42,7 +42,7 @@
      {% else %}
        {%- set replace_with_target_arr = remove_partitions_from_columns(schema_changes_dict['source_columns'], partitioned_by) -%}
        {% if add_to_target_arr | length > 0 or remove_from_target_arr | length > 0 or new_target_types | length > 0 %}
-         {%- do alter_relation_replace_columns(target_relation, replace_with_target_arr) -%}
+         {%- do alter_relation_replace_columns(target_relation, replace_with_target_arr, table_type) -%}
        {% endif %}
      {% endif %}
   {% endif %}
@@ -63,10 +63,11 @@
     3. Drop the existing column
     4. Rename the new column to existing column
   #}
+  {%- set table_type = config.get('table_type', 'hive') -%}
   {%- set tmp_column = column_name + '__dbt_alter' -%}
-  {%- set new_ddl_data_type = ddl_data_type(new_column_type) -%}
+  {%- set new_ddl_data_type = ddl_data_type(new_column_type, table_type) -%}
 
-  {#- do alter_relation_add_columns(relation, [ tmp_column ]) -#}
+  {#- do alter_relation_add_columns(relation, [ tmp_column ], table_type) -#}
   {%- set add_column_query -%}
     alter {{ relation.type }} {{ relation.render_pure() }} add columns({{ tmp_column }} {{ new_ddl_data_type }});
   {%- endset -%}
@@ -83,6 +84,6 @@
   {%- endset -%}
   {%- do run_query(drop_column_query) -%}
 
-  {%- do alter_relation_rename_column(relation, tmp_column, column_name, new_column_type) -%}
+  {%- do alter_relation_rename_column(relation, tmp_column, column_name, new_column_type, table_type) -%}
 
 {% endmacro %}
