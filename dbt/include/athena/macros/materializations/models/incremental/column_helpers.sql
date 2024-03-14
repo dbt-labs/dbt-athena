@@ -1,4 +1,4 @@
-{% macro alter_relation_add_columns(relation, add_columns = none) -%}
+{% macro alter_relation_add_columns(relation, add_columns = none, table_type = 'hive') -%}
   {% if add_columns is none %}
     {% set add_columns = [] %}
   {% endif %}
@@ -7,7 +7,7 @@
       alter {{ relation.type }} {{ relation.render_hive() }}
           add columns (
             {%- for column in add_columns -%}
-                {{ column.name }} {{ ddl_data_type(column.data_type) }}{{ ', ' if not loop.last }}
+                {{ column.name }} {{ ddl_data_type(column.data_type, table_type) }}{{ ', ' if not loop.last }}
             {%- endfor -%}
           )
   {%- endset -%}
@@ -30,7 +30,7 @@
   {%- endfor -%}
 {% endmacro %}
 
-{% macro alter_relation_replace_columns(relation, replace_columns = none) -%}
+{% macro alter_relation_replace_columns(relation, replace_columns = none, table_type = 'hive') -%}
   {% if replace_columns is none %}
     {% set replace_columns = [] %}
   {% endif %}
@@ -39,7 +39,7 @@
       alter {{ relation.type }} {{ relation.render_hive() }}
           replace columns (
             {%- for column in replace_columns -%}
-                {{ column.name }} {{ ddl_data_type(column.data_type) }}{{ ', ' if not loop.last }}
+                {{ column.name }} {{ ddl_data_type(column.data_type, table_type) }}{{ ', ' if not loop.last }}
             {%- endfor -%}
           )
   {%- endset -%}
@@ -49,10 +49,10 @@
   {% endif %}
 {% endmacro %}
 
-{% macro alter_relation_rename_column(relation, source_column, target_column, target_column_type) -%}
+{% macro alter_relation_rename_column(relation, source_column, target_column, target_column_type, table_type = 'hive') -%}
   {% set sql -%}
       alter {{ relation.type }} {{ relation.render_pure() }}
-          change column {{ source_column }} {{ target_column }} {{ ddl_data_type(target_column_type) }}
+          change column {{ source_column }} {{ target_column }} {{ ddl_data_type(target_column_type, table_type) }}
   {%- endset -%}
   {{ return(run_query(sql)) }}
 {% endmacro %}
