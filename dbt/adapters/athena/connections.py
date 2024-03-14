@@ -1,4 +1,3 @@
-import hashlib
 import json
 import re
 import time
@@ -35,6 +34,7 @@ from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import AdapterResponse, Connection, ConnectionState
 from dbt.exceptions import ConnectionError, DbtRuntimeError
+from dbt.utils import md5
 
 
 @dataclass
@@ -72,7 +72,7 @@ class AthenaCredentials(Credentials):
 
     @property
     def unique_field(self) -> str:
-        return f"athena-{hashlib.md5(self.s3_staging_dir.encode()).hexdigest()}"
+        return f"athena-{md5(self.s3_staging_dir)}"
 
     @property
     def effective_num_retries(self) -> int:
