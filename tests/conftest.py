@@ -1,12 +1,25 @@
 import os
 from io import StringIO
+from unittest.mock import MagicMock, patch
 
+import boto3
 import pytest
 
+import dbt
+from dbt.adapters.athena.connections import AthenaCredentials
 from dbt.events.base_types import EventLevel
 from dbt.events.eventmgr import LineFormat
 from dbt.events.functions import EVENT_MANAGER, _get_stdout_config
 from dbt.events.logger import NoFilter
+
+from .unit.constants import (
+    ATHENA_WORKGROUP,
+    AWS_REGION,
+    DATA_CATALOG_NAME,
+    DATABASE_NAME,
+    S3_STAGING_DIR,
+    SPARK_WORKGROUP,
+)
 
 # Import the functional fixtures as a plugin
 # Note: fixtures with session scope need to be local
@@ -29,6 +42,7 @@ def dbt_profile_target():
         "num_retries": int(os.getenv("DBT_TEST_ATHENA_NUM_RETRIES", "2")),
         "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUP"),
         "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME") or None,
+        "spark_work_group": os.getenv("DBT_TEST_ATHENA_SPARK_WORK_GROUP"),
     }
 
 
@@ -55,3 +69,22 @@ def _setup_custom_caplog(name: str, level: EventLevel):
     capture_config.output_stream = string_buf
     EVENT_MANAGER.add_logger(capture_config)
     return string_buf
+
+
+@pytest.fixture(scope="class")
+def athena_client():
+    with patch.object(boto3.session.Session, "client", return_value=MagicMock()) as mock_athena_client:
+        return mock_athena_client
+
+
+@patch.object(dbt.adapters.athena.connections, "AthenaCredentials")
+@pytest.fixture(scope="class")
+def athena_credentials():
+    return AthenaCredentials(
+        database=DATA_CATALOG_NAME,
+        schema=DATABASE_NAME,
+        s3_staging_dir=S3_STAGING_DIR,
+        region_name=AWS_REGION,
+        work_group=ATHENA_WORKGROUP,
+        spark_work_group=SPARK_WORKGROUP,
+    )
