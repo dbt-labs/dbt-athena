@@ -174,7 +174,7 @@
 
 
       {% if missing_columns %}
-        {% do alter_relation_add_columns(target_relation, missing_columns) %}
+        {% do alter_relation_add_columns(target_relation, missing_columns, table_type) %}
       {% endif %}
 
 

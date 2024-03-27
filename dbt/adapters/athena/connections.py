@@ -1,4 +1,3 @@
-import hashlib
 import json
 import re
 import time
@@ -29,14 +28,13 @@ from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_exponential
 
 from dbt.adapters.athena.config import get_boto3_config
+from dbt.adapters.athena.constants import LOGGER
 from dbt.adapters.athena.session import get_boto3_session
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import AdapterResponse, Connection, ConnectionState
-from dbt.events import AdapterLogger
 from dbt.exceptions import ConnectionError, DbtRuntimeError
-
-logger = AdapterLogger("Athena")
+from dbt.utils import md5
 
 
 @dataclass
@@ -61,6 +59,7 @@ class AthenaCredentials(Credentials):
     num_boto3_retries: Optional[int] = None
     s3_data_dir: Optional[str] = None
     s3_data_naming: Optional[str] = "schema_table_unique"
+    spark_work_group: Optional[str] = None
     s3_tmp_table_dir: Optional[str] = None
     # Unfortunately we can not just use dict, must be Dict because we'll get the following error:
     # Credentials in profile "athena", target "athena" invalid: Unable to create schema for 'dict'
@@ -73,7 +72,7 @@ class AthenaCredentials(Credentials):
 
     @property
     def unique_field(self) -> str:
-        return f"athena-{hashlib.md5(self.s3_staging_dir.encode()).hexdigest()}"
+        return f"athena-{md5(self.s3_staging_dir)}"
 
     @property
     def effective_num_retries(self) -> int:
@@ -98,6 +97,7 @@ class AthenaCredentials(Credentials):
             "debug_query_state",
             "seed_s3_upload_args",
             "lf_tags_database",
+            "spark_work_group",
         )
 
 
@@ -121,7 +121,7 @@ class AthenaCursor(Cursor):
             query_execution = self.__poll(query_id)
         except KeyboardInterrupt as e:
             if self._kill_on_interrupt:
-                logger.warning(f"Query canceled by user: {query_id}.")
+                LOGGER.warning("Query canceled by user.")
                 self._cancel(query_id)
                 query_execution = self.__poll(query_id)
             else:
@@ -139,9 +139,7 @@ class AthenaCursor(Cursor):
                 return query_execution
 
             if self.connection.cursor_kwargs.get("debug_query_state", False):
-                logger.debug(
-                    f"Query state for {query_id} is: {query_execution.state}. Sleeping for {self._poll_interval}..."
-                )
+                LOGGER.debug(f"Query state is: {query_execution.state}. Sleeping for {self._poll_interval}...")
             time.sleep(self._poll_interval)
 
     def execute(  # type: ignore
@@ -166,7 +164,7 @@ class AthenaCursor(Cursor):
                 cache_expiration_time=cache_expiration_time,
             )
 
-            logger.debug(f"Athena query ID {query_id}")
+            LOGGER.debug(f"Athena query ID {query_id}")
 
             query_execution = self._executor.submit(self._collect_result_set, query_id).result()
             if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
@@ -218,13 +216,13 @@ class AthenaConnectionManager(SQLConnectionManager):
         try:
             yield
         except Exception as e:
-            logger.debug(f"Error running SQL: {sql}")
+            LOGGER.debug(f"Error running SQL: {sql}")
             raise DbtRuntimeError(str(e)) from e
 
     @classmethod
     def open(cls, connection: Connection) -> Connection:
         if connection.state == "open":
-            logger.debug("Connection is already open, skipping open.")
+            LOGGER.debug("Connection is already open, skipping open.")
             return connection
 
         try:
@@ -252,7 +250,7 @@ class AthenaConnectionManager(SQLConnectionManager):
             connection.handle = handle
 
         except Exception as exc:
-            logger.exception(f"Got an error when attempting to open a Athena connection due to {exc}")
+            LOGGER.exception(f"Got an error when attempting to open a Athena connection due to {exc}")
             connection.handle = None
             connection.state = ConnectionState.FAIL
             raise ConnectionError(str(exc))
@@ -287,7 +285,7 @@ class AthenaConnectionManager(SQLConnectionManager):
                     stats = json.loads("{" + query_stats.group(1) + "}")
                     return stats.get("rowcount", -1), stats.get("data_scanned_in_bytes", 0)
             except Exception as err:
-                logger.debug(f"There was an error parsing query stats {err}")
+                LOGGER.debug(f"There was an error parsing query stats {err}")
                 return -1, 0
         return cursor.rowcount, cursor.data_scanned_in_bytes
 

@@ -1,6 +1,7 @@
 -- TODO create a drop_relation_with_versions, to be sure to remove all historical versions of a table
-{% materialization table, adapter='athena' -%}
+{% materialization table, adapter='athena', supported_languages=['sql', 'python'] -%}
   {%- set identifier = model['alias'] -%}
+  {%- set language = model['language'] -%}
 
   {%- set lf_tags_config = config.get('lf_tags_config') -%}
   {%- set lf_grants = config.get('lf_grants') -%}
@@ -56,8 +57,13 @@
       {%- endif -%}
 
       -- create tmp table
-      {%- set query_result = safe_create_table_as(False, tmp_relation, sql, force_batch) -%}
-
+      {%- set query_result = safe_create_table_as(False, tmp_relation, compiled_code, language, force_batch) -%}
+      -- Execute python code that is available in query result object
+      {%- if language == 'python' -%}
+        {% call statement('create_table', language=language) %}
+          {{ query_result }}
+        {% endcall %}
+      {%- endif -%}
       -- swap table
       {%- set swap_table = adapter.swap_table(tmp_relation, target_relation) -%}
 
@@ -71,17 +77,37 @@
       {%- if old_relation is not none -%}
         {{ drop_relation(old_relation) }}
       {%- endif -%}
-      {%- set query_result = safe_create_table_as(False, target_relation, sql, force_batch) -%}
+      {%- set query_result = safe_create_table_as(False, target_relation, compiled_code, language, force_batch) -%}
+      -- Execute python code that is available in query result object
+      {%- if language == 'python' -%}
+        {% call statement('create_table', language=language) %}
+          {{ query_result }}
+        {% endcall %}
+      {%- endif -%}
     {%- endif -%}
 
-    {{ set_table_classification(target_relation) }}
+    {%- if language != 'python' -%}
+      {{ set_table_classification(target_relation) }}
+    {%- endif -%}
   {%- else -%}
 
     {%- if old_relation is none -%}
-      {%- set query_result = safe_create_table_as(False, target_relation, sql, force_batch) -%}
+      {%- set query_result = safe_create_table_as(False, target_relation, compiled_code, language, force_batch) -%}
+      -- Execute python code that is available in query result object
+      {%- if language == 'python' -%}
+        {% call statement('create_table', language=language) %}
+          {{ query_result }}
+        {% endcall %}
+      {%- endif -%}
     {%- else -%}
       {%- if old_relation.is_view -%}
-        {%- set query_result = safe_create_table_as(False, tmp_relation, sql, force_batch) -%}
+        {%- set query_result = safe_create_table_as(False, tmp_relation, compiled_code, language, force_batch) -%}
+        -- Execute python code that is available in query result object
+        {%- if language == 'python' -%}
+          {% call statement('create_table', language=language) %}
+            {{ query_result }}
+          {% endcall %}
+        {%- endif -%}
         {%- do drop_relation(old_relation) -%}
         {%- do rename_relation(tmp_relation, target_relation) -%}
       {%- else -%}
@@ -99,8 +125,13 @@
           {%- do drop_relation(old_bkp_relation) -%}
         {%- endif -%}
 
-        {% set query_result = safe_create_table_as(False, tmp_relation, sql, force_batch) %}
-
+        {% set query_result = safe_create_table_as(False, tmp_relation, compiled_code, language, force_batch) %}
+        -- Execute python code that is available in query result object
+        {%- if language == 'python' -%}
+          {% call statement('create_table', language=language) %}
+            {{ query_result }}
+          {% endcall %}
+        {%- endif -%}
         {{ rename_relation(old_relation, old_relation_bkp) }}
         {{ rename_relation(tmp_relation, target_relation) }}
 
@@ -110,8 +141,10 @@
 
   {%- endif -%}
 
-  {% call statement("main") %}
-    SELECT '{{ query_result }}';
+  {% call statement("main", language=language) %}
+    {%- if language=='sql' -%}
+      SELECT '{{ query_result }}';
+    {%- endif -%}
   {% endcall %}
 
   {{ run_hooks(post_hooks) }}
