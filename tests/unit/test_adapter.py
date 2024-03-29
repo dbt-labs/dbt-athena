@@ -1,5 +1,6 @@
 import datetime
 import decimal
+from multiprocessing import get_context
 from unittest import mock
 from unittest.mock import patch
 
@@ -7,6 +8,8 @@ import agate
 import boto3
 import botocore
 import pytest
+from dbt_common.clients import agate_helper
+from dbt_common.exceptions import ConnectionError, DbtRuntimeError
 from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
 
@@ -17,13 +20,8 @@ from dbt.adapters.athena.connections import AthenaCursor, AthenaParameterFormatt
 from dbt.adapters.athena.exceptions import S3LocationException
 from dbt.adapters.athena.relation import AthenaRelation, TableType
 from dbt.adapters.athena.utils import AthenaCatalogType
-from dbt.clients import agate_helper
-from dbt.contracts.connection import ConnectionState
-from dbt.contracts.files import FileHash
-from dbt.contracts.graph.nodes import CompiledNode, DependsOn, NodeConfig
-from dbt.contracts.relation import RelationType
-from dbt.exceptions import ConnectionError, DbtRuntimeError
-from dbt.node_types import NodeType
+from dbt.adapters.contracts.connection import ConnectionState
+from dbt.adapters.contracts.relation import RelationType
 
 from .constants import (
     ATHENA_WORKGROUP,
@@ -64,201 +62,20 @@ class TestAthenaAdapter:
 
         self.config = config_from_parts_or_dicts(project_cfg, profile_cfg)
         self._adapter = None
-        self.mock_manifest = mock.MagicMock()
-        self.mock_manifest.get_used_schemas.return_value = {
-            ("awsdatacatalog", "foo"),
-            ("awsdatacatalog", "quux"),
-            ("awsdatacatalog", "baz"),
-            (SHARED_DATA_CATALOG_NAME, "foo"),
-            (FEDERATED_QUERY_CATALOG_NAME, "foo"),
-        }
-        self.mock_manifest.nodes = {
-            "model.root.model1": CompiledNode(
-                name="model1",
-                database="awsdatacatalog",
-                schema="foo",
-                resource_type=NodeType.Model,
-                unique_id="model.root.model1",
-                alias="bar",
-                fqn=["root", "model1"],
-                package_name="root",
-                refs=[],
-                sources=[],
-                depends_on=DependsOn(),
-                config=NodeConfig.from_dict(
-                    {
-                        "enabled": True,
-                        "materialized": "table",
-                        "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
-                        "vars": {},
-                        "meta": {"owner": "data-engineers"},
-                        "quoting": {},
-                        "column_types": {},
-                        "tags": [],
-                    }
-                ),
-                tags=[],
-                path="model1.sql",
-                original_file_path="model1.sql",
-                compiled=True,
-                extra_ctes_injected=False,
-                extra_ctes=[],
-                checksum=FileHash.from_contents(""),
-                raw_code="select * from source_table",
-                language="",
-            ),
-            "model.root.model2": CompiledNode(
-                name="model2",
-                database="awsdatacatalog",
-                schema="quux",
-                resource_type=NodeType.Model,
-                unique_id="model.root.model2",
-                alias="bar",
-                fqn=["root", "model2"],
-                package_name="root",
-                refs=[],
-                sources=[],
-                depends_on=DependsOn(),
-                config=NodeConfig.from_dict(
-                    {
-                        "enabled": True,
-                        "materialized": "table",
-                        "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
-                        "vars": {},
-                        "meta": {"owner": "data-analysts"},
-                        "quoting": {},
-                        "column_types": {},
-                        "tags": [],
-                    }
-                ),
-                tags=[],
-                path="model2.sql",
-                original_file_path="model2.sql",
-                compiled=True,
-                extra_ctes_injected=False,
-                extra_ctes=[],
-                checksum=FileHash.from_contents(""),
-                raw_code="select * from source_table",
-                language="",
-            ),
-            "model.root.model3": CompiledNode(
-                name="model2",
-                database="awsdatacatalog",
-                schema="baz",
-                resource_type=NodeType.Model,
-                unique_id="model.root.model3",
-                alias="qux",
-                fqn=["root", "model2"],
-                package_name="root",
-                refs=[],
-                sources=[],
-                depends_on=DependsOn(),
-                config=NodeConfig.from_dict(
-                    {
-                        "enabled": True,
-                        "materialized": "table",
-                        "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
-                        "vars": {},
-                        "meta": {"owner": "data-engineers"},
-                        "quoting": {},
-                        "column_types": {},
-                        "tags": [],
-                    }
-                ),
-                tags=[],
-                path="model3.sql",
-                original_file_path="model3.sql",
-                compiled=True,
-                extra_ctes_injected=False,
-                extra_ctes=[],
-                checksum=FileHash.from_contents(""),
-                raw_code="select * from source_table",
-                language="",
-            ),
-            "model.root.model4": CompiledNode(
-                name="model4",
-                database=SHARED_DATA_CATALOG_NAME,
-                schema="foo",
-                resource_type=NodeType.Model,
-                unique_id="model.root.model4",
-                alias="bar",
-                fqn=["root", "model4"],
-                package_name="root",
-                refs=[],
-                sources=[],
-                depends_on=DependsOn(),
-                config=NodeConfig.from_dict(
-                    {
-                        "enabled": True,
-                        "materialized": "table",
-                        "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
-                        "vars": {},
-                        "meta": {"owner": "data-engineers"},
-                        "quoting": {},
-                        "column_types": {},
-                        "tags": [],
-                    }
-                ),
-                tags=[],
-                path="model4.sql",
-                original_file_path="model4.sql",
-                compiled=True,
-                extra_ctes_injected=False,
-                extra_ctes=[],
-                checksum=FileHash.from_contents(""),
-                raw_code="select * from source_table",
-                language="",
-            ),
-            "model.root.model5": CompiledNode(
-                name="model5",
-                database=FEDERATED_QUERY_CATALOG_NAME,
-                schema="foo",
-                resource_type=NodeType.Model,
-                unique_id="model.root.model5",
-                alias="bar",
-                fqn=["root", "model5"],
-                package_name="root",
-                refs=[],
-                sources=[],
-                depends_on=DependsOn(),
-                config=NodeConfig.from_dict(
-                    {
-                        "enabled": True,
-                        "materialized": "table",
-                        "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
-                        "vars": {},
-                        "meta": {"owner": "data-engineers"},
-                        "quoting": {},
-                        "column_types": {},
-                        "tags": [],
-                    }
-                ),
-                tags=[],
-                path="model5.sql",
-                original_file_path="model5.sql",
-                compiled=True,
-                extra_ctes_injected=False,
-                extra_ctes=[],
-                checksum=FileHash.from_contents(""),
-                raw_code="select * from source_table",
-                language="",
-            ),
-        }
+        self.used_schemas = frozenset(
+            {
+                ("awsdatacatalog", "foo"),
+                ("awsdatacatalog", "quux"),
+                ("awsdatacatalog", "baz"),
+                (SHARED_DATA_CATALOG_NAME, "foo"),
+                (FEDERATED_QUERY_CATALOG_NAME, "foo"),
+            }
+        )
 
     @property
     def adapter(self):
         if self._adapter is None:
-            self._adapter = AthenaAdapter(self.config)
+            self._adapter = AthenaAdapter(self.config, get_context("spawn"))
             inject_adapter(self._adapter, AthenaPlugin)
         return self._adapter
 
@@ -599,17 +416,13 @@ class TestAthenaAdapter:
         mock_aws_service.create_table(table_name="bar", database_name="quux")
         mock_aws_service.create_table_without_type(table_name="qux", database_name="baz")
         mock_information_schema = mock.MagicMock()
-        mock_information_schema.path.database = "awsdatacatalog"
+        mock_information_schema.database = "awsdatacatalog"
 
         self.adapter.acquire_connection("dummy")
         actual = self.adapter._get_one_catalog(
             mock_information_schema,
-            {
-                "foo": {"bar"},
-                "quux": {"bar"},
-                "baz": {"qux"},
-            },
-            self.mock_manifest,
+            {"foo", "quux", "baz"},
+            self.used_schemas,
         )
 
         expected_column_names = (
@@ -622,17 +435,25 @@ class TestAthenaAdapter:
             "column_index",
             "column_type",
             "column_comment",
-            "table_owner",
+            # "table_owner",
         )
         expected_rows = [
-            ("awsdatacatalog", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
-            ("awsdatacatalog", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
-            ("awsdatacatalog", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
-            ("awsdatacatalog", "quux", "bar", "table", None, "id", 0, "string", None, "data-analysts"),
-            ("awsdatacatalog", "quux", "bar", "table", None, "country", 1, "string", None, "data-analysts"),
-            ("awsdatacatalog", "quux", "bar", "table", None, "dt", 2, "date", None, "data-analysts"),
-            ("awsdatacatalog", "baz", "qux", "table", None, "id", 0, "string", None, "data-engineers"),
-            ("awsdatacatalog", "baz", "qux", "table", None, "country", 1, "string", None, "data-engineers"),
+            # ("awsdatacatalog", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
+            ("awsdatacatalog", "foo", "bar", "table", None, "id", 0, "string", None),
+            # ("awsdatacatalog", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
+            ("awsdatacatalog", "foo", "bar", "table", None, "country", 1, "string", None),
+            # ("awsdatacatalog", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
+            ("awsdatacatalog", "foo", "bar", "table", None, "dt", 2, "date", None),
+            # ("awsdatacatalog", "quux", "bar", "table", None, "id", 0, "string", None, "data-analysts"),
+            ("awsdatacatalog", "quux", "bar", "table", None, "id", 0, "string", None),
+            # ("awsdatacatalog", "quux", "bar", "table", None, "country", 1, "string", None, "data-analysts"),
+            ("awsdatacatalog", "quux", "bar", "table", None, "country", 1, "string", None),
+            # ("awsdatacatalog", "quux", "bar", "table", None, "dt", 2, "date", None, "data-analysts"),
+            ("awsdatacatalog", "quux", "bar", "table", None, "dt", 2, "date", None),
+            # ("awsdatacatalog", "baz", "qux", "table", None, "id", 0, "string", None, "data-engineers"),
+            ("awsdatacatalog", "baz", "qux", "table", None, "id", 0, "string", None),
+            # ("awsdatacatalog", "baz", "qux", "table", None, "country", 1, "string", None, "data-engineers"),
+            ("awsdatacatalog", "baz", "qux", "table", None, "country", 1, "string", None),
         ]
         assert actual.column_names == expected_column_names
         assert len(actual.rows) == len(expected_rows)
@@ -649,7 +470,7 @@ class TestAthenaAdapter:
         mock_aws_service.create_table(table_name="bar", database_name="quux")
 
         mock_information_schema = mock.MagicMock()
-        mock_information_schema.path.database = "awsdatacatalog"
+        mock_information_schema.database = "awsdatacatalog"
 
         self.adapter.acquire_connection("dummy")
 
@@ -669,16 +490,19 @@ class TestAthenaAdapter:
             "column_index",
             "column_type",
             "column_comment",
-            "table_owner",
+            # "table_owner",
         )
 
         expected_rows = [
-            ("awsdatacatalog", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
-            ("awsdatacatalog", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
-            ("awsdatacatalog", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
+            # ("awsdatacatalog", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
+            ("awsdatacatalog", "foo", "bar", "table", None, "id", 0, "string", None),
+            # ("awsdatacatalog", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
+            ("awsdatacatalog", "foo", "bar", "table", None, "country", 1, "string", None),
+            # ("awsdatacatalog", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
+            ("awsdatacatalog", "foo", "bar", "table", None, "dt", 2, "date", None),
         ]
 
-        actual = self.adapter._get_one_catalog_by_relations(mock_information_schema, [rel_1], self.mock_manifest)
+        actual = self.adapter._get_one_catalog_by_relations(mock_information_schema, [rel_1], self.used_schemas)
         assert actual.column_names == expected_column_names
         assert actual.rows == expected_rows
 
@@ -688,15 +512,13 @@ class TestAthenaAdapter:
         mock_aws_service.create_database("foo", catalog_id=SHARED_DATA_CATALOG_NAME)
         mock_aws_service.create_table(table_name="bar", database_name="foo", catalog_id=SHARED_DATA_CATALOG_NAME)
         mock_information_schema = mock.MagicMock()
-        mock_information_schema.path.database = SHARED_DATA_CATALOG_NAME
+        mock_information_schema.database = SHARED_DATA_CATALOG_NAME
 
         self.adapter.acquire_connection("dummy")
         actual = self.adapter._get_one_catalog(
             mock_information_schema,
-            {
-                "foo": {"bar"},
-            },
-            self.mock_manifest,
+            {"foo"},
+            self.used_schemas,
         )
 
         expected_column_names = (
@@ -709,12 +531,15 @@ class TestAthenaAdapter:
             "column_index",
             "column_type",
             "column_comment",
-            "table_owner",
+            # "table_owner",
         )
         expected_rows = [
-            ("9876543210", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
-            ("9876543210", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
-            ("9876543210", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
+            # ("9876543210", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
+            ("9876543210", "foo", "bar", "table", None, "id", 0, "string", None),
+            # ("9876543210", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
+            ("9876543210", "foo", "bar", "table", None, "country", 1, "string", None),
+            # ("9876543210", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
+            ("9876543210", "foo", "bar", "table", None, "dt", 2, "date", None),
         ]
 
         assert actual.column_names == expected_column_names
@@ -728,7 +553,7 @@ class TestAthenaAdapter:
             catalog_name=FEDERATED_QUERY_CATALOG_NAME, catalog_type=AthenaCatalogType.LAMBDA
         )
         mock_information_schema = mock.MagicMock()
-        mock_information_schema.path.database = FEDERATED_QUERY_CATALOG_NAME
+        mock_information_schema.database = FEDERATED_QUERY_CATALOG_NAME
 
         # Original botocore _make_api_call function
         orig = botocore.client.BaseClient._make_api_call
@@ -768,10 +593,8 @@ class TestAthenaAdapter:
         with patch("botocore.client.BaseClient._make_api_call", new=mock_athena_list_table_metadata):
             actual = self.adapter._get_one_catalog(
                 mock_information_schema,
-                {
-                    "foo": {"bar"},
-                },
-                self.mock_manifest,
+                {"foo"},
+                self.used_schemas,
             )
 
         expected_column_names = (
@@ -784,46 +607,21 @@ class TestAthenaAdapter:
             "column_index",
             "column_type",
             "column_comment",
-            "table_owner",
+            # "table_owner",
         )
         expected_rows = [
-            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
-            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
-            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
+            # (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
+            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "id", 0, "string", None),
+            # (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),  # noqa
+            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "country", 1, "string", None),
+            # (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
+            (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "dt", 2, "date", None),
         ]
 
         assert actual.column_names == expected_column_names
         assert len(actual.rows) == len(expected_rows)
         for row in actual.rows.values():
             assert row.values() in expected_rows
-
-    def test__get_catalog_schemas(self):
-        res = self.adapter._get_catalog_schemas(self.mock_manifest)
-        assert len(res.keys()) == 3
-
-        information_schema_0 = list(res.keys())[0]
-        assert information_schema_0.name == "INFORMATION_SCHEMA"
-        assert information_schema_0.schema is None
-        assert information_schema_0.database == "awsdatacatalog"
-        relations = list(res.values())[0]
-        assert set(relations.keys()) == {"foo", "quux", "baz"}
-        assert list(relations.values()) == [{"bar"}, {"bar"}, {"qux"}]
-
-        information_schema_1 = list(res.keys())[1]
-        assert information_schema_1.name == "INFORMATION_SCHEMA"
-        assert information_schema_1.schema is None
-        assert information_schema_1.database == SHARED_DATA_CATALOG_NAME
-        relations = list(res.values())[1]
-        assert set(relations.keys()) == {"foo"}
-        assert list(relations.values()) == [{"bar"}]
-
-        information_schema_1 = list(res.keys())[2]
-        assert information_schema_1.name == "INFORMATION_SCHEMA"
-        assert information_schema_1.schema is None
-        assert information_schema_1.database == FEDERATED_QUERY_CATALOG_NAME
-        relations = list(res.values())[1]
-        assert set(relations.keys()) == {"foo"}
-        assert list(relations.values()) == [{"bar"}]
 
     @mock_aws
     def test__get_data_catalog(self, mock_aws_service):
@@ -1447,8 +1245,6 @@ class TestAthenaAdapter:
 
 class TestAthenaFilterCatalog:
     def test__catalog_filter_table(self):
-        manifest = mock.MagicMock()
-        manifest.get_used_schemas.return_value = [["a", "B"], ["a", "1234"]]
         column_names = ["table_name", "table_database", "table_schema", "something"]
         rows = [
             ["foo", "a", "b", "1234"],  # include
@@ -1458,7 +1254,7 @@ class TestAthenaFilterCatalog:
         ]
         table = agate.Table(rows, column_names, agate_helper.DEFAULT_TYPE_TESTER)
 
-        result = AthenaAdapter._catalog_filter_table(table, manifest)
+        result = AthenaAdapter._catalog_filter_table(table, frozenset({("a", "B"), ("a", "1234")}))
         assert len(result) == 3
         for row in result.rows:
             assert isinstance(row["table_schema"], str)

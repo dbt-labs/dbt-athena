@@ -1,15 +1,15 @@
 from unittest import mock
 
-from dbt.adapters.athena import _QueryComment
-from dbt.adapters.base.query_headers import MacroQueryStringSetter
+from dbt.adapters.athena.query_headers import AthenaMacroQueryStringSetter
+from dbt.context.manifest import generate_query_header_context
 
 from .constants import AWS_REGION, DATA_CATALOG_NAME, DATABASE_NAME
 from .utils import config_from_parts_or_dicts
 
 
 class TestQueryHeaders:
-    query_header = MacroQueryStringSetter(
-        config_from_parts_or_dicts(
+    def setup_method(self, _):
+        config = config_from_parts_or_dicts(
             {
                 "name": "query_headers",
                 "version": "0.1",
@@ -29,10 +29,10 @@ class TestQueryHeaders:
                 },
                 "target": "test",
             },
-        ),
-        mock.MagicMock(macros={}),
-    )
-    query_header.comment = _QueryComment(None)
+        )
+        self.query_header = AthenaMacroQueryStringSetter(
+            config, generate_query_header_context(config, mock.MagicMock(macros={}))
+        )
 
     def test_append_comment_with_semicolon(self):
         self.query_header.comment.query_comment = "executed by dbt"

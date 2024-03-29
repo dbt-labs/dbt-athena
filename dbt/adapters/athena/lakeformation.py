@@ -2,6 +2,7 @@
 
 from typing import Dict, List, Optional, Sequence, Set, Union
 
+from dbt_common.exceptions import DbtRuntimeError
 from mypy_boto3_lakeformation import LakeFormationClient
 from mypy_boto3_lakeformation.type_defs import (
     AddLFTagsToResourceResponseTypeDef,
@@ -16,8 +17,7 @@ from mypy_boto3_lakeformation.type_defs import (
 from pydantic import BaseModel
 
 from dbt.adapters.athena.relation import AthenaRelation
-from dbt.events import AdapterLogger
-from dbt.exceptions import DbtRuntimeError
+from dbt.adapters.events.logging import AdapterLogger
 
 logger = AdapterLogger("AthenaLakeFormation")
 

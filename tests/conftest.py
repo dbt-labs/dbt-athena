@@ -4,13 +4,12 @@ from unittest.mock import MagicMock, patch
 
 import boto3
 import pytest
+from dbt_common.events import get_event_manager
+from dbt_common.events.base_types import EventLevel
+from dbt_common.events.logger import LineFormat, LoggerConfig, NoFilter
 
-import dbt
+from dbt.adapters.athena import connections
 from dbt.adapters.athena.connections import AthenaCredentials
-from dbt.events.base_types import EventLevel
-from dbt.events.eventmgr import LineFormat
-from dbt.events.functions import EVENT_MANAGER, _get_stdout_config
-from dbt.events.logger import NoFilter
 
 from .unit.constants import (
     ATHENA_WORKGROUP,
@@ -57,17 +56,17 @@ def dbt_debug_caplog() -> StringIO:
 
 
 def _setup_custom_caplog(name: str, level: EventLevel):
-    capture_config = _get_stdout_config(
-        line_format=LineFormat.PlainText,
+    string_buf = StringIO()
+    capture_config = LoggerConfig(
+        name=name,
         level=level,
         use_colors=False,
-        log_cache_events=True,
+        line_format=LineFormat.PlainText,
+        filter=NoFilter,
+        output_stream=string_buf,
     )
-    capture_config.name = name
-    capture_config.filter = NoFilter
-    string_buf = StringIO()
-    capture_config.output_stream = string_buf
-    EVENT_MANAGER.add_logger(capture_config)
+    event_manager = get_event_manager()
+    event_manager.add_logger(capture_config)
     return string_buf
 
 
@@ -77,7 +76,7 @@ def athena_client():
         return mock_athena_client
 
 
-@patch.object(dbt.adapters.athena.connections, "AthenaCredentials")
+@patch.object(connections, "AthenaCredentials")
 @pytest.fixture(scope="class")
 def athena_credentials():
     return AthenaCredentials(

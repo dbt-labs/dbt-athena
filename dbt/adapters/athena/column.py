@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from typing import ClassVar, Dict
 
+from dbt_common.exceptions import DbtRuntimeError
+
 from dbt.adapters.athena.relation import TableType
 from dbt.adapters.base.column import Column
-from dbt.exceptions import DbtRuntimeError
 
 
 @dataclass

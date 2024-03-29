@@ -1,3 +1,4 @@
+from multiprocessing import get_context
 from unittest import mock
 
 import pytest
@@ -20,7 +21,7 @@ class TestAthenaConnectionManager:
         cursor.rowcount = 1
         cursor.state = state
         cursor.data_scanned_in_bytes = 123
-        cm = AthenaConnectionManager(mock.MagicMock())
+        cm = AthenaConnectionManager(mock.MagicMock(), get_context("spawn"))
         response = cm.get_response(cursor)
         assert isinstance(response, AthenaAdapterResponse)
         assert response.code == result
@@ -28,7 +29,7 @@ class TestAthenaConnectionManager:
         assert response.data_scanned_in_bytes == 123
 
     def test_data_type_code_to_name(self):
-        cm = AthenaConnectionManager(mock.MagicMock())
+        cm = AthenaConnectionManager(mock.MagicMock(), get_context("spawn"))
         assert cm.data_type_code_to_name("array<string>") == "ARRAY"
         assert cm.data_type_code_to_name("map<int, boolean>") == "MAP"
         assert cm.data_type_code_to_name("DECIMAL(3, 7)") == "DECIMAL"

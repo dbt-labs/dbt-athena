@@ -8,6 +8,8 @@ from uuid import UUID
 
 import boto3
 import boto3.session
+from dbt_common.exceptions import DbtRuntimeError
+from dbt_common.invocation import get_invocation_id
 
 from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.constants import (
@@ -15,9 +17,7 @@ from dbt.adapters.athena.constants import (
     LOGGER,
     SESSION_IDLE_TIMEOUT_MIN,
 )
-from dbt.contracts.connection import Connection
-from dbt.events.functions import get_invocation_id
-from dbt.exceptions import DbtRuntimeError
+from dbt.adapters.contracts.connection import Connection
 
 invocation_id = get_invocation_id()
 spark_session_list: Dict[UUID, str] = {}
