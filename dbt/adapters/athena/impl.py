@@ -530,29 +530,6 @@ class AthenaAdapter(SQLAdapter):
         response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
         return True if "Contents" in response else False
 
-    # def _join_catalog_table_owners(self, table: agate.Table, manifest: Manifest) -> agate.Table:
-    #     owners = []
-    #     # Get the owner for each model from the manifest
-    #     for node in manifest.nodes.values():
-    #         if node.resource_type == "model":
-    #             owners.append(
-    #                 {
-    #                     "table_database": node.database,
-    #                     "table_schema": node.schema,
-    #                     "table_name": node.alias,
-    #                     "table_owner": node.config.meta.get("owner"),
-    #                 }
-    #             )
-    #     owners_table = agate.Table.from_object(owners)
-    #
-    #     # Join owners with the results from catalog
-    #     join_keys = ["table_database", "table_schema", "table_name"]
-    #     return table.join(
-    #         right_table=owners_table,
-    #         left_key=join_keys,
-    #         right_key=join_keys,
-    #     )
-
     def _get_one_table_for_catalog(self, table: TableTypeDef, database: str) -> List[Dict[str, Any]]:
         table_catalog = {
             "table_database": database,
@@ -659,8 +636,6 @@ class AthenaAdapter(SQLAdapter):
                         )
             table = agate.Table.from_object(catalog)
 
-        # filtered_table = self._catalog_filter_table(table, manifest)
-        # return self._join_catalog_table_owners(filtered_table, manifest)
         return self._catalog_filter_table(table, used_schemas)
 
     def _get_catalog_schemas(self, relation_configs: Iterable[RelationConfig]) -> AthenaSchemaSearchMap:
@@ -775,13 +750,11 @@ class AthenaAdapter(SQLAdapter):
                 _table_definitions.extend(_table_definition)
         table = agate.Table.from_object(_table_definitions)
         # picked from _catalog_filter_table, force database + schema to be strings
-        table_casted = table_from_rows(
+        return table_from_rows(
             table.rows,
             table.column_names,
             text_only_columns=["table_database", "table_schema", "table_name"],
         )
-        # return self._join_catalog_table_owners(table_casted, manifest)
-        return table_casted
 
     @available
     def swap_table(self, src_relation: AthenaRelation, target_relation: AthenaRelation) -> None:

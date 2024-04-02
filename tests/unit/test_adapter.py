@@ -435,24 +435,15 @@ class TestAthenaAdapter:
             "column_index",
             "column_type",
             "column_comment",
-            # "table_owner",
         )
         expected_rows = [
-            # ("awsdatacatalog", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
             ("awsdatacatalog", "foo", "bar", "table", None, "id", 0, "string", None),
-            # ("awsdatacatalog", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
             ("awsdatacatalog", "foo", "bar", "table", None, "country", 1, "string", None),
-            # ("awsdatacatalog", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
             ("awsdatacatalog", "foo", "bar", "table", None, "dt", 2, "date", None),
-            # ("awsdatacatalog", "quux", "bar", "table", None, "id", 0, "string", None, "data-analysts"),
             ("awsdatacatalog", "quux", "bar", "table", None, "id", 0, "string", None),
-            # ("awsdatacatalog", "quux", "bar", "table", None, "country", 1, "string", None, "data-analysts"),
             ("awsdatacatalog", "quux", "bar", "table", None, "country", 1, "string", None),
-            # ("awsdatacatalog", "quux", "bar", "table", None, "dt", 2, "date", None, "data-analysts"),
             ("awsdatacatalog", "quux", "bar", "table", None, "dt", 2, "date", None),
-            # ("awsdatacatalog", "baz", "qux", "table", None, "id", 0, "string", None, "data-engineers"),
             ("awsdatacatalog", "baz", "qux", "table", None, "id", 0, "string", None),
-            # ("awsdatacatalog", "baz", "qux", "table", None, "country", 1, "string", None, "data-engineers"),
             ("awsdatacatalog", "baz", "qux", "table", None, "country", 1, "string", None),
         ]
         assert actual.column_names == expected_column_names
@@ -490,15 +481,11 @@ class TestAthenaAdapter:
             "column_index",
             "column_type",
             "column_comment",
-            # "table_owner",
         )
 
         expected_rows = [
-            # ("awsdatacatalog", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
             ("awsdatacatalog", "foo", "bar", "table", None, "id", 0, "string", None),
-            # ("awsdatacatalog", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
             ("awsdatacatalog", "foo", "bar", "table", None, "country", 1, "string", None),
-            # ("awsdatacatalog", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
             ("awsdatacatalog", "foo", "bar", "table", None, "dt", 2, "date", None),
         ]
 
@@ -531,14 +518,10 @@ class TestAthenaAdapter:
             "column_index",
             "column_type",
             "column_comment",
-            # "table_owner",
         )
         expected_rows = [
-            # ("9876543210", "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
             ("9876543210", "foo", "bar", "table", None, "id", 0, "string", None),
-            # ("9876543210", "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),
             ("9876543210", "foo", "bar", "table", None, "country", 1, "string", None),
-            # ("9876543210", "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
             ("9876543210", "foo", "bar", "table", None, "dt", 2, "date", None),
         ]
 
@@ -607,14 +590,10 @@ class TestAthenaAdapter:
             "column_index",
             "column_type",
             "column_comment",
-            # "table_owner",
         )
         expected_rows = [
-            # (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "id", 0, "string", None, "data-engineers"),
             (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "id", 0, "string", None),
-            # (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "country", 1, "string", None, "data-engineers"),  # noqa
             (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "country", 1, "string", None),
-            # (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "dt", 2, "date", None, "data-engineers"),
             (FEDERATED_QUERY_CATALOG_NAME, "foo", "bar", "table", None, "dt", 2, "date", None),
         ]
 
