@@ -407,6 +407,12 @@ class AthenaAdapter(SQLAdapter):
         partitions = partition_pg.build_full_result().get("Partitions")
         for partition in partitions:
             self.delete_from_s3(partition["StorageDescriptor"]["Location"])
+            glue_client.delete_partition(
+                CatalogId=catalog_id,
+                DatabaseName=relation.schema,
+                TableName=relation.identifier,
+                PartitionValues=partition["Values"],
+            )
 
     @available
     def clean_up_table(self, relation: AthenaRelation) -> None:
