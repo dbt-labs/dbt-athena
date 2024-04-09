@@ -407,6 +407,12 @@ class AthenaAdapter(SQLAdapter):
         partitions = partition_pg.build_full_result().get("Partitions")
         for partition in partitions:
             self.delete_from_s3(partition["StorageDescriptor"]["Location"])
+            glue_client.delete_partition(
+                CatalogId=catalog_id,
+                DatabaseName=relation.schema,
+                TableName=relation.identifier,
+                PartitionValues=partition["Values"],
+            )
 
     @available
     def clean_up_table(self, relation: AthenaRelation) -> None:
@@ -743,7 +749,7 @@ class AthenaAdapter(SQLAdapter):
                         LOGGER.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
                         continue
                     _type = table["TableType"]
-                    _detailed_table_type = table["Parameters"].get("table_type", "")
+                    _detailed_table_type = table.get("Parameters", {}).get("table_type", "")
                     if _type == "VIRTUAL_VIEW":
                         _type = self.Relation.View
                     else:
