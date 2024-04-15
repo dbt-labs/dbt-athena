@@ -1,4 +1,4 @@
-from dbt.events import AdapterLogger
+from dbt.adapters.events.logging import AdapterLogger
 
 DEFAULT_THREAD_COUNT = 4
 DEFAULT_RETRY_ATTEMPTS = 3

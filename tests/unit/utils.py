@@ -124,7 +124,7 @@ def clear_plugin(plugin):
 
 class TestAdapterConversions:
     def _get_tester_for(self, column_type):
-        from dbt.clients import agate_helper
+        from dbt_common.clients import agate_helper
 
         if column_type is agate.TimeDelta:  # dbt never makes this!
             return agate.TimeDelta()

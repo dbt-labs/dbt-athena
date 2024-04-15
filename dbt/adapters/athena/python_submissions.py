@@ -3,13 +3,13 @@ from functools import cached_property
 from typing import Any, Dict
 
 import botocore
+from dbt_common.exceptions import DbtRuntimeError
 
 from dbt.adapters.athena.config import AthenaSparkSessionConfig
 from dbt.adapters.athena.connections import AthenaCredentials
 from dbt.adapters.athena.constants import LOGGER
 from dbt.adapters.athena.session import AthenaSparkSessionManager
 from dbt.adapters.base import PythonJobHelper
-from dbt.exceptions import DbtRuntimeError
 
 SUBMISSION_LANGUAGE = "python"
 

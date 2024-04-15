@@ -1,7 +1,16 @@
-import dbt.adapters.base.query_headers
+from typing import Any, Dict
+
+from dbt.adapters.base.query_headers import MacroQueryStringSetter, _QueryComment
+from dbt.adapters.contracts.connection import AdapterRequiredConfig
 
 
-class _QueryComment(dbt.adapters.base.query_headers._QueryComment):
+class AthenaMacroQueryStringSetter(MacroQueryStringSetter):
+    def __init__(self, config: AdapterRequiredConfig, query_header_context: Dict[str, Any]):
+        super().__init__(config, query_header_context)
+        self.comment = _AthenaQueryComment(None)
+
+
+class _AthenaQueryComment(_QueryComment):
     """
     Athena DDL does not always respect /* ... */ block quotations.
     This function is the same as _QueryComment.add except that
