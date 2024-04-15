@@ -28,7 +28,10 @@ def _get_plugin_version_dict() -> Dict[str, Any]:
 
 def _get_package_version() -> str:
     parts = _get_plugin_version_dict()
-    return f'{parts["major"]}.{parts["minor"]}.{parts["patch"]}'
+    version = "{major}.{minor}.{patch}".format(**parts)
+    if parts["prekind"] and parts["pre"]:
+        version += parts["prekind"] + parts["pre"]
+    return version
 
 
 description = "The athena adapter plugin for dbt (data build tool)"
