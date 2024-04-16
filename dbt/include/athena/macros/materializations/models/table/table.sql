@@ -132,7 +132,15 @@
             {{ query_result }}
           {% endcall %}
         {%- endif -%}
-        {{ rename_relation(old_relation, old_relation_bkp) }}
+
+        {%- set old_relation_table_type = adapter.get_glue_table_type(old_relation) -%}
+
+        {%- if old_relation_table_type == 'iceberg' -%}
+          {{ rename_relation(old_relation, old_relation_bkp) }}
+        {%- else  -%}
+          {%- do drop_relation_glue(old_relation) -%}
+        {%- endif -%}
+
         {{ rename_relation(tmp_relation, target_relation) }}
 
         {{ drop_relation(old_relation_bkp) }}
