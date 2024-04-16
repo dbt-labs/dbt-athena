@@ -13,11 +13,13 @@ models__table_base_model = """
 
 select
     1 as id,
-    'test 1' as name
+    'test 1' as name,
+    {{ cast_timestamp('current_timestamp') }} as created_at
 union all
 select
     2 as id,
-    'test 2' as name
+    'test 2' as name,
+    {{ cast_timestamp('current_timestamp') }} as created_at
 """
 
 
