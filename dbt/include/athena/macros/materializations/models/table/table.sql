@@ -116,7 +116,6 @@
           {%- do drop_relation(old_tmp_relation) -%}
         {%- endif -%}
 
-        {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
         -- If we have this, it means that at least the first renaming occurred but there was an issue
         -- afterwards, therefore we are in weird state. The easiest and cleanest should be to remove
         -- the backup relation. It won't have an impact because since we are in the else condition,
@@ -132,10 +131,22 @@
             {{ query_result }}
           {% endcall %}
         {%- endif -%}
-        {{ rename_relation(old_relation, old_relation_bkp) }}
+
+        {%- set old_relation_table_type = adapter.get_glue_table_type(old_relation) -%}
+
+        {%- if old_relation_table_type == 'iceberg' -%}
+          {{ rename_relation(old_relation, old_bkp_relation) }}
+        {%- else  -%}
+          {%- do drop_relation_glue(old_relation) -%}
+        {%- endif -%}
+
         {{ rename_relation(tmp_relation, target_relation) }}
 
-        {{ drop_relation(old_relation_bkp) }}
+        -- old_bkp_relation might not exists in case we have a switch from hive to iceberg
+        -- we prevent to drop something that doesn't exist even if drop_relation is able to deal with not existing tables
+        {%- if old_bkp_relation is not none -%}
+          {%- do drop_relation(old_bkp_relation) -%}
+        {%- endif -%}
       {%- endif -%}
     {%- endif -%}
 
