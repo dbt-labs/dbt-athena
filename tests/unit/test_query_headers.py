@@ -1,7 +1,7 @@
 from unittest import mock
 
 from dbt.adapters.athena.query_headers import AthenaMacroQueryStringSetter
-from dbt.context.manifest import generate_query_header_context
+from dbt.context.query_header import generate_query_header_context
 
 from .constants import AWS_REGION, DATA_CATALOG_NAME, DATABASE_NAME
 from .utils import config_from_parts_or_dicts
