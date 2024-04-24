@@ -666,6 +666,17 @@ class TestAthenaAdapter:
         self._test_list_relations_without_caching(schema_relation)
 
     @mock_aws
+    def test_list_relations_without_caching_on_unknown_schema(self, mock_aws_service):
+        schema_relation = self.adapter.Relation.create(
+            database=DATA_CATALOG_NAME,
+            schema="unknown_schema",
+            quote_policy=self.adapter.config.quoting,
+        )
+        self.adapter.acquire_connection("dummy")
+        relations = self.adapter.list_relations_without_caching(schema_relation)
+        assert relations == []
+
+    @mock_aws
     @patch("dbt.adapters.athena.impl.SQLAdapter.list_relations_without_caching", return_value=[])
     def test_list_relations_without_caching_with_non_glue_data_catalog(
         self, parent_list_relations_without_caching, mock_aws_service
