@@ -695,14 +695,14 @@ class AthenaAdapter(SQLAdapter):
                 config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
-        catalog_id = get_catalog_id(data_catalog)
+        kwargs = {
+            "DatabaseName": schema_relation.schema,
+        }
+        if catalog_id := get_catalog_id(data_catalog):
+            kwargs["CatalogId"] = catalog_id
         paginator = glue_client.get_paginator("get_tables")
         try:
-            tables = (
-                paginator.paginate(DatabaseName=schema_relation.schema, CatalogId=catalog_id)
-                .build_full_result()
-                .get("TableList")
-            )
+            tables = paginator.paginate(**kwargs).build_full_result().get("TableList")
         except ClientError as e:
             # don't error out when schema doesn't exist
             # this allows dbt to create and manage schemas/databases
