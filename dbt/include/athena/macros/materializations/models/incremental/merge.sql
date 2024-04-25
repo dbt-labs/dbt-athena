@@ -77,6 +77,7 @@
     update_condition,
     insert_condition,
     force_batch,
+    not_match_delete_condition,
     statement_name="main"
   )
 %}
@@ -134,6 +135,10 @@
                 {{ get_update_statement(col, merge_update_columns_default_rule, loop.last) }}
               {%- endif -%}
             {%- endfor %}
+      {%- endif %}
+      {% if not_match_delete_condition is not none -%}
+          when not matched and ({{ not_match_delete_condition }})
+          then delete
       {%- endif %}
       when not matched {% if insert_condition is not none -%} and {{ insert_condition }} {%- endif %}
         then insert ({{ dest_cols_csv }})

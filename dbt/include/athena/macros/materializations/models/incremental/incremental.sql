@@ -79,6 +79,7 @@
     {% set unique_key = config.get('unique_key') %}
     {% set incremental_predicates = config.get('incremental_predicates') %}
     {% set delete_condition = config.get('delete_condition') %}
+    {% set not_match_delete_condition = config.get('not_match_delete_condition') %}
     {% set update_condition = config.get('update_condition') %}
     {% set insert_condition = config.get('insert_condition') %}
     {% set empty_unique_key -%}
@@ -115,6 +116,7 @@
         update_condition=update_condition,
         insert_condition=insert_condition,
         force_batch=force_batch,
+        not_match_delete_condition=not_match_delete_condition
       )
     %}
     {% do to_drop.append(tmp_relation) %}
