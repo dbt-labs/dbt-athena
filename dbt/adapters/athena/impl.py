@@ -694,48 +694,47 @@ class AthenaAdapter(SQLAdapter):
                 region_name=client.region_name,
                 config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
-        paginator = glue_client.get_paginator("get_tables")
 
         kwargs = {
             "DatabaseName": schema_relation.schema,
         }
-        # If the catalog is `awsdatacatalog` we don't need to pass CatalogId as boto3 infers it from the account Id.
         if catalog_id := get_catalog_id(data_catalog):
             kwargs["CatalogId"] = catalog_id
-        page_iterator = paginator.paginate(**kwargs)
-
-        relations = []
-        quote_policy = {"database": True, "schema": True, "identifier": True}
-
+        paginator = glue_client.get_paginator("get_tables")
         try:
-            for page in page_iterator:
-                tables = page["TableList"]
-                for table in tables:
-                    if "TableType" not in table:
-                        LOGGER.debug(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
-                        continue
-                    _type = table["TableType"]
-                    _detailed_table_type = table.get("Parameters", {}).get("table_type", "")
-                    if _type == "VIRTUAL_VIEW":
-                        _type = self.Relation.View
-                    else:
-                        _type = self.Relation.Table
-
-                    relations.append(
-                        self.Relation.create(
-                            schema=schema_relation.schema,
-                            database=schema_relation.database,
-                            identifier=table["Name"],
-                            quote_policy=quote_policy,
-                            type=_type,
-                            detailed_table_type=_detailed_table_type,
-                        )
-                    )
+            tables = paginator.paginate(**kwargs).build_full_result().get("TableList")
         except ClientError as e:
             # don't error out when schema doesn't exist
             # this allows dbt to create and manage schemas/databases
-            LOGGER.debug(f"Schema '{schema_relation.schema}' does not exist - Ignoring: {e}")
+            if e.response["Error"]["Code"] == "EntityNotFoundException":
+                LOGGER.debug(f"Schema '{schema_relation.schema}' does not exist - Ignoring: {e}")
+                return []
+            else:
+                raise e
 
+        relations: list[BaseRelation] = []
+        quote_policy = {"database": True, "schema": True, "identifier": True}
+        for table in tables:
+            if "TableType" not in table:
+                LOGGER.info(f"Table '{table['Name']}' has no TableType attribute - Ignoring")
+                continue
+            _type = table["TableType"]
+            _detailed_table_type = table.get("Parameters", {}).get("table_type", "")
+            if _type == "VIRTUAL_VIEW":
+                _type = self.Relation.View
+            else:
+                _type = self.Relation.Table
+
+            relations.append(
+                self.Relation.create(
+                    schema=schema_relation.schema,
+                    database=schema_relation.database,
+                    identifier=table["Name"],
+                    quote_policy=quote_policy,
+                    type=_type,
+                    detailed_table_type=_detailed_table_type,
+                )
+            )
         return relations
 
     def _get_one_catalog_by_relations(
