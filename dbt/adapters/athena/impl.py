@@ -1086,7 +1086,7 @@ class AthenaAdapter(SQLAdapter):
             Name=relation.identifier,
         )
         if catalog_id:
-            get_table_kwargs['CatalogId'] = catalog_id
+            get_table_kwargs["CatalogId"] = catalog_id
 
         try:
             table = glue_client.get_table(**get_table_kwargs)["Table"]
