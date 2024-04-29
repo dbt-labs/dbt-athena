@@ -1081,10 +1081,15 @@ class AthenaAdapter(SQLAdapter):
                 config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
+        get_table_kwargs = dict(
+            DatabaseName=relation.schema,
+            Name=relation.identifier,
+        )
+        if catalog_id:
+            get_table_kwargs['CatalogId'] = catalog_id
+
         try:
-            table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)[
-                "Table"
-            ]
+            table = glue_client.get_table(**get_table_kwargs)["Table"]
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
                 LOGGER.debug("table not exist, catching the error")
