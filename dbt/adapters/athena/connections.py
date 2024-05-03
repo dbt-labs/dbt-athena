@@ -93,8 +93,6 @@ class AthenaCredentials(Credentials):
             "poll_interval",
             "aws_profile_name",
             "aws_access_key_id",
-            "aws_secret_access_key",
-            "aws_session_token",
             "endpoint_url",
             "s3_data_dir",
             "s3_data_naming",
