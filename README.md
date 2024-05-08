@@ -687,10 +687,11 @@ The adapter supports python models using [`spark`](https://docs.aws.amazon.com/a
 - A session is created for each unique engine configuration defined in the models that are part of the invocation.
 - A session's idle timeout is set to 10 minutes. Within the timeout period, if there is a new calculation
  (Spark Python model) ready for execution and the engine configuration matches, the process will reuse the same session.
-- The number of Python models running at a time depends on the `threads`. The number of sessions created for the entire run
- depends on the number of unique engine configurations and the availability of sessions to maintain thread concurrency.
-- For Iceberg tables, it is recommended to use `table_properties` configuration to set the `format_version` to 2. This is to
- maintain compatibility between Iceberg tables created by Trino with those created by Spark.
+- The number of Python models running at a time depends on the `threads`. The number of sessions created for the
+ entire run depends on the number of unique engine configurations and the availability of sessions to maintain
+ thread concurrency.
+- For Iceberg tables, it is recommended to use `table_properties` configuration to set the `format_version` to 2.
+ This is to maintain compatibility between Iceberg tables created by Trino with those created by Spark.
 
 ### Example models
 
