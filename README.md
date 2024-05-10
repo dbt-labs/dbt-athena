@@ -524,10 +524,12 @@ models:
       persist_docs:
         relation: true
         columns: true
-      meta: {'test':'value'}
+      meta:
+        test: value
     columns:
       - name: id
-        meta: {'primary_key': 'true'}
+        meta:
+          primary_key: true
 ```
 
 See [persist docs](https://docs.getdbt.com/reference/resource-configs/persist_docs) for more details.

@@ -1017,7 +1017,7 @@ class AthenaAdapter(SQLAdapter):
                     # Get dbt model column meta if available
                     col_meta: Dict[str, Any] = model["columns"][col_name].get("meta", {})
                     # Add empty Parameters dictionary if not present
-                    if len(col_meta) > 0 and "Parameters" not in col_obj.keys():
+                    if col_meta and "Parameters" not in col_obj.keys():
                         col_obj["Parameters"] = {}
                     # Prepare meta values for column properties and check if update is required
                     for meta_key, meta_value_raw in col_meta.items():
