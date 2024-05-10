@@ -970,6 +970,7 @@ class TestAthenaAdapter:
                     """,
                 "columns": {
                     "id": {
+                        "meta": {"primary_key": "true"},
                         "description": """
                         A column with str, 123, &^% \" and '
 
@@ -986,6 +987,7 @@ class TestAthenaAdapter:
         assert not table.get("Description", "")
         assert not table["Parameters"].get("comment")
         assert all(not col.get("Comment") for col in table["StorageDescriptor"]["Columns"])
+        assert all(not col.get("Parameters") for col in table["StorageDescriptor"]["Columns"])
 
     @mock_aws
     def test_persist_docs_to_glue_comment(self, mock_aws_service):
@@ -1009,6 +1011,7 @@ class TestAthenaAdapter:
                     """,
                 "columns": {
                     "id": {
+                        "meta": {"primary_key": True},
                         "description": """
                         A column with str, 123, &^% \" and '
 
@@ -1026,6 +1029,7 @@ class TestAthenaAdapter:
         assert table["Parameters"]["comment"] == "A table with str, 123, &^% \" and ' and an other paragraph."
         col_id = [col for col in table["StorageDescriptor"]["Columns"] if col["Name"] == "id"][0]
         assert col_id["Comment"] == "A column with str, 123, &^% \" and ' and an other paragraph."
+        assert col_id["Parameters"] == {"primary_key": "True"}
 
     @mock_aws
     def test_list_schemas(self, mock_aws_service):
