@@ -712,7 +712,7 @@ class AthenaAdapter(SQLAdapter):
             else:
                 raise e
 
-        relations: list[BaseRelation] = []
+        relations: List[BaseRelation] = []
         quote_policy = {"database": True, "schema": True, "identifier": True}
         for table in tables:
             if "TableType" not in table:
@@ -956,6 +956,7 @@ class AthenaAdapter(SQLAdapter):
         # Prepare new version of Glue Table picking up significant fields
         table_input = self._get_table_input(table)
         table_parameters = table_input["Parameters"]
+
         # Update table description
         if persist_relation_docs:
             # Prepare dbt description
@@ -1012,6 +1013,29 @@ class AthenaAdapter(SQLAdapter):
                         need_to_update_table = True
                     # Save column description from dbt
                     col_obj["Comment"] = clean_col_comment
+
+                    # Get dbt model column meta if available
+                    col_meta: Dict[str, Any] = model["columns"][col_name].get("meta", {})
+                    # Add empty Parameters dictionary if not present
+                    if col_meta and "Parameters" not in col_obj.keys():
+                        col_obj["Parameters"] = {}
+                    # Prepare meta values for column properties and check if update is required
+                    for meta_key, meta_value_raw in col_meta.items():
+                        if is_valid_table_parameter_key(meta_key):
+                            meta_value = stringify_table_parameter_value(meta_value_raw)
+                            if meta_value is not None:
+                                # Check if meta value is already attached to Glue column
+                                col_current_meta_value: Optional[str] = col_obj["Parameters"].get(meta_key)
+                                if col_current_meta_value is None or col_current_meta_value != meta_value:
+                                    need_to_update_table = True
+                                # Save Glue column parameter
+                                col_obj["Parameters"][meta_key] = meta_value
+                            else:
+                                LOGGER.warning(
+                                    f"Column meta value for key '{meta_key}' is not supported and will be ignored"
+                                )
+                        else:
+                            LOGGER.warning(f"Column meta key '{meta_key}' is not supported and will be ignored")
 
         # Update Glue Table only if table/column description is modified.
         # It prevents redundant schema version creating after incremental runs.

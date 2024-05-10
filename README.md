@@ -33,6 +33,7 @@
     - [Iceberg](#iceberg)
     - [Highly available table (HA)](#highly-available-table-ha)
       - [HA Known issues](#ha-known-issues)
+    - [Update glue data catalog](#update-glue-data-catalog)
   - [Snapshots](#snapshots)
     - [Timestamp strategy](#timestamp-strategy)
     - [Check strategy](#check-strategy)
@@ -504,6 +505,34 @@ By default, the materialization keeps the last 4 table versions, you can change 
   In case high performances are needed consider bucketing instead of partitions
 - By default, Glue "duplicates" the versions internally, so the last two versions of a table point to the same location
 - It's recommended to have `versions_to_keep` >= 4, as this will avoid having the older location removed
+
+### Update glue data catalog
+
+Optionally persist resource descriptions as column and relation comments to the glue data catalog, and meta as
+[glue table properties](https://docs.aws.amazon.com/glue/latest/dg/tables-described.html#table-properties)
+and [column parameters](https://docs.aws.amazon.com/glue/latest/webapi/API_Column.html).
+By default, documentation persistence is disabled, but it can be enabled for specific resources or
+groups of resources as needed.
+
+For example:
+
+```yaml
+models:
+  - name: test_deduplicate
+    description: another value
+    config:
+      persist_docs:
+        relation: true
+        columns: true
+      meta:
+        test: value
+    columns:
+      - name: id
+        meta:
+          primary_key: true
+```
+
+See [persist docs](https://docs.getdbt.com/reference/resource-configs/persist_docs) for more details.
 
 ## Snapshots
 
