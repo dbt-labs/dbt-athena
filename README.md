@@ -38,9 +38,10 @@
     - [Timestamp strategy](#timestamp-strategy)
     - [Check strategy](#check-strategy)
     - [Hard-deletes](#hard-deletes)
-    - [AWS Lakeformation integration](#aws-lakeformation-integration)
     - [Working example](#working-example)
     - [Snapshots Known issues](#snapshots-known-issues)
+  - [AWS Lakeformation integration](#aws-lakeformation-integration)
+  - [Python Models](#python-models)
   - [Contracts](#contracts)
   - [Contributing](#contributing)
   - [Contributors ✨](#contributors-)
@@ -278,7 +279,7 @@ athena:
       }
   ```
 
-> Notes:  
+> Notes:
 >
 > - `lf_tags` and `lf_tags_columns` configs support only attaching lf tags to corresponding resources.
 > We recommend managing LF Tags permissions somewhere outside dbt. For example, you may use
@@ -553,174 +554,6 @@ To use the check strategy refer to the [dbt docs](https://docs.getdbt.com/docs/b
 The materialization also supports invalidating hard deletes. Check
 the [docs](https://docs.getdbt.com/docs/build/snapshots#hard-deletes-opt-in) to understand usage.
 
-### AWS Lakeformation integration
-
-The adapter implements AWS Lakeformation tags management in the following way:
-
-- you can enable or disable lf-tags management via [config](#table-configuration) (disabled by default)
-- once you enable the feature, lf-tags will be updated on every dbt run
-- first, all lf-tags for columns are removed to avoid inheritance issues
-- then all redundant lf-tags are removed from table and actual tags from config are applied
-- finally, lf-tags for columns are applied
-
-It's important to understand the following points:
-
-- dbt does not manage lf-tags for database
-- dbt does not manage lakeformation permissions
-
-That's why you should handle this by yourself manually or using some automation tools like terraform, AWS CDK etc.  
-You may find the following links useful to manage that:
-
-<!-- markdownlint-disable -->
-* [terraform aws_lakeformation_permissions](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_permissions)
-* [terraform aws_lakeformation_resource_lf_tags](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_resource_lf_tags)
-<!-- markdownlint-restore -->
-
-## Python Models
-
-The adapter supports python models using [`spark`](https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark.html).
-
-### Setup
-
-- A spark enabled work group created in athena
-- Spark execution role granted access to Athena, Glue and S3
-- The spark work group is added to the ~/.dbt/profiles.yml file and the profile is referenced in dbt_project.yml
-  that will be created. It is recommended to keep this same as threads.
-
-### Spark specific table configuration
-
-- `timeout` (`default=43200`)
-  - Time out in seconds for each python model execution. Defaults to 12 hours/43200 seconds.
-- `spark_encryption` (`default=false`)
-  - If this flag is set to true, encrypts data in transit between Spark nodes and also encrypts data at rest stored
-   locally by Spark.
-- `spark_cross_account_catalog` (`default=false`)
-  - In spark, you can query the external account catalog and for that the consumer account has to be configured to
-   access the producer catalog.
-  - If this flag is set to true, "/" can be used as the glue catalog separator.
-   Ex: 999999999999/mydatabase.cloudfront_logs (*where *999999999999* is the external catalog id*)
-- `spark_requester_pays` (`default=false`)
-  - When an Amazon S3 bucket is configured as requester pays, the account of the user running the query is charged for
-   data access and data transfer fees associated with the query.
-  - If this flag is set to true, requester pays S3 buckets are enabled in Athena for Spark.
-
-### Spark notes
-
-- A session is created for each unique engine configuration defined in the models that are part of the invocation.
-- A session's idle timeout is set to 10 minutes. Within the timeout period, if there is a new calculation
- (spark python model) ready for execution and the engine configuration matches, the process will reuse the same session.
-- Number of python models running at a time depends on the `threads`.  Number of sessions created for the entire run
- depends on number of unique engine configurations and availability of session to maintain threads concurrency.
-- For iceberg table, it is recommended to use table_properties configuration to set the format_version to 2. This is to
- maintain compatability between iceberg tables created by Trino with those created by Spark.
-
-### Example models
-
-#### Simple pandas model
-
-```python
-import pandas as pd
-
-
-def model(dbt, session):
-    dbt.config(materialized="table")
-
-    model_df = pd.DataFrame({"A": [1, 2, 3, 4]})
-
-    return model_df
-```
-
-#### Simple spark
-
-```python
-def model(dbt, spark_session):
-    dbt.config(materialized="table")
-
-    data = [(1,), (2,), (3,), (4,)]
-
-    df = spark_session.createDataFrame(data, ["A"])
-
-    return df
-```
-
-#### Spark incremental
-
-```python
-def model(dbt, spark_session):
-    dbt.config(materialized="incremental")
-    df = dbt.ref("model")
-
-    if dbt.is_incremental:
-        max_from_this = (
-            f"select max(run_date) from {dbt.this.schema}.{dbt.this.identifier}"
-        )
-        df = df.filter(df.run_date >= spark_session.sql(max_from_this).collect()[0][0])
-
-    return df
-```
-
-#### Config spark model
-
-```python
-def model(dbt, spark_session):
-    dbt.config(
-        materialized="table",
-        engine_config={
-            "CoordinatorDpuSize": 1,
-            "MaxConcurrentDpus": 3,
-            "DefaultExecutorDpuSize": 1
-        },
-        spark_encryption=True,
-        spark_cross_account_catalog=True,
-        spark_requester_pays=True
-        polling_interval=15,
-        timeout=120,
-    )
-
-    data = [(1,), (2,), (3,), (4,)]
-
-    df = spark_session.createDataFrame(data, ["A"])
-
-    return df
-```
-
-#### Create pySpark udf using imported external python files
-
-```python
-def model(dbt, spark_session):
-    dbt.config(
-        materialized="incremental",
-        incremental_strategy="merge",
-        unique_key="num",
-    )
-    sc = spark_session.sparkContext
-    sc.addPyFile("s3://athena-dbt/test/file1.py")
-    sc.addPyFile("s3://athena-dbt/test/file2.py")
-
-    def func(iterator):
-        from file2 import transform
-
-        return [transform(i) for i in iterator]
-
-    from pyspark.sql.functions import udf
-    from pyspark.sql.functions import col
-
-    udf_with_import = udf(func)
-
-    data = [(1, "a"), (2, "b"), (3, "c")]
-    cols = ["num", "alpha"]
-    df = spark_session.createDataFrame(data, cols)
-
-    return df.withColumn("udf_test_col", udf_with_import(col("alpha")))
-```
-
-#### Known issues in python models
-
-- Incremental models do not fully utilize spark capabilities. They depend partially on existing sql based logic which
- runs on trino.
-- Snapshots materializations are not supported.
-- Spark can only reference tables within the same catalog.
-
 ### Working example
 
 seed file - employent_indicators_november_2022_csv_tables.csv
@@ -826,6 +659,185 @@ from {{ ref('model') }} {% endsnapshot %}
 
 - Snapshot does not support dropping columns from the source table. If you drop a column make sure to drop the column
   from the snapshot as well. Another workaround is to NULL the column in the snapshot definition to preserve history
+
+## AWS Lakeformation integration
+
+The adapter implements AWS Lakeformation tags management in the following way:
+
+- you can enable or disable lf-tags management via [config](#table-configuration) (disabled by default)
+- once you enable the feature, lf-tags will be updated on every dbt run
+- first, all lf-tags for columns are removed to avoid inheritance issues
+- then all redundant lf-tags are removed from table and actual tags from config are applied
+- finally, lf-tags for columns are applied
+
+It's important to understand the following points:
+
+- dbt does not manage lf-tags for database
+- dbt does not manage lakeformation permissions
+
+That's why you should handle this by yourself manually or using some automation tools like terraform, AWS CDK etc.
+You may find the following links useful to manage that:
+
+<!-- markdownlint-disable -->
+* [terraform aws_lakeformation_permissions](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_permissions)
+* [terraform aws_lakeformation_resource_lf_tags](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_resource_lf_tags)
+<!-- markdownlint-restore -->
+
+## Python Models
+
+The adapter supports python models using [`spark`](https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark.html).
+
+### Setup
+
+- A Spark-enabled workgroup created in Athena
+- Spark execution role granted access to Athena, Glue and S3
+- The Spark workgroup is added to the `~/.dbt/profiles.yml` file and the profile
+ is referenced in `dbt_project.yml` that will be created. It is recommended to keep this same as threads.
+
+### Spark-specific table configuration
+
+- `timeout` (`default=43200`)
+  - Time out in seconds for each Python model execution. Defaults to 12 hours/43200 seconds.
+- `spark_encryption` (`default=false`)
+  - If this flag is set to true, encrypts data in transit between Spark nodes and also encrypts data at rest stored
+   locally by Spark.
+- `spark_cross_account_catalog` (`default=false`)
+  - In Spark, you can query the external account catalog and for that the consumer account has to be configured to
+   access the producer catalog.
+  - If this flag is set to true, "/" can be used as the glue catalog separator.
+   Ex: 999999999999/mydatabase.cloudfront_logs (*where *999999999999* is the external catalog ID*)
+- `spark_requester_pays` (`default=false`)
+  - When an Amazon S3 bucket is configured as requester pays, the account of the user running the query is charged for
+   data access and data transfer fees associated with the query.
+  - If this flag is set to true, requester pays S3 buckets are enabled in Athena for Spark.
+
+### Spark notes
+
+- A session is created for each unique engine configuration defined in the models that are part of the invocation.
+- A session's idle timeout is set to 10 minutes. Within the timeout period, if there is a new calculation
+ (Spark Python model) ready for execution and the engine configuration matches, the process will reuse the same session.
+- The number of Python models running at a time depends on the `threads`. The number of sessions created for the
+ entire run depends on the number of unique engine configurations and the availability of sessions to maintain
+ thread concurrency.
+- For Iceberg tables, it is recommended to use `table_properties` configuration to set the `format_version` to 2.
+ This is to maintain compatibility between Iceberg tables created by Trino with those created by Spark.
+
+### Example models
+
+#### Simple pandas model
+
+```python
+import pandas as pd
+
+
+def model(dbt, session):
+    dbt.config(materialized="table")
+
+    model_df = pd.DataFrame({"A": [1, 2, 3, 4]})
+
+    return model_df
+```
+
+#### Simple spark
+
+```python
+def model(dbt, spark_session):
+    dbt.config(materialized="table")
+
+    data = [(1,), (2,), (3,), (4,)]
+
+    df = spark_session.createDataFrame(data, ["A"])
+
+    return df
+```
+
+#### Spark incremental
+
+```python
+def model(dbt, spark_session):
+    dbt.config(materialized="incremental")
+    df = dbt.ref("model")
+
+    if dbt.is_incremental:
+        max_from_this = (
+            f"select max(run_date) from {dbt.this.schema}.{dbt.this.identifier}"
+        )
+        df = df.filter(df.run_date >= spark_session.sql(max_from_this).collect()[0][0])
+
+    return df
+```
+
+#### Config spark model
+
+```python
+def model(dbt, spark_session):
+    dbt.config(
+        materialized="table",
+        engine_config={
+            "CoordinatorDpuSize": 1,
+            "MaxConcurrentDpus": 3,
+            "DefaultExecutorDpuSize": 1
+        },
+        spark_encryption=True,
+        spark_cross_account_catalog=True,
+        spark_requester_pays=True
+        polling_interval=15,
+        timeout=120,
+    )
+
+    data = [(1,), (2,), (3,), (4,)]
+
+    df = spark_session.createDataFrame(data, ["A"])
+
+    return df
+```
+
+#### Create pySpark udf using imported external python files
+
+```python
+def model(dbt, spark_session):
+    dbt.config(
+        materialized="incremental",
+        incremental_strategy="merge",
+        unique_key="num",
+    )
+    sc = spark_session.sparkContext
+    sc.addPyFile("s3://athena-dbt/test/file1.py")
+    sc.addPyFile("s3://athena-dbt/test/file2.py")
+
+    def func(iterator):
+        from file2 import transform
+
+        return [transform(i) for i in iterator]
+
+    from pyspark.sql.functions import udf
+    from pyspark.sql.functions import col
+
+    udf_with_import = udf(func)
+
+    data = [(1, "a"), (2, "b"), (3, "c")]
+    cols = ["num", "alpha"]
+    df = spark_session.createDataFrame(data, cols)
+
+    return df.withColumn("udf_test_col", udf_with_import(col("alpha")))
+```
+
+### Known issues in Python models
+
+- Python models cannot
+ [reference Athena SQL views](https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark.html).
+- Third-party Python libraries can be used, but they must be [included in the pre-installed list]([pre-installed list])
+ or [imported manually]([imported manually]).
+- Python models can only reference or write to tables with names meeting the
+ regular expression: `^[0-9a-zA-Z_]+$`. Dashes and special characters are not
+ supported by Spark, even though Athena supports them.
+- Incremental models do not fully utilize Spark capabilities. They depend partially on existing SQL-based logic which
+ runs on Trino.
+- Snapshot materializations are not supported.
+- Spark can only reference tables within the same catalog.
+
+[pre-installed list]: https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark-preinstalled-python-libraries.html
+[imported manually]: https://docs.aws.amazon.com/athena/latest/ug/notebooks-import-files-libraries.html
 
 ## Contracts
 
