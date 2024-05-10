@@ -38,9 +38,9 @@
     - [Timestamp strategy](#timestamp-strategy)
     - [Check strategy](#check-strategy)
     - [Hard-deletes](#hard-deletes)
-    - [AWS Lakeformation integration](#aws-lakeformation-integration)
     - [Working example](#working-example)
     - [Snapshots Known issues](#snapshots-known-issues)
+  - [AWS Lakeformation integration](#aws-lakeformation-integration)
   - [Python Models](#python-models)
   - [Contracts](#contracts)
   - [Contributing](#contributing)
@@ -554,29 +554,6 @@ To use the check strategy refer to the [dbt docs](https://docs.getdbt.com/docs/b
 The materialization also supports invalidating hard deletes. Check
 the [docs](https://docs.getdbt.com/docs/build/snapshots#hard-deletes-opt-in) to understand usage.
 
-### AWS Lakeformation integration
-
-The adapter implements AWS Lakeformation tags management in the following way:
-
-- you can enable or disable lf-tags management via [config](#table-configuration) (disabled by default)
-- once you enable the feature, lf-tags will be updated on every dbt run
-- first, all lf-tags for columns are removed to avoid inheritance issues
-- then all redundant lf-tags are removed from table and actual tags from config are applied
-- finally, lf-tags for columns are applied
-
-It's important to understand the following points:
-
-- dbt does not manage lf-tags for database
-- dbt does not manage lakeformation permissions
-
-That's why you should handle this by yourself manually or using some automation tools like terraform, AWS CDK etc.
-You may find the following links useful to manage that:
-
-<!-- markdownlint-disable -->
-* [terraform aws_lakeformation_permissions](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_permissions)
-* [terraform aws_lakeformation_resource_lf_tags](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_resource_lf_tags)
-<!-- markdownlint-restore -->
-
 ### Working example
 
 seed file - employent_indicators_november_2022_csv_tables.csv
@@ -682,6 +659,29 @@ from {{ ref('model') }} {% endsnapshot %}
 
 - Snapshot does not support dropping columns from the source table. If you drop a column make sure to drop the column
   from the snapshot as well. Another workaround is to NULL the column in the snapshot definition to preserve history
+
+## AWS Lakeformation integration
+
+The adapter implements AWS Lakeformation tags management in the following way:
+
+- you can enable or disable lf-tags management via [config](#table-configuration) (disabled by default)
+- once you enable the feature, lf-tags will be updated on every dbt run
+- first, all lf-tags for columns are removed to avoid inheritance issues
+- then all redundant lf-tags are removed from table and actual tags from config are applied
+- finally, lf-tags for columns are applied
+
+It's important to understand the following points:
+
+- dbt does not manage lf-tags for database
+- dbt does not manage lakeformation permissions
+
+That's why you should handle this by yourself manually or using some automation tools like terraform, AWS CDK etc.
+You may find the following links useful to manage that:
+
+<!-- markdownlint-disable -->
+* [terraform aws_lakeformation_permissions](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_permissions)
+* [terraform aws_lakeformation_resource_lf_tags](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_resource_lf_tags)
+<!-- markdownlint-restore -->
 
 ## Python Models
 
