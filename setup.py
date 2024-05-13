@@ -52,6 +52,8 @@ setup(
     install_requires=[
         "dbt-common>=1.0.0b2,<2.0",
         "dbt-adapters>=1.0.0b2,<2.0",
+        # add dbt-core to ensure backwards compatibility of installation, this is not a functional dependency
+        "dbt-core>=1.8.0",
         "boto3>=1.28",
         "boto3-stubs[athena,glue,lakeformation,sts]>=1.28",
         "pyathena>=2.25,<4.0",
