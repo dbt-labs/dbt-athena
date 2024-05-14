@@ -29,7 +29,7 @@
 
   -- build model
   {% call statement('main') -%}
-    {{ create_view_as(target_relation, sql) }}
+    {{ create_view_as(target_relation, compiled_code) }}
   {%- endcall %}
 
   {% if lf_tags_config is not none %}
