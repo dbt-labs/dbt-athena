@@ -40,7 +40,7 @@
     - [Hard-deletes](#hard-deletes)
     - [Working example](#working-example)
     - [Snapshots known issues](#snapshots-known-issues)
-  - [AWS Lakeformation integration](#aws-lakeformation-integration)
+  - [AWS Lake Formation integration](#aws-lake-formation-integration)
   - [Python models](#python-models)
   - [Contracts](#contracts)
   - [Contributing](#contributing)
@@ -210,7 +210,7 @@ athena:
   - This is particularly useful when the standard table creation process fails due to partition limitations,
   allowing you to work with temporary tables and persist the dataset more efficiently
 - `lf_tags_config` (`default=none`)
-  - [AWS lakeformation](#aws-lakeformation-integration) tags to associate with the table and columns
+  - [AWS Lake Formation](#aws-lake-formation-integration) tags to associate with the table and columns
   - `enabled` (`default=False`) whether LF tags management is enabled for a model
   - `tags` dictionary with tags and their values to assign for the model
   - `tags_columns` dictionary with a tag key, value and list of columns they must be assigned to
@@ -247,7 +247,7 @@ athena:
 }}
 ```
 
-- format for `dbt_project.yml`:
+- Format for `dbt_project.yml`:
 
 ```yaml
   +lf_tags_config:
@@ -262,8 +262,8 @@ athena:
 ```
 
 - `lf_grants` (`default=none`)
-  - lakeformation grants config for data_cell filters
-  - format:
+  - Lake Formation grants config for data_cell filters
+  - Format:
 
   ```python
   lf_grants={
@@ -302,9 +302,9 @@ athena:
 
 ### Table location
 
-The location in which a table is saved is determined by:
+The location a table is saved to is determined by:
 
-1. If `external_location` is defined, that value is used.
+1. If `external_location` is defined, that value is used
 2. If `s3_data_dir` is defined, the path is determined by that and `s3_data_naming`
 3. If `s3_data_dir` is not defined, data is stored under `s3_staging_dir/tables/`
 
@@ -660,9 +660,9 @@ from {{ ref('model') }} {% endsnapshot %}
 - Snapshot does not support dropping columns from the source table. If you drop a column make sure to drop the column
   from the snapshot as well. Another workaround is to NULL the column in the snapshot definition to preserve history
 
-## AWS Lakeformation integration
+## AWS Lake Formation integration
 
-The adapter implements AWS Lakeformation tags management in the following way:
+The adapter implements AWS Lake Formation tags management in the following way:
 
 - You can enable or disable lf-tags management via [config](#table-configuration) (disabled by default)
 - Once you enable the feature, lf-tags will be updated on every dbt run
@@ -673,7 +673,7 @@ The adapter implements AWS Lakeformation tags management in the following way:
 It's important to understand the following points:
 
 - dbt does not manage lf-tags for databases
-- dbt does not manage Lakeformation permissions
+- dbt does not manage Lake Formation permissions
 
 That's why you should handle this by yourself manually or using an automation tool like terraform, AWS CDK etc.
 You may find the following links useful to manage that:
