@@ -472,11 +472,12 @@ select * from (
 
 ### Highly available table (HA)
 
-The current implementation of the table materialization can lead to downtime, as the target table is dropped and re-created.
-To have the less destructive behavior it's possible to use the `ha` config on your `table` materialized models.
-It leverages the table versions feature of glue catalog, creating a tmp table and swapping the target table to the
-location of the tmp table. This materialization is only available for `table_type=hive` and requires using unique
-locations. For iceberg, high availability is the default.
+The current implementation of the table materialization can lead to downtime, as the target table is
+dropped and re-created. To have the less destructive behavior it's possible to use the `ha` config on
+your `table` materialized models. It leverages the table versions feature of glue catalog, creating
+a temp table and swapping the target table to the location of the temp table. This materialization
+is only available for `table_type=hive` and requires using unique locations. For iceberg, high
+availability is the default.
 
 ```sql
 {{ config(
