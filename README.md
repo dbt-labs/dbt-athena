@@ -703,10 +703,11 @@ The adapter supports Python models using [`spark`](https://docs.aws.amazon.com/a
   - If this flag is set to true, encrypts data in transit between Spark nodes and also encrypts data at rest stored
    locally by Spark.
 - `spark_cross_account_catalog` (`default=false`)
-  - In Spark, you can query the external account catalog and for that the consumer account has to be configured to
-   access the producer catalog.
-  - If this flag is set to true, "/" can be used as the Glue catalog separator.
-   Ex: `999999999999/mydatabase.cloudfront_logs` (*where *999999999999* is the external catalog ID*)
+  - When using the Spark Athena workgroup, queries can only be made against catalogs located on the same
+    AWS account by default. However, sometimes you want to query another catalog located on an external AWS
+    account. Setting this additional Spark properties parameter to true will enable querying external catalogs.
+    You can use the syntax `external_catalog_id/database.table` to access the external table on the external
+    catalog (ex: `999999999999/mydatabase.cloudfront_logs` where 999999999999 is the external catalog ID)
 - `spark_requester_pays` (`default=false`)
   - When an Amazon S3 bucket is configured as requester pays, the account of the user running the query is charged for
    data access and data transfer fees associated with the query.
