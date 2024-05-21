@@ -848,7 +848,7 @@ The adapter partly supports contract definitions:
   entirely (for instance `array<int>`) even though they won't be checked. Indeed, as dbt recommends, we only compare
   the broader type (array, map, int, varchar). The complete definition is used in order to check that the data types
   defined in Athena are ok (pre-flight check).
-- The adapter does not support the constraints since no constraints don't exist in Athena.
+- The adapter does not support the constraints since there is no constraint concept in Athena.
 
 ## Contributing
 
