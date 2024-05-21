@@ -24,7 +24,12 @@ from pyathena.formatter import (
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
 from pyathena.util import RetryConfig
-from tenacity import Retrying, retry_if_exception, stop_after_attempt, wait_random_exponential
+from tenacity import (
+    Retrying,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 
 from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.constants import LOGGER
