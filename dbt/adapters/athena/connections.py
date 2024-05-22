@@ -190,7 +190,7 @@ class AthenaCursor(Cursor):
                 ),
                 reraise=True,
             )
-            def run_query_with_iceberg_retries() -> AthenaCursor:
+            def execute_with_iceberg_retries() -> AthenaCursor:
                 query_id = self._execute(
                     operation,
                     parameters=parameters,
@@ -214,7 +214,7 @@ class AthenaCursor(Cursor):
                     return self
                 raise OperationalError(query_execution.state_change_reason)
 
-            return run_query_with_iceberg_retries()  # type: ignore
+            return execute_with_iceberg_retries()  # type: ignore
 
         return inner()  # type: ignore
 
