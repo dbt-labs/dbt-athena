@@ -24,12 +24,7 @@ from pyathena.formatter import (
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
 from pyathena.util import RetryConfig
-from tenacity import (
-    Retrying,
-    retry_if_exception,
-    stop_after_attempt,
-    wait_random_exponential,
-)
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_random_exponential
 
 from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.constants import LOGGER
@@ -64,8 +59,9 @@ class AthenaCredentials(Credentials):
     _ALIASES = {"catalog": "database"}
     num_retries: int = 5
     num_boto3_retries: Optional[int] = None
+    num_iceberg_retries: int = 0
     s3_data_dir: Optional[str] = None
-    s3_data_naming: Optional[str] = "schema_table_unique"
+    s3_data_naming: str = "schema_table_unique"
     spark_work_group: Optional[str] = None
     s3_tmp_table_dir: Optional[str] = None
     # Unfortunately we can not just use dict, must be Dict because we'll get the following error:
@@ -159,33 +155,7 @@ class AthenaCursor(Cursor):
         catch_partitions_limit: bool = False,
         **kwargs,
     ):
-        def inner() -> AthenaCursor:
-            query_id = self._execute(
-                operation,
-                parameters=parameters,
-                work_group=work_group,
-                s3_staging_dir=s3_staging_dir,
-                cache_size=cache_size,
-                cache_expiration_time=cache_expiration_time,
-            )
-
-            LOGGER.debug(f"Athena query ID {query_id}")
-
-            query_execution = self._executor.submit(self._collect_result_set, query_id).result()
-            if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
-                self.result_set = self._result_set_class(
-                    self._connection,
-                    self._converter,
-                    query_execution,
-                    self.arraysize,
-                    self._retry_config,
-                )
-
-            else:
-                raise OperationalError(query_execution.state_change_reason)
-            return self
-
-        retry = Retrying(
+        @retry(
             # No need to retry if TOO_MANY_OPEN_PARTITIONS occurs.
             # Otherwise, Athena throws ICEBERG_FILESYSTEM_ERROR after retry,
             # because not all files are removed immediately after first try to create table
@@ -200,7 +170,48 @@ class AthenaCursor(Cursor):
             ),
             reraise=True,
         )
-        return retry(inner)
+        def inner() -> AthenaCursor:
+            num_iceberg_retries = self.connection.cursor_kwargs.get("num_iceberg_retries") + 1
+
+            @retry(
+                # Nested retry is needed to handle ICEBERG_COMMIT_ERROR for parallel inserts
+                retry=retry_if_exception(lambda e: "ICEBERG_COMMIT_ERROR" in str(e)),
+                stop=stop_after_attempt(num_iceberg_retries),
+                wait=wait_random_exponential(
+                    multiplier=num_iceberg_retries,
+                    max=self._retry_config.max_delay,
+                    exp_base=self._retry_config.exponential_base,
+                ),
+                reraise=True
+            )
+            def run_query_with_iceberg_retries() -> AthenaCursor:
+                query_id = self._execute(
+                    operation,
+                    parameters=parameters,
+                    work_group=work_group,
+                    s3_staging_dir=s3_staging_dir,
+                    cache_size=cache_size,
+                    cache_expiration_time=cache_expiration_time,
+                )
+
+                LOGGER.debug(f"Athena query ID {query_id}")
+
+                query_execution = self._executor.submit(self._collect_result_set, query_id).result()
+                if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
+                    self.result_set = self._result_set_class(
+                        self._connection,
+                        self._converter,
+                        query_execution,
+                        self.arraysize,
+                        self._retry_config,
+                    )
+                else:
+                    raise OperationalError(query_execution.state_change_reason)
+                return self
+
+            return run_query_with_iceberg_retries()
+
+        return inner()
 
 
 class AthenaConnectionManager(SQLConnectionManager):
@@ -243,7 +254,10 @@ class AthenaConnectionManager(SQLConnectionManager):
                 schema_name=creds.schema,
                 work_group=creds.work_group,
                 cursor_class=AthenaCursor,
-                cursor_kwargs={"debug_query_state": creds.debug_query_state},
+                cursor_kwargs={
+                    "debug_query_state": creds.debug_query_state,
+                    "num_iceberg_retries": creds.num_iceberg_retries,
+                },
                 formatter=AthenaParameterFormatter(),
                 poll_interval=creds.poll_interval,
                 session=get_boto3_session(connection),
