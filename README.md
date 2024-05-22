@@ -19,29 +19,29 @@
 <!-- TOC -->
 
 - [Features](#features)
-  - [Quick Start](#quick-start)
+  - [Quick start](#quick-start)
     - [Installation](#installation)
     - [Prerequisites](#prerequisites)
     - [Credentials](#credentials)
     - [Configuring your profile](#configuring-your-profile)
     - [Additional information](#additional-information)
   - [Models](#models)
-    - [Table Configuration](#table-configuration)
+    - [Table configuration](#table-configuration)
     - [Table location](#table-location)
     - [Incremental models](#incremental-models)
     - [On schema change](#on-schema-change)
     - [Iceberg](#iceberg)
     - [Highly available table (HA)](#highly-available-table-ha)
-      - [HA Known issues](#ha-known-issues)
+      - [HA known issues](#ha-known-issues)
     - [Update glue data catalog](#update-glue-data-catalog)
   - [Snapshots](#snapshots)
     - [Timestamp strategy](#timestamp-strategy)
     - [Check strategy](#check-strategy)
     - [Hard-deletes](#hard-deletes)
     - [Working example](#working-example)
-    - [Snapshots Known issues](#snapshots-known-issues)
-  - [AWS Lakeformation integration](#aws-lakeformation-integration)
-  - [Python Models](#python-models)
+    - [Snapshots known issues](#snapshots-known-issues)
+  - [AWS Lake Formation integration](#aws-lake-formation-integration)
+  - [Python models](#python-models)
   - [Contracts](#contracts)
   - [Contributing](#contributing)
   - [Contributors ✨](#contributors-)
@@ -56,12 +56,12 @@
 - Supports [table materialization][table]
   - [Iceberg tables][athena-iceberg] are supported **only with Athena Engine v3** and **a unique table location**
     (see table location section below)
-  - Hive tables are supported by both Athena engines.
+  - Hive tables are supported by both Athena engines
 - Supports [incremental models][incremental]
-  - On Iceberg tables :
+  - On Iceberg tables:
     - Supports the use of `unique_key` only with the `merge` strategy
     - Supports the `append` strategy
-  - On Hive tables :
+  - On Hive tables:
     - Supports two incremental update strategies: `insert_overwrite` and `append`
     - Does **not** support the use of `unique_key`
 - Supports [snapshots][snapshots]
@@ -79,7 +79,7 @@
 
 [snapshots]: https://docs.getdbt.com/docs/build/snapshots
 
-## Quick Start
+## Quick start
 
 ### Installation
 
@@ -110,8 +110,8 @@ be [determined automatically](https://boto3.amazonaws.com/v1/documentation/api/l
 on `aws cli`/`boto3` conventions.
 You can either:
 
-- configure `aws_access_key_id` and `aws_secret_access_key`
-- configure `aws_profile_name` to match a profile defined in your AWS credentials file
+- Configure `aws_access_key_id` and `aws_secret_access_key`
+- Configure `aws_profile_name` to match a profile defined in your AWS credentials file.
   Checkout dbt profile configuration below for details.
 
 ### Configuring your profile
@@ -129,12 +129,12 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | database              | Specify the database (Data catalog) to build models into (lowercase **only**)            | Required  | `awsdatacatalog`                           |
 | poll_interval         | Interval in seconds to use for polling the status of query results in Athena             | Optional  | `5`                                        |
 | debug_query_state     | Flag if debug message with Athena query state is needed                                  | Optional  | `false`                                    |
-| aws_access_key_id     | Access key ID of the user performing requests.                                           | Optional  | `AKIAIOSFODNN7EXAMPLE`                     |
+| aws_access_key_id     | Access key ID of the user performing requests                                            | Optional  | `AKIAIOSFODNN7EXAMPLE`                     |
 | aws_secret_access_key | Secret access key of the user performing requests                                        | Optional  | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
-| aws_profile_name      | Profile to use from your AWS shared credentials file.                                    | Optional  | `my-profile`                               |
+| aws_profile_name      | Profile to use from your AWS shared credentials file                                     | Optional  | `my-profile`                               |
 | work_group            | Identifier of Athena workgroup                                                           | Optional  | `my-custom-workgroup`                      |
 | num_retries           | Number of times to retry a failing query                                                 | Optional  | `3`                                        |
-| spark_work_group      | Identifier of Athena Spark workgroup                                           | Optional  | `my-spark-workgroup`                       |
+| spark_work_group      | Identifier of Athena Spark workgroup for running Python models                           | Optional  | `my-spark-workgroup`                       |
 | num_boto3_retries     | Number of times to retry boto3 requests (e.g. deleting S3 files for materialized tables) | Optional  | `5`                                        |
 | seed_s3_upload_args   | Dictionary containing boto3 ExtraArgs when uploading to S3                               | Optional  | `{"ACL": "bucket-owner-full-control"}`     |
 | lf_tags_database      | Default LF tags for new database if it's created by dbt                                  | Optional  | `tag_key: tag_value`                       |
@@ -169,12 +169,12 @@ athena:
 
 ## Models
 
-### Table Configuration
+### Table configuration
 
 - `external_location` (`default=none`)
-  - If set, the full S3 path in which the table will be saved.
-  - It works only with incremental models.
-  - Does not work with Hive table with `ha` set to true.
+  - If set, the full S3 path to which the table will be saved
+  - Works only with incremental models
+  - Does not work with Hive table with `ha` set to true
 - `partitioned_by` (`default=none`)
   - An array list of columns by which the table will be partitioned
   - Limited to creation of 100 partitions (*currently*)
@@ -202,11 +202,11 @@ athena:
   tables [see AWS docs](https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-managing-tables.html). Note that
   Iceberg DROP TABLE operations may timeout if they take longer than 60 seconds.
 - `seed_by_insert` (`default=false`)
-  - default behaviour uploads seed data to S3. This flag will create seeds using an SQL insert statement
-  - large seed files cannot use `seed_by_insert`, as the SQL insert statement would
+  - Default behaviour uploads seed data to S3. This flag will create seeds using an SQL insert statement
+  - Large seed files cannot use `seed_by_insert`, as the SQL insert statement would
     exceed [the Athena limit of 262144 bytes](https://docs.aws.amazon.com/athena/latest/ug/service-limits.html)
 - `force_batch` (`default=false`)
-  - Skip creating the table as ctas and run the operation directly in batch insert mode.
+  - Skip creating the table as CTAS and run the operation directly in batch insert mode
   - This is particularly useful when the standard table creation process fails due to partition limitations,
   allowing you to work with temporary tables and persist the dataset more efficiently
 - `unique_tmp_table_suffix` (`default=false`)
@@ -214,7 +214,7 @@ athena:
   - Replace the __dbt_tmp suffix used as temporary table name suffix by a unique uuid
   - Useful if you are looking to run multiple dbt build inserting in the same table in parallel
 - `lf_tags_config` (`default=none`)
-  - [AWS lakeformation](#aws-lakeformation-integration) tags to associate with the table and columns
+  - [AWS Lake Formation](#aws-lake-formation-integration) tags to associate with the table and columns
   - `enabled` (`default=False`) whether LF tags management is enabled for a model
   - `tags` dictionary with tags and their values to assign for the model
   - `tags_columns` dictionary with a tag key, value and list of columns they must be assigned to
@@ -251,7 +251,7 @@ athena:
 }}
 ```
 
-- format for `dbt_project.yml`:
+- Format for `dbt_project.yml`:
 
 ```yaml
   +lf_tags_config:
@@ -266,8 +266,8 @@ athena:
 ```
 
 - `lf_grants` (`default=none`)
-  - lakeformation grants config for data_cell filters
-  - format:
+  - Lake Formation grants config for data_cell filters
+  - Format:
 
   ```python
   lf_grants={
@@ -306,9 +306,9 @@ athena:
 
 ### Table location
 
-The location in which a table is saved is determined by:
+The location a table is saved to is determined by:
 
-1. If `external_location` is defined, that value is used.
+1. If `external_location` is defined, that value is used
 2. If `s3_data_dir` is defined, the path is determined by that and `s3_data_naming`
 3. If `s3_data_dir` is not defined, data is stored under `s3_staging_dir/tables/`
 
@@ -476,11 +476,12 @@ select * from (
 
 ### Highly available table (HA)
 
-The current implementation of the table materialization can lead to downtime, as target table is dropped and re-created.
-To have the less destructive behavior it's possible to use the `ha` config on your `table` materialized models.
-It leverages the table versions feature of glue catalog, creating a tmp table and swapping the target table to the
-location of the tmp table. This materialization is only available for `table_type=hive` and requires using unique
-locations. For iceberg, high availability is by default.
+The current implementation of the table materialization can lead to downtime, as the target table is
+dropped and re-created. To have the less destructive behavior it's possible to use the `ha` config on
+your `table` materialized models. It leverages the table versions feature of glue catalog, creating
+a temp table and swapping the target table to the location of the temp table. This materialization
+is only available for `table_type=hive` and requires using unique locations. For iceberg, high
+availability is the default.
 
 ```sql
 {{ config(
@@ -503,13 +504,13 @@ select 'b'        as user_id,
 
 By default, the materialization keeps the last 4 table versions, you can change it by setting `versions_to_keep`.
 
-#### HA Known issues
+#### HA known issues
 
 - When swapping from a table with partitions to a table without (and the other way around), there could be a little
   downtime.
-  In case high performances are needed consider bucketing instead of partitions
+  If high performances is needed consider bucketing instead of partitions
 - By default, Glue "duplicates" the versions internally, so the last two versions of a table point to the same location
-- It's recommended to have `versions_to_keep` >= 4, as this will avoid having the older location removed
+- It's recommended to set `versions_to_keep` >= 4, as this will avoid having the older location removed
 
 ### Update glue data catalog
 
@@ -650,12 +651,12 @@ select *
 from {{ ref('model') }} {% endsnapshot %}
 ```
 
-### Snapshots Known issues
+### Snapshots known issues
 
-- Incremental Iceberg models - Sync all columns on schema change can't remove columns used as partitioning.
+- Incremental Iceberg models - Sync all columns on schema change can't remove columns used for partitioning.
   The only way, from a dbt perspective, is to do a full-refresh of the incremental model.
 
-- Tables, schemas and database should only be lowercase
+- Tables, schemas and database names should only be lowercase
 
 - In order to avoid potential conflicts, make sure [`dbt-athena-adapter`](https://github.com/Tomme/dbt-athena) is not
   installed in the target environment.
@@ -664,22 +665,22 @@ from {{ ref('model') }} {% endsnapshot %}
 - Snapshot does not support dropping columns from the source table. If you drop a column make sure to drop the column
   from the snapshot as well. Another workaround is to NULL the column in the snapshot definition to preserve history
 
-## AWS Lakeformation integration
+## AWS Lake Formation integration
 
-The adapter implements AWS Lakeformation tags management in the following way:
+The adapter implements AWS Lake Formation tags management in the following way:
 
-- you can enable or disable lf-tags management via [config](#table-configuration) (disabled by default)
-- once you enable the feature, lf-tags will be updated on every dbt run
-- first, all lf-tags for columns are removed to avoid inheritance issues
-- then all redundant lf-tags are removed from table and actual tags from config are applied
-- finally, lf-tags for columns are applied
+- You can enable or disable lf-tags management via [config](#table-configuration) (disabled by default)
+- Once you enable the feature, lf-tags will be updated on every dbt run
+- First, all lf-tags for columns are removed to avoid inheritance issues
+- Then, all redundant lf-tags are removed from tables and actual tags from table configs are applied
+- Finally, lf-tags for columns are applied
 
 It's important to understand the following points:
 
-- dbt does not manage lf-tags for database
-- dbt does not manage lakeformation permissions
+- dbt does not manage lf-tags for databases
+- dbt does not manage Lake Formation permissions
 
-That's why you should handle this by yourself manually or using some automation tools like terraform, AWS CDK etc.
+That's why you should handle this by yourself manually or using an automation tool like terraform, AWS CDK etc.
 You may find the following links useful to manage that:
 
 <!-- markdownlint-disable -->
@@ -687,16 +688,16 @@ You may find the following links useful to manage that:
 * [terraform aws_lakeformation_resource_lf_tags](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lakeformation_resource_lf_tags)
 <!-- markdownlint-restore -->
 
-## Python Models
+## Python models
 
-The adapter supports python models using [`spark`](https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark.html).
+The adapter supports Python models using [`spark`](https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark.html).
 
 ### Setup
 
 - A Spark-enabled workgroup created in Athena
 - Spark execution role granted access to Athena, Glue and S3
-- The Spark workgroup is added to the `~/.dbt/profiles.yml` file and the profile
- is referenced in `dbt_project.yml` that will be created. It is recommended to keep this same as threads.
+- The Spark workgroup is added to the `~/.dbt/profiles.yml` file and the profile to be used
+  is referenced in `dbt_project.yml`
 
 ### Spark-specific table configuration
 
@@ -706,10 +707,11 @@ The adapter supports python models using [`spark`](https://docs.aws.amazon.com/a
   - If this flag is set to true, encrypts data in transit between Spark nodes and also encrypts data at rest stored
    locally by Spark.
 - `spark_cross_account_catalog` (`default=false`)
-  - In Spark, you can query the external account catalog and for that the consumer account has to be configured to
-   access the producer catalog.
-  - If this flag is set to true, "/" can be used as the glue catalog separator.
-   Ex: 999999999999/mydatabase.cloudfront_logs (*where *999999999999* is the external catalog ID*)
+  - When using the Spark Athena workgroup, queries can only be made against catalogs located on the same
+    AWS account by default. However, sometimes you want to query another catalog located on an external AWS
+    account. Setting this additional Spark properties parameter to true will enable querying external catalogs.
+    You can use the syntax `external_catalog_id/database.table` to access the external table on the external
+    catalog (ex: `999999999999/mydatabase.cloudfront_logs` where 999999999999 is the external catalog ID)
 - `spark_requester_pays` (`default=false`)
   - When an Amazon S3 bucket is configured as requester pays, the account of the user running the query is charged for
    data access and data transfer fees associated with the query.
@@ -830,8 +832,8 @@ def model(dbt, spark_session):
 
 - Python models cannot
  [reference Athena SQL views](https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark.html).
-- Third-party Python libraries can be used, but they must be [included in the pre-installed list]([pre-installed list])
- or [imported manually]([imported manually]).
+- Third-party Python libraries can be used, but they must be [included in the pre-installed list][pre-installed list]
+ or [imported manually][imported manually].
 - Python models can only reference or write to tables with names meeting the
  regular expression: `^[0-9a-zA-Z_]+$`. Dashes and special characters are not
  supported by Spark, even though Athena supports them.
@@ -845,13 +847,13 @@ def model(dbt, spark_session):
 
 ## Contracts
 
-The adapter partly supports contract definition.
+The adapter partly supports contract definitions:
 
-- Concerning the `data_type`, it is supported but needs to be adjusted for complex types. They must be specified
+- `data_type` is supported but needs to be adjusted for complex types. Types must be specified
   entirely (for instance `array<int>`) even though they won't be checked. Indeed, as dbt recommends, we only compare
   the broader type (array, map, int, varchar). The complete definition is used in order to check that the data types
-  defined in athena are ok (pre-flight check).
-- the adapter does not support the constraints since no constraints don't exist in Athena.
+  defined in Athena are ok (pre-flight check).
+- The adapter does not support the constraints since there is no constraint concept in Athena.
 
 ## Contributing
 
