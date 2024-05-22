@@ -159,7 +159,7 @@ class AthenaCursor(Cursor):
         cache_size: int = 0,
         cache_expiration_time: int = 0,
         catch_partitions_limit: bool = False,
-        **kwargs: dict[str, Any],
+        **kwargs: Dict[str, Any],
     ) -> Self:
         @retry(
             # No need to retry if TOO_MANY_OPEN_PARTITIONS occurs.
