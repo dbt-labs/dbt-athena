@@ -24,7 +24,13 @@ from pyathena.formatter import (
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
 from pyathena.util import RetryConfig
-from tenacity import retry, retry_if_exception, stop_after_attempt, wait_random_exponential
+from tenacity import (
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_random_exponential,
+)
+from typing_extensions import Self
 
 from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.constants import LOGGER
@@ -143,7 +149,7 @@ class AthenaCursor(Cursor):
                 LOGGER.debug(f"Query state is: {query_execution.state}. Sleeping for {self._poll_interval}...")
             time.sleep(self._poll_interval)
 
-    def execute(  # type: ignore
+    def execute(
         self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
@@ -153,8 +159,8 @@ class AthenaCursor(Cursor):
         cache_size: int = 0,
         cache_expiration_time: int = 0,
         catch_partitions_limit: bool = False,
-        **kwargs,
-    ):
+        **kwargs: dict[str, Any],
+    ) -> Self:
         @retry(
             # No need to retry if TOO_MANY_OPEN_PARTITIONS occurs.
             # Otherwise, Athena throws ICEBERG_FILESYSTEM_ERROR after retry,
@@ -182,7 +188,7 @@ class AthenaCursor(Cursor):
                     max=self._retry_config.max_delay,
                     exp_base=self._retry_config.exponential_base,
                 ),
-                reraise=True
+                reraise=True,
             )
             def run_query_with_iceberg_retries() -> AthenaCursor:
                 query_id = self._execute(
@@ -205,13 +211,12 @@ class AthenaCursor(Cursor):
                         self.arraysize,
                         self._retry_config,
                     )
-                else:
-                    raise OperationalError(query_execution.state_change_reason)
-                return self
+                    return self
+                raise OperationalError(query_execution.state_change_reason)
 
-            return run_query_with_iceberg_retries()
+            return run_query_with_iceberg_retries()  # type: ignore
 
-        return inner()
+        return inner()  # type: ignore
 
 
 class AthenaConnectionManager(SQLConnectionManager):
