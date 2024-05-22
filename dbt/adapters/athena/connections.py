@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, ContextManager, Dict, List, Optional, Tuple
 
-import tenacity
 from dbt_common.exceptions import ConnectionError, DbtRuntimeError
 from dbt_common.utils import md5
 from pyathena.connection import Connection as AthenaConnection
@@ -25,9 +24,12 @@ from pyathena.formatter import (
 from pyathena.model import AthenaQueryExecution
 from pyathena.result_set import AthenaResultSet
 from pyathena.util import RetryConfig
-from tenacity.retry import retry_if_exception
-from tenacity.stop import stop_after_attempt
-from tenacity.wait import wait_exponential
+from tenacity import (
+    Retrying,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 
 from dbt.adapters.athena.config import get_boto3_config
 from dbt.adapters.athena.constants import LOGGER
@@ -183,7 +185,7 @@ class AthenaCursor(Cursor):
                 raise OperationalError(query_execution.state_change_reason)
             return self
 
-        retry = tenacity.Retrying(
+        retry = Retrying(
             # No need to retry if TOO_MANY_OPEN_PARTITIONS occurs.
             # Otherwise, Athena throws ICEBERG_FILESYSTEM_ERROR after retry,
             # because not all files are removed immediately after first try to create table
@@ -191,7 +193,7 @@ class AthenaCursor(Cursor):
                 lambda e: False if catch_partitions_limit and "TOO_MANY_OPEN_PARTITIONS" in str(e) else True
             ),
             stop=stop_after_attempt(self._retry_config.attempt),
-            wait=wait_exponential(
+            wait=wait_random_exponential(
                 multiplier=self._retry_config.attempt,
                 max=self._retry_config.max_delay,
                 exp_base=self._retry_config.exponential_base,
