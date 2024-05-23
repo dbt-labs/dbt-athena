@@ -99,6 +99,7 @@ class AthenaConfig(AdapterConfig):
         seed_s3_upload_args: Dictionary containing boto3 ExtraArgs when uploading to S3.
         partitions_limit: Maximum numbers of partitions when batching.
         force_batch: Skip creating the table as ctas and run the operation directly in batch insert mode.
+        unique_tmp_table_suffix: Enforce the use of a unique id as tmp table suffix instead of __dbt_tmp.
     """
 
     work_group: Optional[str] = None
@@ -119,6 +120,7 @@ class AthenaConfig(AdapterConfig):
     seed_s3_upload_args: Optional[Dict[str, Any]] = None
     partitions_limit: Optional[int] = None
     force_batch: bool = False
+    unique_tmp_table_suffix: bool = False
 
 
 class AthenaAdapter(SQLAdapter):
@@ -419,6 +421,10 @@ class AthenaAdapter(SQLAdapter):
         if table_location := self.get_glue_table_location(relation):
             self.delete_from_s3(table_location)
 
+    @available
+    def generate_unique_temporary_table_suffix(self, suffix_initial: str = "__dbt_tmp") -> str:
+        return f"{suffix_initial}_{str(uuid4())}"
+
     def quote(self, identifier: str) -> str:
         return f"{self.quote_character}{identifier}{self.quote_character}"
 
@@ -712,7 +718,7 @@ class AthenaAdapter(SQLAdapter):
             else:
                 raise e
 
-        relations: list[BaseRelation] = []
+        relations: List[BaseRelation] = []
         quote_policy = {"database": True, "schema": True, "identifier": True}
         for table in tables:
             if "TableType" not in table:
@@ -956,6 +962,7 @@ class AthenaAdapter(SQLAdapter):
         # Prepare new version of Glue Table picking up significant fields
         table_input = self._get_table_input(table)
         table_parameters = table_input["Parameters"]
+
         # Update table description
         if persist_relation_docs:
             # Prepare dbt description
@@ -1012,6 +1019,29 @@ class AthenaAdapter(SQLAdapter):
                         need_to_update_table = True
                     # Save column description from dbt
                     col_obj["Comment"] = clean_col_comment
+
+                    # Get dbt model column meta if available
+                    col_meta: Dict[str, Any] = model["columns"][col_name].get("meta", {})
+                    # Add empty Parameters dictionary if not present
+                    if col_meta and "Parameters" not in col_obj.keys():
+                        col_obj["Parameters"] = {}
+                    # Prepare meta values for column properties and check if update is required
+                    for meta_key, meta_value_raw in col_meta.items():
+                        if is_valid_table_parameter_key(meta_key):
+                            meta_value = stringify_table_parameter_value(meta_value_raw)
+                            if meta_value is not None:
+                                # Check if meta value is already attached to Glue column
+                                col_current_meta_value: Optional[str] = col_obj["Parameters"].get(meta_key)
+                                if col_current_meta_value is None or col_current_meta_value != meta_value:
+                                    need_to_update_table = True
+                                # Save Glue column parameter
+                                col_obj["Parameters"][meta_key] = meta_value
+                            else:
+                                LOGGER.warning(
+                                    f"Column meta value for key '{meta_key}' is not supported and will be ignored"
+                                )
+                        else:
+                            LOGGER.warning(f"Column meta key '{meta_key}' is not supported and will be ignored")
 
         # Update Glue Table only if table/column description is modified.
         # It prevents redundant schema version creating after incremental runs.
@@ -1081,10 +1111,15 @@ class AthenaAdapter(SQLAdapter):
                 config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
+        get_table_kwargs = dict(
+            DatabaseName=relation.schema,
+            Name=relation.identifier,
+        )
+        if catalog_id:
+            get_table_kwargs["CatalogId"] = catalog_id
+
         try:
-            table = glue_client.get_table(CatalogId=catalog_id, DatabaseName=relation.schema, Name=relation.identifier)[
-                "Table"
-            ]
+            table = glue_client.get_table(**get_table_kwargs)["Table"]
         except ClientError as e:
             if e.response["Error"]["Code"] == "EntityNotFoundException":
                 LOGGER.debug("table not exist, catching the error")

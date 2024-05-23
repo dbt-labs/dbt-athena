@@ -7,7 +7,7 @@
 
 ## Getting started
 
-* Clone of fork the repo
+* Clone or fork the repo
 * Run `make setup`, it will:
   1. Install all dependencies
   2. Install pre-commit hooks
