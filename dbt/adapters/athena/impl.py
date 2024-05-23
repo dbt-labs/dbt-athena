@@ -99,6 +99,7 @@ class AthenaConfig(AdapterConfig):
         seed_s3_upload_args: Dictionary containing boto3 ExtraArgs when uploading to S3.
         partitions_limit: Maximum numbers of partitions when batching.
         force_batch: Skip creating the table as ctas and run the operation directly in batch insert mode.
+        unique_tmp_table_suffix: Enforce the use of a unique id as tmp table suffix instead of __dbt_tmp.
     """
 
     work_group: Optional[str] = None
@@ -119,6 +120,7 @@ class AthenaConfig(AdapterConfig):
     seed_s3_upload_args: Optional[Dict[str, Any]] = None
     partitions_limit: Optional[int] = None
     force_batch: bool = False
+    unique_tmp_table_suffix: bool = False
 
 
 class AthenaAdapter(SQLAdapter):
@@ -418,6 +420,10 @@ class AthenaAdapter(SQLAdapter):
         # or when the table does not exist and table location is None
         if table_location := self.get_glue_table_location(relation):
             self.delete_from_s3(table_location)
+
+    @available
+    def generate_unique_temporary_table_suffix(self, suffix_initial: str = "__dbt_tmp") -> str:
+        return f"{suffix_initial}_{str(uuid4())}"
 
     def quote(self, identifier: str) -> str:
         return f"{self.quote_character}{identifier}{self.quote_character}"

@@ -9,12 +9,20 @@
   {% set lf_grants = config.get('lf_grants') %}
   {% set partitioned_by = config.get('partitioned_by') %}
   {% set force_batch = config.get('force_batch', False) | as_bool -%}
+  {% set unique_tmp_table_suffix = config.get('unique_tmp_table_suffix', False) | as_bool -%}
   {% set target_relation = this.incorporate(type='table') %}
   {% set existing_relation = load_relation(this) %}
-  {% set old_tmp_relation = adapter.get_relation(identifier=target_relation.identifier ~ '__dbt_tmp',
+  -- If using insert_overwrite on Hive table, allow to set a unique tmp table suffix
+  {% if unique_tmp_table_suffix == True and strategy == 'insert_overwrite' and table_type == 'hive' %}
+    {% set tmp_table_suffix = adapter.generate_unique_temporary_table_suffix() %}
+  {% else %}
+    {% set tmp_table_suffix = '__dbt_tmp' %}
+  {% endif %}
+
+  {% set old_tmp_relation = adapter.get_relation(identifier=target_relation.identifier ~ tmp_table_suffix,
                                              schema=schema,
                                              database=database) %}
-  {% set tmp_relation = make_temp_relation(target_relation, '__dbt_tmp') %}
+  {% set tmp_relation = make_temp_relation(target_relation, suffix=tmp_table_suffix) %}
 
   -- If no partitions are used with insert_overwrite, we fall back to append mode.
   {% if partitioned_by is none and strategy == 'insert_overwrite' %}

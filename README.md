@@ -209,6 +209,10 @@ athena:
   - Skip creating the table as CTAS and run the operation directly in batch insert mode
   - This is particularly useful when the standard table creation process fails due to partition limitations,
   allowing you to work with temporary tables and persist the dataset more efficiently
+- `unique_tmp_table_suffix` (`default=false`)
+  - For incremental models using insert overwrite strategy on hive table
+  - Replace the __dbt_tmp suffix used as temporary table name suffix by a unique uuid
+  - Useful if you are looking to run multiple dbt build inserting in the same table in parallel
 - `lf_tags_config` (`default=none`)
   - [AWS Lake Formation](#aws-lake-formation-integration) tags to associate with the table and columns
   - `enabled` (`default=False`) whether LF tags management is enabled for a model
