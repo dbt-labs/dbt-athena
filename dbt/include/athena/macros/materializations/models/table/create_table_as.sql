@@ -175,27 +175,24 @@
     {%- set dest_columns = adapter.get_columns_in_relation(tmp_relation) -%}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
+    {%- set create_target_relation_sql -%}
+    select {{ dest_cols_csv }}
+    from {{ tmp_relation }}
+    where {{ batch }}
+    {%- endset -%}
+    {%- do run_query(create_table_as(temporary, relation, create_target_relation_sql, language, with_no_data=true)) -%}
+
     {%- for batch in partitions_batches -%}
         {%- do log('BATCH PROCESSING: ' ~ loop.index ~ ' OF ' ~ partitions_batches | length) -%}
 
-        {%- if loop.index == 1 -%}
-            {%- set create_target_relation_sql -%}
-                select {{ dest_cols_csv }}
-                from {{ tmp_relation }}
-                where {{ batch }}
-            {%- endset -%}
-            {%- do run_query(create_table_as(temporary, relation, create_target_relation_sql, language)) -%}
-        {%- else -%}
-            {%- set insert_batch_partitions_sql -%}
-                insert into {{ relation }} ({{ dest_cols_csv }})
-                select {{ dest_cols_csv }}
-                from {{ tmp_relation }}
-                where {{ batch }}
-            {%- endset -%}
+        {%- set insert_batch_partitions_sql -%}
+            insert into {{ relation }} ({{ dest_cols_csv }})
+            select {{ dest_cols_csv }}
+            from {{ tmp_relation }}
+            where {{ batch }}
+        {%- endset -%}
 
-            {%- do run_query(insert_batch_partitions_sql) -%}
-        {%- endif -%}
-
+        {%- do run_query(insert_batch_partitions_sql) -%}
 
     {%- endfor -%}
 
