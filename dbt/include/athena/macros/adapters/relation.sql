@@ -36,6 +36,20 @@
   {%- endcall %}
 {%- endmacro %}
 
+{% macro make_temp_relation(base_relation, suffix, temp_schema=none) %}
+  {%- set temp_identifier = base_relation.identifier ~ suffix -%}
+  {%- set temp_relation = base_relation.incorporate(path={"identifier": temp_identifier}) -%}
+
+  {%- if temp_schema is not none -%}
+    {%- set temp_relation = temp_relation.incorporate(path={
+      "identifier": temp_identifier,
+      "schema": temp_schema
+      }) -%}
+  {% endif %}
+
+  {{ return(temp_relation) }}
+{% endmacro %}
+
 {% macro athena__rename_relation(from_relation, to_relation) %}
   {% call statement('rename_relation') -%}
     alter table {{ from_relation.render_hive() }} rename to `{{ to_relation.schema }}`.`{{ to_relation.identifier }}`
