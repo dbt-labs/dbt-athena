@@ -213,6 +213,9 @@ athena:
   - For incremental models using insert overwrite strategy on hive table
   - Replace the __dbt_tmp suffix used as temporary table name suffix by a unique uuid
   - Useful if you are looking to run multiple dbt build inserting in the same table in parallel
+- `tmp_schema` (`default=none`)
+  - For incremental models, it allows to define a schema to hold temporary create statements used in incremental model runs
+  - Schema will be created in the model target database if does not exist
 - `lf_tags_config` (`default=none`)
   - [AWS Lake Formation](#aws-lake-formation-integration) tags to associate with the table and columns
   - `enabled` (`default=False`) whether LF tags management is enabled for a model

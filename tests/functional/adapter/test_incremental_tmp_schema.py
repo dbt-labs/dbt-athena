@@ -1,4 +1,5 @@
 import pytest
+import yaml
 from tests.functional.adapter.utils.parse_dbt_run_output import (
     extract_create_statement_table_names,
     extract_running_create_statements,
@@ -12,7 +13,7 @@ models__schema_tmp_sql = """
         materialized='incremental',
         incremental_strategy='insert_overwrite',
         partitioned_by=['date_column'],
-        tmp_schema='test_temporary_schema_used_to_hold_tmp_tables'
+        tmp_schema=var('tmp_schema_name')
     )
 }}
 select
@@ -28,10 +29,14 @@ class TestIncrementalTmpSchema:
 
     def test__schema_tmp(self, project, capsys):
         relation_name = "schema_tmp"
-        tmp_schema_name = "test_temporary_schema_used_to_hold_tmp_tables"
-        create_tmp_schema = f"create schema if not exists `{tmp_schema_name}`"
+        tmp_schema_name = f"{project.test_schema}_tmp"
         drop_tmp_schema = f"drop schema if exists `{tmp_schema_name}` cascade"
         model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
+
+        vars_dict = {
+            "tmp_schema_name": tmp_schema_name,
+            "logical_date": "2024-01-01",
+        }
 
         first_model_run = run_dbt(
             [
@@ -39,7 +44,7 @@ class TestIncrementalTmpSchema:
                 "--select",
                 relation_name,
                 "--vars",
-                '{"logical_date": "2024-01-01"}',
+                yaml.safe_dump(vars_dict),
                 "--log-level",
                 "debug",
                 "--log-format",
@@ -66,15 +71,14 @@ class TestIncrementalTmpSchema:
 
         assert tmp_schema_name not in incremental_model_run_result_table_name
 
-        project.run_sql(create_tmp_schema)
-
+        vars_dict["logical_date"] = "2024-01-02"
         incremental_model_run = run_dbt(
             [
                 "run",
                 "--select",
                 relation_name,
                 "--vars",
-                '{"logical_date": "2024-01-02"}',
+                yaml.safe_dump(vars_dict),
                 "--log-level",
                 "debug",
                 "--log-format",

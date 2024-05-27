@@ -36,7 +36,7 @@
   {%- endcall %}
 {%- endmacro %}
 
-{% macro make_temp_relation(base_relation, suffix, temp_schema=none) %}
+{% macro athena__make_temp_relation(base_relation, suffix, temp_schema=none) %}
   {%- set temp_identifier = base_relation.identifier ~ suffix -%}
   {%- set temp_relation = base_relation.incorporate(path={"identifier": temp_identifier}) -%}
 
@@ -45,6 +45,7 @@
       "identifier": temp_identifier,
       "schema": temp_schema
       }) -%}
+      {%- do athena__create_schema(temp_relation) -%}
   {% endif %}
 
   {{ return(temp_relation) }}
