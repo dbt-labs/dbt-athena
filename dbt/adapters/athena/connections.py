@@ -65,7 +65,7 @@ class AthenaCredentials(Credentials):
     _ALIASES = {"catalog": "database"}
     num_retries: int = 5
     num_boto3_retries: Optional[int] = None
-    num_iceberg_retries: int = 0
+    num_iceberg_retries: int = 3
     s3_data_dir: Optional[str] = None
     s3_data_naming: str = "schema_table_unique"
     spark_work_group: Optional[str] = None
