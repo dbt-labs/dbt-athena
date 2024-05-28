@@ -582,7 +582,8 @@ class AthenaAdapter(SQLAdapter):
                     "column_comment": col.get("Comment", ""),
                 },
             }
-            for idx, col in enumerate(table.get("Columns", []) + table.get("PartitionKeys", []))
+            # TODO: review this code part as TableTypeDef class does not contain "Columns" attribute
+            for idx, col in enumerate(table["Columns"] + table.get("PartitionKeys", []))
         ]
 
     def _get_one_catalog(
