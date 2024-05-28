@@ -77,7 +77,7 @@ class TestIcebergRetriesDisabled:
             "expected_target_post.csv": seeds__expected_target_post,
         }
 
-    def test__retries_iceberg(self, project, caplog):
+    def test__retries_iceberg(self, project):
         """Seed should match the model after run"""
 
         expected__init_seed_name = "expected_target_init"
@@ -115,7 +115,7 @@ class TestIcebergRetriesEnabled:
             "expected_target_post.csv": seeds__expected_target_post,
         }
 
-    def test__retries_iceberg(self, project, caplog):
+    def test__retries_iceberg(self, project):
         """Seed should match the model after run"""
 
         expected__init_seed_name = "expected_target_init"
