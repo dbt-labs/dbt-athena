@@ -13,7 +13,7 @@ models__schema_tmp_sql = """
         materialized='incremental',
         incremental_strategy='insert_overwrite',
         partitioned_by=['date_column'],
-        tmp_schema=var('tmp_schema_name')
+        temp_schema=var('temp_schema_name')
     )
 }}
 select
@@ -29,12 +29,12 @@ class TestIncrementalTmpSchema:
 
     def test__schema_tmp(self, project, capsys):
         relation_name = "schema_tmp"
-        tmp_schema_name = f"{project.test_schema}_tmp"
-        drop_tmp_schema = f"drop schema if exists `{tmp_schema_name}` cascade"
+        temp_schema_name = f"{project.test_schema}_tmp"
+        drop_temp_schema = f"drop schema if exists `{temp_schema_name}` cascade"
         model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
 
         vars_dict = {
-            "tmp_schema_name": tmp_schema_name,
+            "temp_schema_name": temp_schema_name,
             "logical_date": "2024-01-01",
         }
 
@@ -69,7 +69,7 @@ class TestIncrementalTmpSchema:
             athena_running_create_statements[0]
         )[0]
 
-        assert tmp_schema_name not in incremental_model_run_result_table_name
+        assert temp_schema_name not in incremental_model_run_result_table_name
 
         vars_dict["logical_date"] = "2024-01-02"
         incremental_model_run = run_dbt(
@@ -103,6 +103,6 @@ class TestIncrementalTmpSchema:
             athena_running_create_statements[0]
         )[0]
 
-        assert tmp_schema_name == incremental_model_run_result_table_name.split(".")[1].strip('"')
+        assert temp_schema_name == incremental_model_run_result_table_name.split(".")[1].strip('"')
 
-        project.run_sql(drop_tmp_schema)
+        project.run_sql(drop_temp_schema)

@@ -100,7 +100,7 @@ class AthenaConfig(AdapterConfig):
         partitions_limit: Maximum numbers of partitions when batching.
         force_batch: Skip creating the table as ctas and run the operation directly in batch insert mode.
         unique_tmp_table_suffix: Enforce the use of a unique id as tmp table suffix instead of __dbt_tmp.
-        tmp_schema: Define in which schema to create temporary tables used in incremental runs.
+        temp_schema: Define in which schema to create temporary tables used in incremental runs.
     """
 
     work_group: Optional[str] = None
@@ -122,7 +122,7 @@ class AthenaConfig(AdapterConfig):
     partitions_limit: Optional[int] = None
     force_batch: bool = False
     unique_tmp_table_suffix: bool = False
-    tmp_schema: Optional[str] = None
+    temp_schema: Optional[str] = None
 
 
 class AthenaAdapter(SQLAdapter):

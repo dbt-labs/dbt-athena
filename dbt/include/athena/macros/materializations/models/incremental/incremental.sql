@@ -10,7 +10,7 @@
   {% set partitioned_by = config.get('partitioned_by') %}
   {% set force_batch = config.get('force_batch', False) | as_bool -%}
   {% set unique_tmp_table_suffix = config.get('unique_tmp_table_suffix', False) | as_bool -%}
-  {% set tmp_schema = config.get('tmp_schema') %}
+  {% set temp_schema = config.get('temp_schema') %}
   {% set target_relation = this.incorporate(type='table') %}
   {% set existing_relation = load_relation(this) %}
   -- If using insert_overwrite on Hive table, allow to set a unique tmp table suffix
@@ -23,7 +23,7 @@
   {% set old_tmp_relation = adapter.get_relation(identifier=target_relation.identifier ~ tmp_table_suffix,
                                              schema=schema,
                                              database=database) %}
-  {% set tmp_relation = athena__make_temp_relation(target_relation, suffix=tmp_table_suffix, temp_schema=tmp_schema) %}
+  {% set tmp_relation = make_temp_relation(target_relation, suffix=tmp_table_suffix, temp_schema=temp_schema) %}
 
   -- If no partitions are used with insert_overwrite, we fall back to append mode.
   {% if partitioned_by is none and strategy == 'insert_overwrite' %}
