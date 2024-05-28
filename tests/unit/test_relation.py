@@ -8,21 +8,24 @@ TABLE_NAME = "test_table"
 
 
 class TestRelation:
-    def test__get_relation_type_table(self):
-        assert get_table_type({"Name": "name", "TableType": "table"}) == TableType.TABLE
+    @pytest.mark.parametrize(
+        ("table", "expected"),
+        [
+            ({"Name": "n", "TableType": "table"}, TableType.TABLE),
+            ({"Name": "n", "TableType": "VIRTUAL_VIEW"}, TableType.VIEW),
+            ({"Name": "n", "TableType": "EXTERNAL_TABLE", "Parameters": {"table_type": "ICEBERG"}}, TableType.ICEBERG),
+        ],
+    )
+    def test__get_relation_type(self, table, expected):
+        assert get_table_type(table) == expected
 
     def test__get_relation_type_with_no_type(self):
         with pytest.raises(ValueError):
             get_table_type({"Name": "name"})
 
-    def test__get_relation_type_view(self):
-        assert get_table_type({"Name": "name", "TableType": "VIRTUAL_VIEW"}) == TableType.VIEW
-
-    def test__get_relation_type_iceberg(self):
-        assert (
-            get_table_type({"Name": "name", "TableType": "EXTERNAL_TABLE", "Parameters": {"table_type": "ICEBERG"}})
-            == TableType.ICEBERG
-        )
+    def test__get_relation_type_with_unknown_type(self):
+        with pytest.raises(ValueError):
+            get_table_type({"Name": "name", "TableType": "test"})
 
 
 class TestAthenaRelation:
