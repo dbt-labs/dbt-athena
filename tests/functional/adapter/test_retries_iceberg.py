@@ -4,9 +4,9 @@ import os
 import pytest
 
 from dbt.artifacts.schemas.results import RunStatus
-from dbt.tests.util import check_relations_equal, run_dbt
+from dbt.tests.util import check_relations_equal, run_dbt, run_dbt_and_capture
 
-PARALLELISM = 30
+PARALLELISM = 10
 
 
 models__target = """
@@ -46,7 +46,7 @@ seeds__expected_target_init = "id,status"
 seeds__expected_target_post = "id,status\n" + "\n".join([f"{i},{i}" for i in range(PARALLELISM)])
 
 
-class TestIcebergRetries:
+class TestIcebergRetriesDisabled:
     @pytest.fixture(scope="class")
     def dbt_profile_target(self):
         return {
@@ -75,7 +75,7 @@ class TestIcebergRetries:
             "expected_target_post.csv": seeds__expected_target_post,
         }
 
-    def test__retries_iceberg(self, project):
+    def test__retries_iceberg(self, project, caplog):
         """Seed should match the model after run"""
 
         expected__init_seed_name = "expected_target_init"
@@ -91,7 +91,55 @@ class TestIcebergRetries:
         expected__post_seed_name = "expected_target_post"
         run_dbt(["seed", "--select", expected__post_seed_name, "--full-refresh"])
 
-        model_run = run_dbt(["run", "--select", "tag:src"])
+        run, log = run_dbt_and_capture(["run", "--select", "tag:src"], expect_pass=False)
+        assert any(model_run_result.status == RunStatus.Error for model_run_result in run.results)
+        assert "ICEBERG_COMMIT_ERROR" in log
+
+
+class TestIcebergRetriesEnabled:
+    @pytest.fixture(scope="class")
+    def dbt_profile_target(self):
+        return {
+            "type": "athena",
+            "s3_staging_dir": os.getenv("DBT_TEST_ATHENA_S3_STAGING_DIR"),
+            "s3_tmp_table_dir": os.getenv("DBT_TEST_ATHENA_S3_TMP_TABLE_DIR"),
+            "schema": os.getenv("DBT_TEST_ATHENA_SCHEMA"),
+            "database": os.getenv("DBT_TEST_ATHENA_DATABASE"),
+            "region_name": os.getenv("DBT_TEST_ATHENA_REGION_NAME"),
+            "threads": PARALLELISM,
+            "poll_interval": float(os.getenv("DBT_TEST_ATHENA_POLL_INTERVAL", "1.0")),
+            "num_retries": 0,
+            "num_iceberg_retries": 1,
+            "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUP"),
+            "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME") or None,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {**{"target.sql": models__target}, **models__source}
+
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "expected_target_init.csv": seeds__expected_target_init,
+            "expected_target_post.csv": seeds__expected_target_post,
+        }
+
+    def test__retries_iceberg(self, project, caplog):
+        """Seed should match the model after run"""
+
+        expected__init_seed_name = "expected_target_init"
+        run_dbt(["seed", "--select", expected__init_seed_name, "--full-refresh"])
+
+        relation_name = "target"
+        model_run = run_dbt(["run", "--select", relation_name])
         model_run_result = model_run.results[0]
         assert model_run_result.status == RunStatus.Success
-        check_relations_equal(project.adapter, [relation_name, expected__post_seed_name])
+
+        check_relations_equal(project.adapter, [relation_name, expected__init_seed_name])
+
+        expected__post_seed_name = "expected_target_post"
+        run_dbt(["seed", "--select", expected__post_seed_name, "--full-refresh"])
+
+        run = run_dbt(["run", "--select", "tag:src"])
+        assert all([model_run_result.status == RunStatus.Success for model_run_result in run.results])
