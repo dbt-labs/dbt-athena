@@ -1,4 +1,5 @@
 """Test parallel insert into iceberg table."""
+import copy
 import os
 
 import pytest
@@ -8,6 +9,19 @@ from dbt.tests.util import check_relations_equal, run_dbt, run_dbt_and_capture
 
 PARALLELISM = 10
 
+base_dbt_profile = {
+    "type": "athena",
+    "s3_staging_dir": os.getenv("DBT_TEST_ATHENA_S3_STAGING_DIR"),
+    "s3_tmp_table_dir": os.getenv("DBT_TEST_ATHENA_S3_TMP_TABLE_DIR"),
+    "schema": os.getenv("DBT_TEST_ATHENA_SCHEMA"),
+    "database": os.getenv("DBT_TEST_ATHENA_DATABASE"),
+    "region_name": os.getenv("DBT_TEST_ATHENA_REGION_NAME"),
+    "threads": PARALLELISM,
+    "poll_interval": float(os.getenv("DBT_TEST_ATHENA_POLL_INTERVAL", "1.0")),
+    "num_retries": 0,
+    "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUP"),
+    "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME") or None,
+}
 
 models__target = """
 {{
@@ -49,20 +63,9 @@ seeds__expected_target_post = "id,status\n" + "\n".join([f"{i},{i}" for i in ran
 class TestIcebergRetriesDisabled:
     @pytest.fixture(scope="class")
     def dbt_profile_target(self):
-        return {
-            "type": "athena",
-            "s3_staging_dir": os.getenv("DBT_TEST_ATHENA_S3_STAGING_DIR"),
-            "s3_tmp_table_dir": os.getenv("DBT_TEST_ATHENA_S3_TMP_TABLE_DIR"),
-            "schema": os.getenv("DBT_TEST_ATHENA_SCHEMA"),
-            "database": os.getenv("DBT_TEST_ATHENA_DATABASE"),
-            "region_name": os.getenv("DBT_TEST_ATHENA_REGION_NAME"),
-            "threads": PARALLELISM,
-            "poll_interval": float(os.getenv("DBT_TEST_ATHENA_POLL_INTERVAL", "1.0")),
-            "num_retries": 0,
-            "num_iceberg_retries": 0,
-            "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUP"),
-            "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME") or None,
-        }
+        profile = copy.deepcopy(base_dbt_profile)
+        profile["num_iceberg_retries"] = 0
+        return profile
 
     @pytest.fixture(scope="class")
     def models(self):
@@ -99,20 +102,9 @@ class TestIcebergRetriesDisabled:
 class TestIcebergRetriesEnabled:
     @pytest.fixture(scope="class")
     def dbt_profile_target(self):
-        return {
-            "type": "athena",
-            "s3_staging_dir": os.getenv("DBT_TEST_ATHENA_S3_STAGING_DIR"),
-            "s3_tmp_table_dir": os.getenv("DBT_TEST_ATHENA_S3_TMP_TABLE_DIR"),
-            "schema": os.getenv("DBT_TEST_ATHENA_SCHEMA"),
-            "database": os.getenv("DBT_TEST_ATHENA_DATABASE"),
-            "region_name": os.getenv("DBT_TEST_ATHENA_REGION_NAME"),
-            "threads": PARALLELISM,
-            "poll_interval": float(os.getenv("DBT_TEST_ATHENA_POLL_INTERVAL", "1.0")),
-            "num_retries": 0,
-            "num_iceberg_retries": 1,
-            "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUP"),
-            "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME") or None,
-        }
+        profile = copy.deepcopy(base_dbt_profile)
+        profile["num_iceberg_retries"] = 1
+        return profile
 
     @pytest.fixture(scope="class")
     def models(self):
