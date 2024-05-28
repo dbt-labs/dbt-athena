@@ -56,7 +56,6 @@ select 1 as col
 }
 
 seeds__expected_target_init = "id,status"
-
 seeds__expected_target_post = "id,status\n" + "\n".join([f"{i},{i}" for i in range(PARALLELISM)])
 
 
@@ -88,7 +87,6 @@ class TestIcebergRetriesDisabled:
         model_run = run_dbt(["run", "--select", relation_name])
         model_run_result = model_run.results[0]
         assert model_run_result.status == RunStatus.Success
-
         check_relations_equal(project.adapter, [relation_name, expected__init_seed_name])
 
         expected__post_seed_name = "expected_target_post"
@@ -127,7 +125,6 @@ class TestIcebergRetriesEnabled:
         model_run = run_dbt(["run", "--select", relation_name])
         model_run_result = model_run.results[0]
         assert model_run_result.status == RunStatus.Success
-
         check_relations_equal(project.adapter, [relation_name, expected__init_seed_name])
 
         expected__post_seed_name = "expected_target_post"
@@ -135,3 +132,4 @@ class TestIcebergRetriesEnabled:
 
         run = run_dbt(["run", "--select", "tag:src"])
         assert all([model_run_result.status == RunStatus.Success for model_run_result in run.results])
+        check_relations_equal(project.adapter, [relation_name, expected__post_seed_name])
