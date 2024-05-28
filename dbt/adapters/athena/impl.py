@@ -47,7 +47,6 @@ from dbt.adapters.athena.lakeformation import (
 )
 from dbt.adapters.athena.python_submissions import AthenaPythonJobHelper
 from dbt.adapters.athena.relation import (
-    RELATION_TYPE_MAP,
     AthenaRelation,
     AthenaSchemaSearchMap,
     TableType,
@@ -100,6 +99,7 @@ class AthenaConfig(AdapterConfig):
         partitions_limit: Maximum numbers of partitions when batching.
         force_batch: Skip creating the table as ctas and run the operation directly in batch insert mode.
         unique_tmp_table_suffix: Enforce the use of a unique id as tmp table suffix instead of __dbt_tmp.
+        temp_schema: Define in which schema to create temporary tables used in incremental runs.
     """
 
     work_group: Optional[str] = None
@@ -121,6 +121,7 @@ class AthenaConfig(AdapterConfig):
     partitions_limit: Optional[int] = None
     force_batch: bool = False
     unique_tmp_table_suffix: bool = False
+    temp_schema: Optional[str] = None
 
 
 class AthenaAdapter(SQLAdapter):
@@ -542,12 +543,13 @@ class AthenaAdapter(SQLAdapter):
         response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
         return True if "Contents" in response else False
 
-    def _get_one_table_for_catalog(self, table: TableTypeDef, database: str) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _get_one_table_for_catalog(table: TableTypeDef, database: str) -> List[Dict[str, Any]]:
         table_catalog = {
             "table_database": database,
             "table_schema": table["DatabaseName"],
             "table_name": table["Name"],
-            "table_type": RELATION_TYPE_MAP[table.get("TableType", "EXTERNAL_TABLE")].value,
+            "table_type": get_table_type(table).value,
             "table_comment": table.get("Parameters", {}).get("comment", table.get("Description", "")),
         }
         return [
@@ -563,14 +565,13 @@ class AthenaAdapter(SQLAdapter):
             for idx, col in enumerate(table["StorageDescriptor"]["Columns"] + table.get("PartitionKeys", []))
         ]
 
-    def _get_one_table_for_non_glue_catalog(
-        self, table: TableTypeDef, schema: str, database: str
-    ) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _get_one_table_for_non_glue_catalog(table: TableTypeDef, schema: str, database: str) -> List[Dict[str, Any]]:
         table_catalog = {
             "table_database": database,
             "table_schema": schema,
             "table_name": table["Name"],
-            "table_type": RELATION_TYPE_MAP[table.get("TableType", "EXTERNAL_TABLE")].value,
+            "table_type": get_table_type(table).value,
             "table_comment": table.get("Parameters", {}).get("comment", ""),
         }
         return [
@@ -583,6 +584,7 @@ class AthenaAdapter(SQLAdapter):
                     "column_comment": col.get("Comment", ""),
                 },
             }
+            # TODO: review this code part as TableTypeDef class does not contain "Columns" attribute
             for idx, col in enumerate(table["Columns"] + table.get("PartitionKeys", []))
         ]
 
