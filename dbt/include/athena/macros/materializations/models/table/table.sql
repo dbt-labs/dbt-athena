@@ -7,6 +7,7 @@
   {%- set lf_grants = config.get('lf_grants') -%}
 
   {%- set table_type = config.get('table_type', default='hive') | lower -%}
+  {%- set temp_schema = config.get('temp_schema') -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set old_tmp_relation = adapter.get_relation(identifier=identifier ~ '__ha',
                                              schema=schema,
@@ -31,6 +32,12 @@
                                              database=database,
                                              s3_path_table_part=target_relation.identifier,
                                              type='table') -%}
+  {%- if temp_schema is not none -%}
+    {%- set tmp_relation = tmp_relation.incorporate(path={
+      "schema": temp_schema
+      }) -%}
+      {%- do create_schema(tmp_relation) -%}
+  {%- endif -%}
 
   {%- if (
     table_type == 'hive'
