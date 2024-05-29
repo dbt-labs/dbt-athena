@@ -12,6 +12,9 @@
   {%- set old_tmp_relation = adapter.get_relation(identifier=identifier ~ '__ha',
                                              schema=schema,
                                              database=database) -%}
+  {%- if temp_schema is not none and old_tmp_relation is not none-%}
+    {%- set old_tmp_relation = set_table_relation_schema(relation=old_tmp_relation, schema=temp_schema) -%}
+  {%- endif -%}
   {%- set old_bkp_relation = adapter.get_relation(identifier=identifier ~ '__bkp',
                                              schema=schema,
                                              database=database) -%}
@@ -33,10 +36,7 @@
                                              s3_path_table_part=target_relation.identifier,
                                              type='table') -%}
   {%- if temp_schema is not none -%}
-    {%- set tmp_relation = tmp_relation.incorporate(path={
-      "schema": temp_schema
-      }) -%}
-      {%- do create_schema(tmp_relation) -%}
+    {%- set tmp_relation = set_table_relation_schema(relation=tmp_relation, schema=temp_schema) -%}
   {%- endif -%}
 
   {%- if (
