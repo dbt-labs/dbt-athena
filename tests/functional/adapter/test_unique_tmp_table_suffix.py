@@ -3,7 +3,7 @@ import re
 import pytest
 from tests.functional.adapter.utils.parse_dbt_run_output import (
     extract_create_statement_table_names,
-    extract_running_create_statements,
+    extract_running_ddl_statements,
 )
 
 from dbt.contracts.results import RunStatus
@@ -55,7 +55,7 @@ class TestUniqueTmpTableSuffix:
         assert first_model_run_result.status == RunStatus.Success
 
         out, _ = capsys.readouterr()
-        athena_running_create_statements = extract_running_create_statements(out, relation_name)
+        athena_running_create_statements = extract_running_ddl_statements(out, relation_name, "create table")
 
         assert len(athena_running_create_statements) == 1
 
@@ -87,7 +87,7 @@ class TestUniqueTmpTableSuffix:
         assert incremental_model_run_result.status == RunStatus.Success
 
         out, _ = capsys.readouterr()
-        athena_running_create_statements = extract_running_create_statements(out, relation_name)
+        athena_running_create_statements = extract_running_ddl_statements(out, relation_name, "create table")
 
         assert len(athena_running_create_statements) == 1
 
@@ -119,7 +119,7 @@ class TestUniqueTmpTableSuffix:
         assert incremental_model_run_result.status == RunStatus.Success
 
         out, _ = capsys.readouterr()
-        athena_running_create_statements = extract_running_create_statements(out, relation_name)
+        athena_running_create_statements = extract_running_ddl_statements(out, relation_name, "create table")
 
         incremental_model_run_result_table_name_2 = extract_create_statement_table_names(
             athena_running_create_statements[0]
