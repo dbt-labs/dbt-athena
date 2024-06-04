@@ -133,11 +133,11 @@
         {%- endif -%}
 
         {%- set old_relation_table_type = adapter.get_glue_table_type(old_relation) -%}
+        -- we cannot use old_bkp_relation, because it returns None if the relation doesn't exist
+        -- we need to create a python object via the make_temp_relation instead
+        {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
 
         {%- if old_relation_table_type.value == 'iceberg_table' -%}
-          -- we cannot use old_bkp_relation, because it returns None if the relation doesn't exist
-          -- we need to create a python object via the make_temp_relation instead
-          {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
           {{ rename_relation(old_relation, old_relation_bkp) }}
         {%- else  -%}
           {%- do drop_relation_glue(old_relation) -%}
@@ -145,11 +145,13 @@
 
         {{ rename_relation(tmp_relation, target_relation) }}
 
-        -- old_bkp_relation might not exists in case we have a switch from hive to iceberg
-        -- we prevent to drop something that doesn't exist even if drop_relation is able to deal with not existing tables
-        {%- if old_bkp_relation is not none -%}
-          {%- do drop_relation(old_bkp_relation) -%}
+        -- old_relation_bkp might not exists in case we have a switch from hive to iceberg
+        -- if we are here old_relation_bkp was created, so we can drop it
+
+        {%- if old_relation_bkp is not none -%}
+          {%- do drop_relation(old_relation_bkp) -%}
         {%- endif -%}
+
       {%- endif -%}
     {%- endif -%}
 
