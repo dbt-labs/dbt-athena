@@ -147,6 +147,7 @@
 
         -- old_relation_bkp might not exists in case we have a switch from hive to iceberg
         -- if we are here old_relation_bkp was created, so we can drop it
+        -- old_bkp_relation cannot be used here, because it could returns None due to caching issues
 
         {%- if old_relation_bkp is not none -%}
           {%- do drop_relation(old_relation_bkp) -%}
