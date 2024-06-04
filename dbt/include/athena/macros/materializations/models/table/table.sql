@@ -134,8 +134,11 @@
 
         {%- set old_relation_table_type = adapter.get_glue_table_type(old_relation) -%}
 
-        {%- if old_relation_table_type == 'iceberg' -%}
-          {{ rename_relation(old_relation, old_bkp_relation) }}
+        {%- if old_relation_table_type.value == 'iceberg_table' -%}
+          -- we cannot use old_bkp_relation, because it returns None if the relation doesn't exist
+          -- we need to create a python object via the make_temp_relation instead
+          {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
+          {{ rename_relation(old_relation, old_relation_bkp) }}
         {%- else  -%}
           {%- do drop_relation_glue(old_relation) -%}
         {%- endif -%}
