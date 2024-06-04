@@ -147,6 +147,8 @@
 
         -- old_relation_bkp might not exists in case we have a switch from hive to iceberg
         -- we cannot use old_bkp_relation, because result could be cached by dbt, we use instead glue apis
+        -- get_glue_table returns none in case EntityNotFoundException, therefore this works well with restrictive environment
+        -- where Lakeformation is used, and allow operations in only existing objects
         {%- set old_relation_bkp_exists = adapter.get_glue_table(old_relation_bkp) -%}
         {%- if old_relation_bkp_exists is not none -%}
           {%- do drop_relation(old_relation_bkp) -%}
