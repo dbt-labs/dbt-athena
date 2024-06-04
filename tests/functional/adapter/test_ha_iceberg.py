@@ -67,6 +67,10 @@ class TestTableIcebergTableUnique:
         )
         assert alter_statement in out
 
+        second_models_records_count = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
+
+        assert second_models_records_count == 2
+
 
 # in case s3_data_naming=table for iceberg a compile error must be raised
 # with this test we want to be sure that this type of behavior is not violated
