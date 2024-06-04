@@ -146,10 +146,9 @@
         {{ rename_relation(tmp_relation, target_relation) }}
 
         -- old_relation_bkp might not exists in case we have a switch from hive to iceberg
-        -- if we are here old_relation_bkp was created, so we can drop it
-        -- old_bkp_relation cannot be used here, because it could returns None due to caching issues
-
-        {%- if old_relation_bkp is not none -%}
+        -- we cannot use old_bkp_relation, because result could be cached by dbt, we use instead glue apis
+        {%- set old_relation_bkp_exists = adapter.get_glue_table(old_relation_bkp) -%}
+        {%- if old_relation_bkp_exists is not none -%}
           {%- do drop_relation(old_relation_bkp) -%}
         {%- endif -%}
 
