@@ -65,7 +65,11 @@ class TestTableIcebergTableUnique:
             f"alter table `awsdatacatalog`.`{project.test_schema}`.`{relation_name}` "
             f"rename to `{project.test_schema}`.`{relation_name}__bkp`"
         )
+        delete_bkp_table_log = (
+            f'Deleted table from glue catalog: "awsdatacatalog"."{project.test_schema}"."{relation_name}__bkp"'
+        )
         assert alter_statement in out
+        assert delete_bkp_table_log in out
 
         second_models_records_count = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
 
