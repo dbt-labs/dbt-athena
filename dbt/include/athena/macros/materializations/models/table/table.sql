@@ -147,9 +147,10 @@
         -- publish the target table doing a final renaming
         {{ rename_relation(tmp_relation, target_relation) }}
 
-        -- if we are in this section of the code, the old relation exist and it's an iceberg table
-        -- therefore we can drop the old relation backup
-        -- when the old_relation_table_type is a not iceberg table, we cannot backup, and there isn't anything to drop
+        -- if old relation is iceberg_table, we have a backup
+        -- therefore we can drop the old relation backup, in all other cases there is nothing to do
+        -- in case of switch from hive to iceberg the backup table do not exists
+        -- in case of fist run the backup table do not exists
         {%- if old_relation_table_type.value == 'iceberg_table' -%}
           {%- do drop_relation(old_relation_bkp) -%}
         {%- endif -%}
