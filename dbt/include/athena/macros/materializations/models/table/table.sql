@@ -132,13 +132,13 @@
           {% endcall %}
         {%- endif -%}
 
-        {%- set old_relation_table_type = adapter.get_glue_table_type(old_relation) if old_relation else none -%}
+        {%- set old_relation_table_type = adapter.get_glue_table_type(old_relation).value if old_relation else none -%}
 
         -- we cannot use old_bkp_relation, because it returns None if the relation doesn't exist
         -- we need to create a python object via the make_temp_relation instead
         {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
 
-        {%- if old_relation_table_type.value == 'iceberg_table' -%}
+        {%- if old_relation_table_type == 'iceberg_table' -%}
           {{ rename_relation(old_relation, old_relation_bkp) }}
         {%- else  -%}
           {%- do drop_relation_glue(old_relation) -%}
