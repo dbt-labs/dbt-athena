@@ -150,7 +150,7 @@
         -- if old relation is iceberg_table, we have a backup
         -- therefore we can drop the old relation backup, in all other cases there is nothing to do
         -- in case of switch from hive to iceberg the backup table do not exists
-        -- in case of fist run the backup table do not exists
+        -- in case of first run, the backup table do not exists
         {%- if old_relation_table_type == 'iceberg_table' -%}
           {%- do drop_relation(old_relation_bkp) -%}
         {%- endif -%}
