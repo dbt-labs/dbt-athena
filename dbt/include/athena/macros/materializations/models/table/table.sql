@@ -139,21 +139,29 @@
           {% endcall %}
         {%- endif -%}
 
-        {%- set old_relation_table_type = adapter.get_glue_table_type(old_relation) -%}
+        {%- set old_relation_table_type = adapter.get_glue_table_type(old_relation).value if old_relation else none -%}
 
-        {%- if old_relation_table_type == 'iceberg' -%}
-          {{ rename_relation(old_relation, old_bkp_relation) }}
+        -- we cannot use old_bkp_relation, because it returns None if the relation doesn't exist
+        -- we need to create a python object via the make_temp_relation instead
+        {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
+
+        {%- if old_relation_table_type == 'iceberg_table' -%}
+          {{ rename_relation(old_relation, old_relation_bkp) }}
         {%- else  -%}
           {%- do drop_relation_glue(old_relation) -%}
         {%- endif -%}
 
+        -- publish the target table doing a final renaming
         {{ rename_relation(tmp_relation, target_relation) }}
 
-        -- old_bkp_relation might not exists in case we have a switch from hive to iceberg
-        -- we prevent to drop something that doesn't exist even if drop_relation is able to deal with not existing tables
-        {%- if old_bkp_relation is not none -%}
-          {%- do drop_relation(old_bkp_relation) -%}
+        -- if old relation is iceberg_table, we have a backup
+        -- therefore we can drop the old relation backup, in all other cases there is nothing to do
+        -- in case of switch from hive to iceberg the backup table do not exists
+        -- in case of first run, the backup table do not exists
+        {%- if old_relation_table_type == 'iceberg_table' -%}
+          {%- do drop_relation(old_relation_bkp) -%}
         {%- endif -%}
+
       {%- endif -%}
     {%- endif -%}
 
