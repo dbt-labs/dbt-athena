@@ -142,7 +142,10 @@
     {% endif %}
     )
     as
-      {{ compiled_code }}
+      SELECT *
+      FROM (
+        {{ compiled_code }}
+      )
 
       {% if with_no_data %}
       WITH NO DATA
