@@ -414,16 +414,11 @@ class TestAthenaAdapter:
         mock_aws_service.create_database("baz")
         mock_aws_service.create_table(table_name="bar", database_name="foo")
         mock_aws_service.create_table(table_name="bar", database_name="quux")
-        mock_aws_service.create_table_without_type(table_name="qux", database_name="baz")
         mock_information_schema = mock.MagicMock()
         mock_information_schema.database = "awsdatacatalog"
 
         self.adapter.acquire_connection("dummy")
-        actual = self.adapter._get_one_catalog(
-            mock_information_schema,
-            {"foo", "quux", "baz"},
-            self.used_schemas,
-        )
+        actual = self.adapter._get_one_catalog(mock_information_schema, {"foo", "quux"}, self.used_schemas)
 
         expected_column_names = (
             "table_database",
@@ -443,13 +438,15 @@ class TestAthenaAdapter:
             ("awsdatacatalog", "quux", "bar", "table", None, "id", 0, "string", None),
             ("awsdatacatalog", "quux", "bar", "table", None, "country", 1, "string", None),
             ("awsdatacatalog", "quux", "bar", "table", None, "dt", 2, "date", None),
-            ("awsdatacatalog", "baz", "qux", "table", None, "id", 0, "string", None),
-            ("awsdatacatalog", "baz", "qux", "table", None, "country", 1, "string", None),
         ]
         assert actual.column_names == expected_column_names
         assert len(actual.rows) == len(expected_rows)
         for row in actual.rows.values():
             assert row.values() in expected_rows
+
+        mock_aws_service.create_table_without_type(table_name="qux", database_name="baz")
+        with pytest.raises(ValueError):
+            self.adapter._get_one_catalog(mock_information_schema, {"baz"}, self.used_schemas)
 
     @mock_aws
     def test__get_one_catalog_by_relations(self, mock_aws_service):

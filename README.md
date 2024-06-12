@@ -119,7 +119,7 @@ You can either:
 A dbt profile can be configured to run against AWS Athena using the following configuration:
 
 | Option                | Description                                                                              | Required? | Example                                    |
-| --------------------- | ---------------------------------------------------------------------------------------- | --------- | ------------------------------------------ |
+|-----------------------|------------------------------------------------------------------------------------------|-----------|--------------------------------------------|
 | s3_staging_dir        | S3 location to store Athena query results and metadata                                   | Required  | `s3://bucket/dbt/`                         |
 | s3_data_dir           | Prefix for storing tables, if different from the connection's `s3_staging_dir`           | Optional  | `s3://bucket2/dbt/`                        |
 | s3_data_naming        | How to generate table paths in `s3_data_dir`                                             | Optional  | `schema_table_unique`                      |
@@ -134,8 +134,9 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | aws_profile_name      | Profile to use from your AWS shared credentials file                                     | Optional  | `my-profile`                               |
 | work_group            | Identifier of Athena workgroup                                                           | Optional  | `my-custom-workgroup`                      |
 | num_retries           | Number of times to retry a failing query                                                 | Optional  | `3`                                        |
-| spark_work_group      | Identifier of Athena Spark workgroup for running Python models                           | Optional  | `my-spark-workgroup`                       |
 | num_boto3_retries     | Number of times to retry boto3 requests (e.g. deleting S3 files for materialized tables) | Optional  | `5`                                        |
+| num_iceberg_retries   | Number of times to retry iceberg commit queries to fix ICEBERG_COMMIT_ERROR              | Optional  | `0`                                        |
+| spark_work_group      | Identifier of Athena Spark workgroup for running Python models                           | Optional  | `my-spark-workgroup`                       |
 | seed_s3_upload_args   | Dictionary containing boto3 ExtraArgs when uploading to S3                               | Optional  | `{"ACL": "bucket-owner-full-control"}`     |
 | lf_tags_database      | Default LF tags for new database if it's created by dbt                                  | Optional  | `tag_key: tag_value`                       |
 
@@ -213,6 +214,10 @@ athena:
   - For incremental models using insert overwrite strategy on hive table
   - Replace the __dbt_tmp suffix used as temporary table name suffix by a unique uuid
   - Useful if you are looking to run multiple dbt build inserting in the same table in parallel
+- `temp_schema` (`default=none`)
+  - For incremental models, it allows to define a schema to hold temporary create statements
+  used in incremental model runs
+  - Schema will be created in the model target database if does not exist
 - `lf_tags_config` (`default=none`)
   - [AWS Lake Formation](#aws-lake-formation-integration) tags to associate with the table and columns
   - `enabled` (`default=False`) whether LF tags management is enabled for a model
