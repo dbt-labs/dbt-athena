@@ -846,6 +846,8 @@ def model(dbt, spark_session):
  runs on Trino.
 - Snapshot materializations are not supported.
 - Spark can only reference tables within the same catalog.
+- For tables created outside of the dbt tool, be sure to populate the location field or dbt will throw an error
+when trying to create the table.
 
 [pre-installed list]: https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark-preinstalled-python-libraries.html
 [imported manually]: https://docs.aws.amazon.com/athena/latest/ug/notebooks-import-files-libraries.html
