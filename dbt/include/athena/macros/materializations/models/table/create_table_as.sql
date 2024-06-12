@@ -148,7 +148,7 @@
       )
 
       {% if with_no_data %}
-      WITH NO DATA
+      WITH NO DATA;
       {% endif %}
 
   {%- endif -%}
