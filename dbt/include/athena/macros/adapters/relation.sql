@@ -38,9 +38,7 @@
 
 {% macro set_table_relation_schema(relation, schema) %}
   {%- if temp_schema is not none -%}
-    {%- set relation = relation.incorporate(path={
-      "schema": schema
-      }) -%}
+    {%- set relation = relation.incorporate(path={"schema": schema}) -%}
     {%- do create_schema(relation) -%}
   {% endif %}
   {{ return(relation) }}
