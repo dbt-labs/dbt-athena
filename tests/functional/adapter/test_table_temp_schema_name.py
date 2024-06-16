@@ -104,9 +104,23 @@ class TestTableIcebergTableUnique:
         assert temp_schema_name in model_run_2_result_table_name
 
         athena_running_alter_statements = extract_running_ddl_statements(out, relation_name, "alter table")
-        assert len(athena_running_alter_statements) == 1
+        """2 rename statements: to __bck and from __ha and
+        # ['alter table `..._test_table_temp_schema_name`.`models__iceberg_table`
+            rename to `..._test_table_temp_schema_name_tmp`.`models__iceberg_table__bkp`'
+         , 'alter table ..._test_table_temp_schema_name_tmp`.`models__iceberg_table__ha`
+            rename to `..._test_table_temp_schema_name`.`models__iceberg_table`']
+        """
+        assert len(athena_running_alter_statements) == 2
 
         athena_running_alter_statement_tables = extract_rename_statement_table_names(athena_running_alter_statements[0])
+        athena_running_alter_statement_origin_table = athena_running_alter_statement_tables.get("alter_table_names")[0]
+        athena_running_alter_statement_renamed_to_table = athena_running_alter_statement_tables.get(
+            "rename_to_table_names"
+        )[0]
+        assert project.test_schema in athena_running_alter_statement_origin_table
+        assert athena_running_alter_statement_renamed_to_table == f"`{temp_schema_name}`.`{relation_name}__bkp`"
+
+        athena_running_alter_statement_tables = extract_rename_statement_table_names(athena_running_alter_statements[1])
         athena_running_alter_statement_origin_table = athena_running_alter_statement_tables.get("alter_table_names")[0]
         athena_running_alter_statement_renamed_to_table = athena_running_alter_statement_tables.get(
             "rename_to_table_names"
