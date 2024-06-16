@@ -41,7 +41,7 @@
     {%- set relation = relation.incorporate(path={
       "schema": schema
       }) -%}
-      {%- do create_schema(relation) -%}
+    {%- do create_schema(relation) -%}
   {% endif %}
   {{ return(relation) }}
 {% endmacro %}
