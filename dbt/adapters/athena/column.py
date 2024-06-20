@@ -53,12 +53,12 @@ class AthenaColumn(Column):
         # Match either `array<inner_type>` or `array(inner_type)`. Don't bother
         # parsing nested arrays here, since we will expect the caller to be
         # responsible for formatting the inner type, including nested arrays
-        pattern = r'^array[<(](.*)[>)]$'
+        pattern = r"^array[<(](.*)[>)]$"
         match = re.match(pattern, self.dtype)
         if match:
             return match.group(1)
         # If for some reason there's no match, fall back to the original string
-        return dtype
+        return self.dtype
 
     def string_size(self) -> int:
         if not self.is_string():
@@ -90,7 +90,7 @@ class AthenaColumn(Column):
                 dtype=inner_type,
                 char_size=self.char_size,
                 numeric_precision=self.numeric_precision,
-                numeric_scale=self.numeric_scale
+                numeric_scale=self.numeric_scale,
             )
             return self.array_type(inner_type_col.data_type)
 
