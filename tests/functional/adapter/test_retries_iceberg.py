@@ -101,7 +101,7 @@ class TestIcebergRetriesEnabled:
     @pytest.fixture(scope="class")
     def dbt_profile_target(self):
         profile = copy.deepcopy(base_dbt_profile)
-        profile["num_iceberg_retries"] = 1
+        profile["num_iceberg_retries"] = 5
         return profile
 
     @pytest.fixture(scope="class")
