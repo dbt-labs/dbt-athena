@@ -101,8 +101,8 @@ class TestIcebergRetriesEnabled:
     @pytest.fixture(scope="class")
     def dbt_profile_target(self):
         profile = copy.deepcopy(base_dbt_profile)
-        # we setup the retries to the same number as the parallelism
-        profile["num_iceberg_retries"] = 10
+        # we set the iceberg retries to the same number of parallelism to make sure that the retries are working
+        profile["num_iceberg_retries"] = PARALLELISM
         return profile
 
     @pytest.fixture(scope="class")
