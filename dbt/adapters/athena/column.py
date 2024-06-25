@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from typing import ClassVar, Dict
 
@@ -28,6 +29,9 @@ class AthenaColumn(Column):
     def is_timestamp(self) -> bool:
         return self.dtype.lower() in {"timestamp"}
 
+    def is_array(self) -> bool:
+        return self.dtype.lower().startswith("array")  # type: ignore
+
     @classmethod
     def string_type(cls, size: int) -> str:
         return f"varchar({size})" if size > 0 else "varchar"
@@ -38,6 +42,23 @@ class AthenaColumn(Column):
 
     def timestamp_type(self) -> str:
         return "timestamp(6)" if self.is_iceberg() else "timestamp"
+
+    @classmethod
+    def array_type(cls, inner_type: str) -> str:
+        return f"array({inner_type})"
+
+    def array_inner_type(self) -> str:
+        if not self.is_array():
+            raise DbtRuntimeError("Called array_inner_type() on non-array field!")
+        # Match either `array<inner_type>` or `array(inner_type)`. Don't bother
+        # parsing nested arrays here, since we will expect the caller to be
+        # responsible for formatting the inner type, including nested arrays
+        pattern = r"^array[<(](.*)[>)]$"
+        match = re.match(pattern, self.dtype)
+        if match:
+            return match.group(1)
+        # If for some reason there's no match, fall back to the original string
+        return self.dtype  # type: ignore
 
     def string_size(self) -> int:
         if not self.is_string():
@@ -58,5 +79,19 @@ class AthenaColumn(Column):
 
         if self.is_timestamp():
             return self.timestamp_type()
+
+        if self.is_array():
+            # Resolve the inner type of the array, using an AthenaColumn
+            # instance to properly convert the inner type. Note that this will
+            # cause recursion in cases of nested arrays
+            inner_type = self.array_inner_type()
+            inner_type_col = AthenaColumn(
+                column=self.column,
+                dtype=inner_type,
+                char_size=self.char_size,
+                numeric_precision=self.numeric_precision,
+                numeric_scale=self.numeric_scale,
+            )
+            return self.array_type(inner_type_col.data_type)
 
         return self.dtype  # type: ignore
