@@ -18,8 +18,8 @@ models__table_base_model = """
 select
     1 as id,
     'test 1' as name
-{%- if is_incremental() -%},
-    current_date as updated_at
+{%- if is_incremental() -%}
+    ,current_date as updated_at
 {%- endif -%}
 """
 
