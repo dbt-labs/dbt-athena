@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from dbt.contracts.results import RunStatus
@@ -8,8 +10,8 @@ models__table_base_model = """
   config(
     materialized='incremental',
     incremental_strategy='append',
-    on_schema_change=var("on_schema_change_strategy"),
-    table_type='hive',
+    on_schema_change=var("on_schema_change"),
+    table_type=var("table_type"),
   )
 }}
 
@@ -22,24 +24,25 @@ select
 """
 
 
-class TestHiveOnSchemaChange:
+class TestOnSchemaChange:
     @pytest.fixture(scope="class")
     def models(self):
-        return {
-            "hive_on_schema_change_sync_all_columns.sql": models__table_base_model,
-            "hive_on_schema_change_append_new_columns.sql": models__table_base_model,
-            "hive_on_schema_change_ignore.sql": models__table_base_model,
-            "hive_on_schema_change_fail.sql": models__table_base_model,
-        }
+        models = {}
+        for table_type in ["hive", "iceberg"]:
+            for on_schema_change in ["sync_all_columns", "append_new_columns", "ignore", "fail"]:
+                models[f"{table_type}_on_schema_change_{on_schema_change}.sql"] = models__table_base_model
+        return models
 
     def _column_names(self, project, relation_name):
         result = project.run_sql(f"show columns from {relation_name}", fetch="all")
         column_names = [row[0].strip() for row in result]
         return column_names
 
-    def test__sync_all_columns(self, project):
-        relation_name = "hive_on_schema_change_sync_all_columns"
-        args = ["run", "--select", relation_name, "--vars", '{"on_schema_change_strategy": "sync_all_columns"}']
+    @pytest.mark.parametrize("table_type", ["hive", "iceberg"])
+    def test__sync_all_columns(self, project, table_type):
+        relation_name = f"{table_type}_on_schema_change_sync_all_columns"
+        vars = {"on_schema_change": "sync_all_columns", "table_type": table_type}
+        args = ["run", "--select", relation_name, "--vars", json.dumps(vars)]
 
         model_run_initial = run_dbt(args)
         assert model_run_initial.results[0].status == RunStatus.Success
@@ -50,9 +53,11 @@ class TestHiveOnSchemaChange:
         new_column_names = self._column_names(project, relation_name)
         assert new_column_names == ["id", "name", "updated_at"]
 
-    def test__append_new_columns(self, project):
-        relation_name = "hive_on_schema_change_append_new_columns"
-        args = ["run", "--select", relation_name, "--vars", '{"on_schema_change_strategy": "append_new_columns"}']
+    @pytest.mark.parametrize("table_type", ["hive", "iceberg"])
+    def test__append_new_columns(self, project, table_type):
+        relation_name = f"{table_type}_on_schema_change_append_new_columns"
+        vars = {"on_schema_change": "append_new_columns", "table_type": table_type}
+        args = ["run", "--select", relation_name, "--vars", json.dumps(vars)]
 
         model_run_initial = run_dbt(args)
         assert model_run_initial.results[0].status == RunStatus.Success
@@ -63,9 +68,11 @@ class TestHiveOnSchemaChange:
         new_column_names = self._column_names(project, relation_name)
         assert new_column_names == ["id", "name", "updated_at"]
 
-    def test__ignore(self, project):
-        relation_name = "hive_on_schema_change_ignore"
-        args = ["run", "--select", relation_name, "--vars", '{"on_schema_change_strategy": "ignore"}']
+    @pytest.mark.parametrize("table_type", ["hive", "iceberg"])
+    def test__ignore(self, project, table_type):
+        relation_name = f"{table_type}_on_schema_change_ignore"
+        vars = {"on_schema_change": "ignore", "table_type": table_type}
+        args = ["run", "--select", relation_name, "--vars", json.dumps(vars)]
 
         model_run_initial = run_dbt(args)
         assert model_run_initial.results[0].status == RunStatus.Success
@@ -76,9 +83,11 @@ class TestHiveOnSchemaChange:
         new_column_names = self._column_names(project, relation_name)
         assert new_column_names == ["id", "name"]
 
-    def test__fail(self, project):
-        relation_name = "hive_on_schema_change_fail"
-        args = ["run", "--select", relation_name, "--vars", '{"on_schema_change_strategy": "fail"}']
+    @pytest.mark.parametrize("table_type", ["hive", "iceberg"])
+    def test__fail(self, project, table_type):
+        relation_name = f"{table_type}_on_schema_change_fail"
+        vars = {"on_schema_change": "fail", "table_type": table_type}
+        args = ["run", "--select", relation_name, "--vars", json.dumps(vars)]
 
         model_run_initial = run_dbt(args)
         assert model_run_initial.results[0].status == RunStatus.Success
