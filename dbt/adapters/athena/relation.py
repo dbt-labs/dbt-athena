@@ -26,6 +26,13 @@ class AthenaIncludePolicy(Policy):
     identifier: bool = True
 
 
+@dataclass
+class AthenaHiveIncludePolicy(Policy):
+    database: bool = False
+    schema: bool = True
+    identifier: bool = True
+
+
 @dataclass(frozen=True, eq=False, repr=False)
 class AthenaRelation(BaseRelation):
     quote_character: str = '"'  # Presto quote character
@@ -42,10 +49,13 @@ class AthenaRelation(BaseRelation):
         - https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DDL
         """
 
-        old_value = self.quote_character
+        old_quote_character = self.quote_character
         object.__setattr__(self, "quote_character", "`")  # Hive quote char
+        old_include_policy = self.include_policy
+        object.__setattr__(self, "include_policy", AthenaHiveIncludePolicy())
         rendered = self.render()
-        object.__setattr__(self, "quote_character", old_value)
+        object.__setattr__(self, "quote_character", old_quote_character)
+        object.__setattr__(self, "include_policy", old_include_policy)
         return str(rendered)
 
     def render_pure(self) -> str:

@@ -62,7 +62,7 @@ class TestTableIcebergTableUnique:
         out, _ = capsys.readouterr()
         # in case of 2nd run we expect that the target table is renamed to __bkp
         alter_statement = (
-            f"alter table `awsdatacatalog`.`{project.test_schema}`.`{relation_name}` "
+            f"alter table `{project.test_schema}`.`{relation_name}` "
             f"rename to `{project.test_schema}`.`{relation_name}__bkp`"
         )
         delete_bkp_table_log = (
