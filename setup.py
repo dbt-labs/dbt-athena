@@ -59,7 +59,7 @@ setup(
         "pyathena>=2.25,<4.0",
         "mmh3>=4.0.1,<4.2.0",
         "pydantic>=1.10,<3.0",
-        "tenacity~=8.2",
+        "tenacity>=8.2,<10.0",
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
