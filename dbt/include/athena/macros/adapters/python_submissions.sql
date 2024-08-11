@@ -1,20 +1,32 @@
 {%- macro athena__py_save_table_as(compiled_code, target_relation, optional_args={}) -%}
-    {% set location = optional_args.get("location") %}
-    {% set format = optional_args.get("format", "parquet") %}
-    {% set mode = optional_args.get("mode", "overwrite") %}
-    {% set write_compression = optional_args.get("write_compression", "snappy") %}
-    {% set partitioned_by = optional_args.get("partitioned_by") %}
-    {% set bucketed_by = optional_args.get("bucketed_by") %}
-    {% set sorted_by = optional_args.get("sorted_by") %}
-    {% set merge_schema = optional_args.get("merge_schema", true) %}
-    {% set bucket_count = optional_args.get("bucket_count") %}
-    {% set field_delimiter = optional_args.get("field_delimiter") %}
-    {% set spark_ctas = optional_args.get("spark_ctas", "") %}
+    {%- set location = optional_args.get("location") -%}
+    {%- set format = optional_args.get("format", "parquet") -%}
+    {%- set mode = optional_args.get("mode", "overwrite") -%}
+    {%- set write_compression = optional_args.get("write_compression", "snappy") -%}
+    {%- set partitioned_by = optional_args.get("partitioned_by") -%}
+    {%- set bucketed_by = optional_args.get("bucketed_by") -%}
+    {%- set sorted_by = optional_args.get("sorted_by") -%}
+    {%- set merge_schema = optional_args.get("merge_schema", true) -%}
+    {%- set bucket_count = optional_args.get("bucket_count") -%}
+    {%- set field_delimiter = optional_args.get("field_delimiter") -%}
+    {%- set spark_ctas = optional_args.get("spark_ctas", "") -%}
+    {%- set submission_method = optional_args.get("submission_method", "") -%}
+    {%- set table_type = optional_args.get("table_type", "") -%}
+    {%- set spark_properties = optional_args.get("spark_properties", "") -%}
 
+{{-"\n"-}}
 import pyspark
 
+{% if submission_method == "emr_serverless" -%}
 
+{{-"\n"-}}
+spark = pyspark.sql.SparkSession.builder.appName("dbt_{{ target_relation.schema}}_{{ target_relation.identifier }}").enableHiveSupport().getOrCreate()
+
+{%- endif -%}
+
+{{-"\n"-}}
 {{ compiled_code }}
+
 def materialize(spark_session, df, target_relation):
     import pandas
     if isinstance(df, pyspark.sql.dataframe.DataFrame):
@@ -61,17 +73,18 @@ materialize(spark, df, dbt.this)
 {%- endmacro -%}
 
 {%- macro athena__py_execute_query(query) -%}
-{{ athena__py_get_spark_dbt_object() }}
-
+{{-"\n"-}}
 def execute_query(spark_session):
-    spark_session.sql("""{{ query }}""")
+    spark_session.sql("""
+    {{ query }}
+    """)
     return "OK"
 
-dbt = SparkdbtObj()
 execute_query(spark)
 {%- endmacro -%}
 
 {%- macro athena__py_get_spark_dbt_object() -%}
+{{-"\n"-}}
 def get_spark_df(identifier):
     """
     Override the arguments to ref and source dynamically

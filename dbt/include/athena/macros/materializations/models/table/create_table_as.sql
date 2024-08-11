@@ -18,6 +18,8 @@
   {%- set s3_data_naming = config.get('s3_data_naming', default=target.s3_data_naming) -%}
   {%- set s3_tmp_table_dir = config.get('s3_tmp_table_dir', default=target.s3_tmp_table_dir) -%}
   {%- set extra_table_properties = config.get('table_properties', default=none) -%}
+  {%- set submission_method = config.get('submission_method', default=none) -%}
+  {%- set spark_properties = config.get('spark_properties', default=none) -%}
 
   {%- set location_property = 'external_location' -%}
   {%- set partition_property = 'partitioned_by' -%}
@@ -48,7 +50,7 @@
       {%- set spark_ctas -%}
           create table {{ relation.schema | replace('\"', '`') }}.{{ relation.identifier | replace('\"', '`') }}
           using iceberg
-          location '{{ location }}/'
+          location '{{ location }}'
 
           {%- if partitioned_by is not none %}
           partitioned by (
@@ -85,7 +87,10 @@
           'write_compression': write_compression,
           'bucket_count': bucket_count,
           'field_delimiter': field_delimiter,
-          'spark_ctas': spark_ctas
+          'spark_ctas': spark_ctas,
+          'submission_method': submission_method,
+          'table_type': table_type,
+          'spark_properties': spark_properties,
         }
       )
     }}

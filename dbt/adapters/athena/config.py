@@ -1,6 +1,7 @@
 import importlib.metadata
 from functools import lru_cache
 from typing import Any, Dict
+import json
 
 from botocore import config
 
@@ -11,6 +12,8 @@ from dbt.adapters.athena.constants import (
     DEFAULT_SPARK_EXECUTOR_DPU_SIZE,
     DEFAULT_SPARK_MAX_CONCURRENT_DPUS,
     DEFAULT_SPARK_PROPERTIES,
+    ENFORCE_SPARK_PROPERTIES,
+    EMR_SERVERLESS_SPARK_PROPERTIES,
     LOGGER,
 )
 
@@ -23,9 +26,9 @@ def get_boto3_config(num_retries: int) -> config.Config:
     )
 
 
-class AthenaSparkSessionConfig:
+class SparkSessionConfig:
     """
-    A helper class to manage Athena Spark Session Configuration.
+    A helper class to manage Spark Session Configuration.
     """
 
     def __init__(self, config: Dict[str, Any], **session_kwargs: Any) -> None:
@@ -90,6 +93,21 @@ class AthenaSparkSessionConfig:
         LOGGER.debug(f"Setting polling_interval: {polling_interval}")
         return float(polling_interval)
 
+    def try_parse_json(self, config) -> dict:
+        if isinstance(config, str):
+            try:
+                config = json.loads(config)
+            except json.JSONDecodeError:
+                raise ValueError(f"Invalid JSON string: {config}")
+
+        return config
+
+
+class AthenaSparkSessionConfig(SparkSessionConfig):
+    """
+    A helper class to manage Athena Spark Session Configuration.
+    """
+
     def set_engine_config(self) -> Dict[str, Any]:
         """Set the engine configuration.
 
@@ -106,9 +124,11 @@ class AthenaSparkSessionConfig:
         spark_requester_pays = self.config.get("spark_requester_pays", False)
 
         default_spark_properties: Dict[str, str] = dict(
-            **DEFAULT_SPARK_PROPERTIES.get(table_type)
-            if table_type.lower() in ["iceberg", "hudi", "delta_lake"]
-            else {},
+            **(
+                DEFAULT_SPARK_PROPERTIES.get(table_type)
+                if table_type.lower() in ["iceberg", "hudi", "delta_lake"]
+                else {}
+            ),
             **DEFAULT_SPARK_PROPERTIES.get("spark_encryption") if spark_encryption else {},
             **DEFAULT_SPARK_PROPERTIES.get("spark_cross_account_catalog") if spark_cross_account_catalog else {},
             **DEFAULT_SPARK_PROPERTIES.get("spark_requester_pays") if spark_requester_pays else {},
@@ -121,13 +141,19 @@ class AthenaSparkSessionConfig:
             "SparkProperties": default_spark_properties,
         }
         engine_config = self.config.get("engine_config", None)
+        engine_config = self.try_parse_json(engine_config)
 
         if engine_config:
-            provided_spark_properties = engine_config.get("SparkProperties", None)
+            provided_spark_properties = self.config.get("spark_properties", engine_config.get("SparkProperties", None))
+            provided_spark_properties = self.try_parse_json(provided_spark_properties)
             if provided_spark_properties:
                 default_spark_properties.update(provided_spark_properties)
+                # Enforce certain properties
+                for key in ENFORCE_SPARK_PROPERTIES:
+                    if key in default_spark_properties:
+                        default_spark_properties[key] = ENFORCE_SPARK_PROPERTIES[key]
                 default_engine_config["SparkProperties"] = default_spark_properties
-                engine_config.pop("SparkProperties")
+                engine_config.pop("SparkProperties", None)
             default_engine_config.update(engine_config)
         engine_config = default_engine_config
 
@@ -157,3 +183,110 @@ class AthenaSparkSessionConfig:
             raise KeyError("The lowest value supported for MaxConcurrentDpus is 2")
         LOGGER.debug(f"Setting engine configuration: {engine_config}")
         return engine_config
+
+
+class EmrServerlessSparkSessionConfig(SparkSessionConfig):
+    """
+    A helper class to manage EMR Serverless Spark Session Configuration.
+    """
+
+    def get_s3_uri(self) -> str:
+        """
+        Get the s3_staging_dir bucket for the configuration.
+
+        Returns:
+            Any: The s3_staging_dir bucket value.
+
+        Raises:
+            KeyError: If the s3_staging_dir value is not found in either `self.config`
+                or `self.session_kwargs`.
+        """
+        try:
+            return self.config["s3_staging_dir"]
+        except KeyError:
+            try:
+                return self.session_kwargs["s3_staging_dir"]
+            except KeyError:
+                raise ValueError("s3_staging_dir is required configuration")
+
+    def get_emr_job_execution_role_arn(self) -> str:
+        """
+        Get the emr_job_execution_role_arn for the configuration.
+
+        Returns:
+            Any: The emr_job_execution_role_arn value.
+
+        Raises:
+            KeyError: If the emr_job_execution_role_arn value is not found in either `self.config`
+                or `self.session_kwargs`.
+        """
+        try:
+            return self.config["emr_job_execution_role_arn"]
+        except KeyError:
+            try:
+                return self.session_kwargs["emr_job_execution_role_arn"]
+            except KeyError:
+                raise ValueError("emr_job_execution_role_arn is required configuration for EMR serverless job")
+
+    def get_emr_application(self) -> dict:
+        """
+        Get the emr_application_id or emr_application_name for the configuration.
+
+        Returns:
+            Any: The emr_application_id or emr_application_name value.
+
+        Raises:
+            KeyError: If the emr_application_id or emr_application_name value is not found in either `self.config`
+                or `self.session_kwargs`.
+        """
+        if self.config.get("emr_application_id", None):
+            return {"emr_application_id": self.config["emr_application_id"]}
+        elif self.config.get("emr_application_name", None):
+            return {"emr_application_name": self.config["emr_application_name"]}
+        elif self.session_kwargs.get("emr_application_id", None):
+            return {"emr_application_id": self.session_kwargs["emr_application_id"]}
+        elif self.session_kwargs.get("emr_application_name", None):
+            return {"emr_application_name": self.session_kwargs["emr_application_name"]}
+        else:
+            raise ValueError(
+                "emr_application_id or emr_application_name is required configuration for EMR serverless job"
+            )
+
+    def get_spark_properties(self) -> Dict[str, str]:
+        """
+        Gets the default spark properties after updated with the provided configuration from parsed model
+
+        Returns:
+            Dict[str, str]: Spark properties
+        """
+        table_type = self.config.get("table_type", "hive")
+        spark_encryption = self.config.get("spark_encryption", False)
+        default_spark_properties: Dict[str, str] = dict(
+            **EMR_SERVERLESS_SPARK_PROPERTIES.get("default"),
+            **(
+                EMR_SERVERLESS_SPARK_PROPERTIES.get(table_type)
+                if table_type.lower() in ["iceberg", "hudi", "delta_lake"]
+                else {}
+            ),
+            **EMR_SERVERLESS_SPARK_PROPERTIES.get("spark_encryption") if spark_encryption else {},
+        )
+
+        provided_spark_properties = self.config.get("spark_properties", None)
+        provided_spark_properties = self.try_parse_json(provided_spark_properties)
+
+        if provided_spark_properties:
+            spark_jars = provided_spark_properties.get("spark.jars", None)
+            if spark_jars:
+                jar_list = spark_jars.split(",")
+                def_spark_jars = default_spark_properties.get("spark.jars", "")
+                def_jar_list = def_spark_jars.split(",")
+                jar_updated_list = list(set([item.strip() for item in jar_list + def_jar_list if item.strip()]))
+                final_jars = ", ".join(jar_updated_list)
+                provided_spark_properties["spark.jars"] = final_jars
+            default_spark_properties.update(provided_spark_properties)
+            # Enforce certain properties
+            for key in ENFORCE_SPARK_PROPERTIES:
+                if key in default_spark_properties:
+                    default_spark_properties[key] = ENFORCE_SPARK_PROPERTIES[key]
+        return default_spark_properties
+

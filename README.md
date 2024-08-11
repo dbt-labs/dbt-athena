@@ -61,7 +61,8 @@
   - On Iceberg tables:
     - Supports the use of `unique_key` only with the `merge` strategy
     - Supports the `append` strategy
-  - On Hive tables:
+    - Python models support the `insert_overwrite` strategy with dynamic partitionOverwriteMode (does not support static)
+  - On Hive tables :
     - Supports two incremental update strategies: `insert_overwrite` and `append`
     - Does **not** support the use of `unique_key`
 - Supports [snapshots][snapshots]

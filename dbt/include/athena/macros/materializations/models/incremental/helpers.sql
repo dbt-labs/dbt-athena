@@ -1,10 +1,17 @@
-{% macro validate_get_incremental_strategy(raw_strategy, table_type) %}
+{% macro validate_get_incremental_strategy(raw_strategy, table_type, model_language = "sql") %}
   {%- if table_type == 'iceberg' -%}
+     {% if model_language == 'python' %}
+      {% set valid_strategies = ['append', 'merge', 'insert_overwrite'] %}
+      {% set strategy_message_part = "'append', 'merge' (v3 only), or 'insert_overwrite'" %}
+    {% else %}
+      {% set valid_strategies = ['append', 'merge'] %}
+      {% set strategy_message_part = "'append' or 'merge' (v3 only)" %}
+    {% endif %}
     {% set invalid_strategy_msg -%}
       Invalid incremental strategy provided: {{ raw_strategy }}
-      Incremental models on Iceberg tables only work with 'append' or 'merge' (v3 only) strategy.
+      Incremental [{{ model_language }}] models on Iceberg tables only work with {{ strategy_message_part }} strategy.
     {%- endset %}
-    {% if raw_strategy not in ['append', 'merge'] %}
+    {% if raw_strategy not in valid_strategies %}
       {% do exceptions.raise_compiler_error(invalid_strategy_msg) %}
     {% endif %}
   {%- else -%}
@@ -39,6 +46,17 @@
     {%- endfor -%}
 {% endmacro %}
 
+{% macro iceberg_incremental_insert_overwrite(
+    tmp_relation,
+    target_relation
+  )
+%}
+      {# Only support dynamic partition overwrite mode and not static as static is nothing but a non incremental simple table materialization #}
+      INSERT  OVERWRITE {{ target_relation.schema}}.{{ target_relation.identifier }}
+      SELECT  *
+      FROM    {{ tmp_relation.schema}}.{{ tmp_relation.identifier }}
+
+{%- endmacro %}
 
 {% macro incremental_insert(
     on_schema_change,

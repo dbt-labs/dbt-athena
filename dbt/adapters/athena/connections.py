@@ -70,6 +70,9 @@ class AthenaCredentials(Credentials):
     s3_data_naming: str = "schema_table_unique"
     spark_work_group: Optional[str] = None
     s3_tmp_table_dir: Optional[str] = None
+    emr_job_execution_role_arn: Optional[str] = None
+    emr_application_id: Optional[str] = None
+    emr_application_name: Optional[str] = None
     # Unfortunately we can not just use dict, must be Dict because we'll get the following error:
     # Credentials in profile "athena", target "athena" invalid: Unable to create schema for 'dict'
     seed_s3_upload_args: Optional[Dict[str, Any]] = None
@@ -105,6 +108,9 @@ class AthenaCredentials(Credentials):
             "seed_s3_upload_args",
             "lf_tags_database",
             "spark_work_group",
+            "emr_job_execution_role_arn",
+            "emr_application_id",
+            "emr_application_name",
         )
 
 

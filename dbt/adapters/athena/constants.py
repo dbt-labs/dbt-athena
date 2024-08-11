@@ -9,6 +9,10 @@ DEFAULT_SPARK_EXECUTOR_DPU_SIZE = 1
 DEFAULT_CALCULATION_TIMEOUT = 43200  # seconds = 12 hours
 SESSION_IDLE_TIMEOUT_MIN = 10  # minutes
 
+ENFORCE_SPARK_PROPERTIES = {
+    "spark.sql.sources.partitionOverwriteMode": "dynamic",
+}
+
 DEFAULT_SPARK_PROPERTIES = {
     # https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark-table-formats.html
     "iceberg": {
@@ -16,6 +20,7 @@ DEFAULT_SPARK_PROPERTIES = {
         "spark.sql.catalog.spark_catalog.catalog-impl": "org.apache.iceberg.aws.glue.GlueCatalog",
         "spark.sql.catalog.spark_catalog.io-impl": "org.apache.iceberg.aws.s3.S3FileIO",
         "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
+        "spark.sql.sources.partitionOverwriteMode": "dynamic",
     },
     "hudi": {
         "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.hudi.catalog.HoodieCatalog",
@@ -36,6 +41,32 @@ DEFAULT_SPARK_PROPERTIES = {
     "spark_cross_account_catalog": {"spark.hadoop.aws.glue.catalog.separator": "/"},
     # https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark-requester-pays.html
     "spark_requester_pays": {"spark.hadoop.fs.s3.useRequesterPaysHeader": "true"},
+}
+
+EMR_SERVERLESS_SPARK_PROPERTIES = {
+    "default": {
+        "spark.executor.instances": "1",
+        "spark.executor.cores": "1",
+        "spark.executor.memory": "1g",
+        "spark.driver.cores": "1",
+        "spark.driver.memory": "1g",
+        "spark.hadoop.hive.metastore.client.factory.class": "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory",
+    },
+    "iceberg": {
+        "spark.jars": "/usr/share/aws/iceberg/lib/iceberg-spark3-runtime.jar",
+        **DEFAULT_SPARK_PROPERTIES["iceberg"]
+        },
+    "hudi": {
+        "spark.jars": "/usr/lib/hudi/hudi-spark-bundle.jar",
+        **DEFAULT_SPARK_PROPERTIES["hudi"]
+        },
+    "delta_lake": {
+        "spark.jars": "/usr/share/aws/delta/lib/delta-spark.jar,/usr/share/aws/delta/lib/delta-storage.jar",
+        **DEFAULT_SPARK_PROPERTIES["delta_lake"]
+        },
+    "spark_encryption": {
+        **DEFAULT_SPARK_PROPERTIES["spark_encryption"]
+    },
 }
 
 LOGGER = AdapterLogger(__name__)
