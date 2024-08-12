@@ -1,4 +1,5 @@
 """Test parallel insert into iceberg table."""
+
 import copy
 import os
 

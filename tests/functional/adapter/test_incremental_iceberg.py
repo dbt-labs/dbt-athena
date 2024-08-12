@@ -2,6 +2,7 @@
 Run optional dbt functional tests for Iceberg incremental merge, including delete and incremental predicates.
 
 """
+
 import re
 
 import pytest

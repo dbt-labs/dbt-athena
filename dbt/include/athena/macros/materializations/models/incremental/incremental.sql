@@ -114,7 +114,7 @@
     {%- endif -%}
   {%- endcall -%}
 
-  {% if post_handle_append_io %}   
+  {% if post_handle_append_io %}
     -- run incremental insert overwrite append sql
       {% do delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by) %}
       {% set build_sql = incremental_insert(
@@ -123,7 +123,7 @@
       %}
   {% endif %}
 
-  {% if post_handle_append %}   
+  {% if post_handle_append %}
     -- run incremental append sql
     {% set build_sql = incremental_insert(
         on_schema_change, tmp_relation, target_relation, existing_relation, force_batch
@@ -131,7 +131,7 @@
     %}
   {% endif %}
 
-  {% if post_handle_merge %}   
+  {% if post_handle_merge %}
     -- run incremental merge sql
     {% set build_sql = iceberg_merge(
         on_schema_change=on_schema_change,

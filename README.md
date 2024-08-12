@@ -61,7 +61,7 @@
   - On Iceberg tables:
     - Supports the use of `unique_key` only with the `merge` strategy
     - Supports the `append` strategy
-    - Python models support the `insert_overwrite` strategy with dynamic partitionOverwriteMode (does not support static)
+    - Python models support the `insert_overwrite` strategy with dynamic partitionOverwriteMode(does not support static)
   - On Hive tables :
     - Supports two incremental update strategies: `insert_overwrite` and `append`
     - Does **not** support the use of `unique_key`
@@ -696,22 +696,41 @@ You may find the following links useful to manage that:
 
 ## Python models
 
-The adapter supports Python models using [`spark`](https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark.html).
+The adapter supports Python models using
 
-### Setup
+- [`athena_spark`](https://docs.aws.amazon.com/athena/latest/ug/notebooks-spark.html)
+- [`emr_serverless`](https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/getting-started.html)
+
+### Athena Spark Setup
 
 - A Spark-enabled workgroup created in Athena
 - Spark execution role granted access to Athena, Glue and S3
-- The Spark workgroup is added to the `~/.dbt/profiles.yml` file and the profile to be used
-  is referenced in `dbt_project.yml`
+- The Spark workgroup is populated in the `profiles.yml` file
 
-### Spark-specific table configuration
+### EMR Serverless Spark Setup
 
+- An EMR Serverless application of type: `Spark` is created.
+- Populate the EMR application Id or Name in the `profiles.yml` file
+- Also create an EMR job execution role with necessary permissions to interact with Glue and S3.
+Get the role ARN and populate it in `profiles.yml` file
+
+### Athena Spark and EMR Serverless table configuration
+
+- `submission_method` (`default=athena_spark`)
+  - Use `emr_serverless` for EMR serverless application spark runtime else defaults to `athena_spark`
+- `spark_properties`
+  - To provide the configuration settings that control the behavior of Spark applications.
+- `table_properties`
+  - For Iceberg tables, it is recommended to use `table_properties` configuration to set the `format_version` to 2.
+  This is to maintain compatibility between Iceberg tables created by Trino with those created by Spark.
 - `timeout` (`default=43200`)
   - Time out in seconds for each Python model execution. Defaults to 12 hours/43200 seconds.
 - `spark_encryption` (`default=false`)
   - If this flag is set to true, encrypts data in transit between Spark nodes and also encrypts data at rest stored
    locally by Spark.
+
+### Athena spark additional configs
+
 - `spark_cross_account_catalog` (`default=false`)
   - When using the Spark Athena workgroup, queries can only be made against catalogs located on the same
     AWS account by default. However, sometimes you want to query another catalog located on an external AWS
@@ -723,7 +742,7 @@ The adapter supports Python models using [`spark`](https://docs.aws.amazon.com/a
    data access and data transfer fees associated with the query.
   - If this flag is set to true, requester pays S3 buckets are enabled in Athena for Spark.
 
-### Spark notes
+### Athena Spark additional notes
 
 - A session is created for each unique engine configuration defined in the models that are part of the invocation.
 - A session's idle timeout is set to 10 minutes. Within the timeout period, if there is a new calculation
@@ -731,8 +750,6 @@ The adapter supports Python models using [`spark`](https://docs.aws.amazon.com/a
 - The number of Python models running at a time depends on the `threads`. The number of sessions created for the
  entire run depends on the number of unique engine configurations and the availability of sessions to maintain
  thread concurrency.
-- For Iceberg tables, it is recommended to use `table_properties` configuration to set the `format_version` to 2.
- This is to maintain compatibility between Iceberg tables created by Trino with those created by Spark.
 
 ### Example models
 
@@ -816,6 +833,48 @@ def model(dbt, spark_session):
     sc = spark_session.sparkContext
     sc.addPyFile("s3://athena-dbt/test/file1.py")
     sc.addPyFile("s3://athena-dbt/test/file2.py")
+
+    def func(iterator):
+        from file2 import transform
+
+        return [transform(i) for i in iterator]
+
+    from pyspark.sql.functions import udf
+    from pyspark.sql.functions import col
+
+    udf_with_import = udf(func)
+
+    data = [(1, "a"), (2, "b"), (3, "c")]
+    cols = ["num", "alpha"]
+    df = spark_session.createDataFrame(data, cols)
+
+    return df.withColumn("udf_test_col", udf_with_import(col("alpha")))
+```
+
+#### EMR Serverless: Create pySpark udf using imported external python files
+
+```python
+def model(dbt, spark_session):
+    dbt.config(
+        submission_method="emr_serverless",
+        table_type="iceberg",
+        materialized="incremental",
+        incremental_strategy="insert_overwrite",
+        partitioned_by=["num"],
+        table_properties={"format-version": "2"},
+        on_schema_change="append_new_columns",
+        format="parquet",
+        polling_interval=5,  # in seconds
+        timeout=1800,  # time out in seconds
+        spark_properties={
+            "spark.executor.cores": "1",
+            "spark.executor.memory": "1g",
+            "spark.driver.cores": "1",
+            "spark.driver.memory": "1g",
+            "spark.submit.pyFiles": "s3://athena-dbt/test/*",
+            # imports file1.py and file2.py and any other py files Or pass comma separated list of py files.
+        },
+    )
 
     def func(iterator):
         from file2 import transform

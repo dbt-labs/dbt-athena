@@ -1,12 +1,11 @@
 import time
-import json
 from functools import cached_property
-from typing import Any, Dict
 from io import StringIO
+from typing import Any, Dict
 
 import botocore
-from dbt_common.invocation import get_invocation_id
 from dbt_common.exceptions import DbtRuntimeError
+from dbt_common.invocation import get_invocation_id
 
 from dbt.adapters.athena.config import (
     AthenaSparkSessionConfig,
@@ -245,11 +244,12 @@ class AthenaPythonJobHelper(PythonJobHelper):
 
                 if execution_status_state in ["FAILED", "CANCELED"]:
                     raise DbtRuntimeError(
-                        f"""Calculation Id:   {calculation_execution_id}
-Session Id:     {execution_session}
-Status:         {execution_status_state}
-Reason:         {execution_status_reason}
-Stderr s3 path: {execution_stderr_s3_path}
+                        f"""
+Calculation Id:  {calculation_execution_id}
+Session Id:      {execution_session}
+Status:          {execution_status_state}
+Reason:          {execution_status_reason}
+Stderr s3 path:  {execution_stderr_s3_path}
 """
                     )
 
@@ -323,7 +323,7 @@ class EmrServerlessJobHelper(PythonJobHelper):
         Returns:
             str: dbt invocation unique id
         """
-        return get_invocation_id()
+        return str(get_invocation_id())
 
     @cached_property
     def emrs_client(self) -> Any:
@@ -376,7 +376,7 @@ class EmrServerlessJobHelper(PythonJobHelper):
         return self.config.get_spark_properties()
 
     @cached_property
-    def emr_app(self) -> dict:
+    def emr_app(self) -> Dict[str, str]:
         """
         Get the emr application based on config and credentials.
         Model configuration value is favored over credential configuration.
@@ -423,11 +423,11 @@ class EmrServerlessJobHelper(PythonJobHelper):
                     raise DbtRuntimeError(f"Unable to list emr applications. Got: {e}")
                 apps = response.get("applications", None)
                 if apps:
-                    app_id: str = next((app["id"] for app in apps if app["name"] == app_name), None)
+                    app_id = next((app["id"] for app in apps if app["name"] == app_name), None)
                 if app_id:
                     found = True
                     LOGGER.debug(f"Found emr serverless application id: {app_id}")
-                    return app_id
+                    return str(app_id)
                 next_token = response.get("nextToken", None)
                 if next_token:
                     args["nextToken"] = next_token
@@ -435,7 +435,9 @@ class EmrServerlessJobHelper(PythonJobHelper):
                     del args["nextToken"]
                     raise DbtRuntimeError(f"No emr serverless application_id found for application name: {app_name}")
 
-    def __str__(self):
+        raise DbtRuntimeError(f"No emr serverless application_id found for application name: {app_name}")
+
+    def __str__(self) -> str:
         return f"EMR Serverless {self.app_type} Application: {self.application_id}"
 
     @cached_property
@@ -466,7 +468,7 @@ class EmrServerlessJobHelper(PythonJobHelper):
             time.sleep(self.polling_interval)
         return app_started
 
-    def save_compiled_code(self, compiled_code) -> str:
+    def save_compiled_code(self, compiled_code: Any) -> str:
         """
         Save the compiled code to the configured staging s3 bucket.
 
@@ -540,7 +542,7 @@ class EmrServerlessJobHelper(PythonJobHelper):
             except Exception as e:
                 raise DbtRuntimeError(
                     f"""Unable to start emr job
-dbt invocation id:   {self.invocation_id}
+dbt invocation id:      {self.invocation_id}
 dbt model:              {self.relation_name}
 emr application id:     {self.application_id}
 job role:               {self.job_execution_role_arn}
@@ -568,24 +570,24 @@ error message:          {e}
                     err = jr_response.get("stateDetails")
                     raise DbtRuntimeError(
                         f"""EMR job returned FAILED status:
-dbt invocation Id:      {self.invocation_id}
-dbt model:              {self.relation_name}
-emr application id:     {self.application_id}
-emr job run Id:         {job_run_id}
-script location:        {script_location}
-error message:          {err}
-driver log:             s3://{self.s3_bucket}/{self.s3_log_prefix}/applications/{self.application_id}/jobs/{job_run_id}/SPARK_DRIVER/stdout.gz
+dbt invocation Id:       {self.invocation_id}
+dbt model:               {self.relation_name}
+emr application id:      {self.application_id}
+emr job run Id:          {job_run_id}
+script location:         {script_location}
+error message:           {err}
+driver log:              s3://{self.s3_bucket}/{self.s3_log_prefix}/applications/{self.application_id}/jobs/{job_run_id}/SPARK_DRIVER/stdout.gz
 """
                     )
                 elif jr_response.get("state") in ["CANCELLING", "CANCELLED"]:
                     raise DbtRuntimeError(
                         f"""EMR job returned CANCELLED status:
-dbt invocation Id:      {self.invocation_id}
-dbt model:              {self.relation_name}
-emr application id:     {self.application_id}
-emr job run Id:         {job_run_id}
-script location:        {script_location}
-driver log:             s3://{self.s3_bucket}/{self.s3_log_prefix}/applications/{self.application_id}/jobs/{job_run_id}/SPARK_DRIVER/stdout.gz
+dbt invocation Id:       {self.invocation_id}
+dbt model:               {self.relation_name}
+emr application id:      {self.application_id}
+emr job run Id:          {job_run_id}
+script location:         {script_location}
+driver log:              s3://{self.s3_bucket}/{self.s3_log_prefix}/applications/{self.application_id}/jobs/{job_run_id}/SPARK_DRIVER/stdout.gz
 """
                     )
                 elif jr_response.get("state") == "SUCCESS":
@@ -596,25 +598,28 @@ driver log:             s3://{self.s3_bucket}/{self.s3_log_prefix}/applications/
         else:
             return {"ignore": "empty compiled script"}
 
-    def get_job_run(self, job_run_id: str) -> dict:
+    def get_job_run(self, job_run_id: str) -> Any:
+        """
+        Invokes the emr serverless job run api and returns the response
+        """
         try:
             response = self.emrs_client.get_job_run(applicationId=self.application_id, jobRunId=job_run_id)
         except Exception as e:
             raise DbtRuntimeError(
                 f"""Unable to get emr job run status
-dbt invocation Id:      {self.invocation_id}
-dbt model:              {self.relation_name}
-emr application id:     {self.application_id}
-emr job Id:             {job_run_id}
-error message:          {e}
-driver log:             s3://{self.s3_bucket}/{self.s3_log_prefix}/applications/{self.application_id}/jobs/{job_run_id}/SPARK_DRIVER/stdout.gz
+dbt invocation Id:       {self.invocation_id}
+dbt model:               {self.relation_name}
+emr application id:      {self.application_id}
+emr job Id:              {job_run_id}
+error message:           {e}
+driver log:              s3://{self.s3_bucket}/{self.s3_log_prefix}/applications/{self.application_id}/jobs/{job_run_id}/SPARK_DRIVER/stdout.gz
 """
             )
         return response.get("jobRun")
 
-    def get_driver_log_uri(self, job_run_id: str, script_location: str) -> dict:
+    def get_driver_log_uri(self, job_run_id: str, script_location: str) -> Dict[str, str]:
         """
-        Get the s3 uri for spark driver logs
+        Construct a dictionary object with run details
         """
         return {
             "dbt_invocation_id": self.invocation_id,
@@ -625,4 +630,3 @@ driver log:             s3://{self.s3_bucket}/{self.s3_log_prefix}/applications/
             "stdout_s3_uri": f"s3://{self.s3_bucket}/{self.s3_log_prefix}/applications/{self.application_id}/jobs/{job_run_id}/SPARK_DRIVER/stdout.gz",
             "stderr_s3_uri": f"s3://{self.s3_bucket}/{self.s3_log_prefix}/applications/{self.application_id}/jobs/{job_run_id}/SPARK_DRIVER/stderr.gz",
         }
-

@@ -9,3 +9,6 @@ S3_STAGING_DIR = "s3://my-bucket/test-dbt/"
 S3_TMP_TABLE_DIR = "s3://my-bucket/test-dbt-temp/"
 ATHENA_WORKGROUP = "dbt-athena-adapter"
 SPARK_WORKGROUP = "spark"
+EMR_JOB_EXECUTION_ROLE_ARN = "arn:aws:iam::12345678910:role/spark-role"
+EMR_APPLICATION_ID = None
+EMR_APPLICATION_NAME = "emrserverless"

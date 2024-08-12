@@ -127,7 +127,7 @@
     {{ set_table_classification(target_relation) }}
   {% endif %}
 
-  {% if post_handle_old_relation_bkp %}   
+  {% if post_handle_old_relation_bkp %}
         {%- set old_relation_table_type = adapter.get_glue_table_type(old_relation).value if old_relation else none -%}
 
         -- we cannot use old_bkp_relation, because it returns None if the relation doesn't exist
@@ -167,4 +167,3 @@
   {{ return({'relations': [target_relation]}) }}
 
 {% endmaterialization %}
-

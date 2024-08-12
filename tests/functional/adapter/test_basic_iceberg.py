@@ -4,6 +4,7 @@ Run the basic dbt test suite on hive tables when applicable.
 Some test classes are not included here, because they don't contain table models.
 Those are run in the hive test suite.
 """
+
 import pytest
 
 from dbt.tests.adapter.basic.files import (

@@ -54,7 +54,7 @@ class AthenaSparkSessionManager:
         credentials: Any,
         timeout: int,
         polling_interval: float,
-        engine_config: Dict[str, int],
+        engine_config: Dict[str, str],
         relation_name: str = "N/A",
     ) -> None:
         """
@@ -64,7 +64,7 @@ class AthenaSparkSessionManager:
             credentials (Any): The credentials to be used.
             timeout (int): The timeout value in seconds.
             polling_interval (float): The polling interval in seconds.
-            engine_config (Dict[str, int]): The engine configuration.
+            engine_config (Dict[str, str]): The engine configuration.
 
         """
         self.credentials = credentials
@@ -311,4 +311,3 @@ class EmrServerlessSparkSessionManager:
         return get_boto3_session_from_credentials(self.credentials).client(
             "s3", config=get_boto3_config(num_retries=self.credentials.effective_num_retries)
         )
-

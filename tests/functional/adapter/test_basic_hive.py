@@ -1,6 +1,7 @@
 """
 Run the basic dbt test suite on hive tables when applicable.
 """
+
 import pytest
 
 from dbt.tests.adapter.basic.test_adapter_methods import BaseAdapterMethod

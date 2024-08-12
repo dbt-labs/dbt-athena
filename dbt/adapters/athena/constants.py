@@ -21,6 +21,7 @@ DEFAULT_SPARK_PROPERTIES = {
         "spark.sql.catalog.spark_catalog.io-impl": "org.apache.iceberg.aws.s3.S3FileIO",
         "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
         "spark.sql.sources.partitionOverwriteMode": "dynamic",
+        "spark.sql.iceberg.handle-timestamp-without-timezone": "true",
     },
     "hudi": {
         "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.hudi.catalog.HoodieCatalog",
@@ -54,19 +55,14 @@ EMR_SERVERLESS_SPARK_PROPERTIES = {
     },
     "iceberg": {
         "spark.jars": "/usr/share/aws/iceberg/lib/iceberg-spark3-runtime.jar",
-        **DEFAULT_SPARK_PROPERTIES["iceberg"]
-        },
-    "hudi": {
-        "spark.jars": "/usr/lib/hudi/hudi-spark-bundle.jar",
-        **DEFAULT_SPARK_PROPERTIES["hudi"]
-        },
+        **DEFAULT_SPARK_PROPERTIES["iceberg"],
+    },
+    "hudi": {"spark.jars": "/usr/lib/hudi/hudi-spark-bundle.jar", **DEFAULT_SPARK_PROPERTIES["hudi"]},
     "delta_lake": {
         "spark.jars": "/usr/share/aws/delta/lib/delta-spark.jar,/usr/share/aws/delta/lib/delta-storage.jar",
-        **DEFAULT_SPARK_PROPERTIES["delta_lake"]
-        },
-    "spark_encryption": {
-        **DEFAULT_SPARK_PROPERTIES["spark_encryption"]
+        **DEFAULT_SPARK_PROPERTIES["delta_lake"],
     },
+    "spark_encryption": {**DEFAULT_SPARK_PROPERTIES["spark_encryption"]},
 }
 
 LOGGER = AdapterLogger(__name__)

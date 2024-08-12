@@ -1,7 +1,7 @@
 import importlib.metadata
+import json
 from functools import lru_cache
 from typing import Any, Dict
-import json
 
 from botocore import config
 
@@ -12,8 +12,8 @@ from dbt.adapters.athena.constants import (
     DEFAULT_SPARK_EXECUTOR_DPU_SIZE,
     DEFAULT_SPARK_MAX_CONCURRENT_DPUS,
     DEFAULT_SPARK_PROPERTIES,
-    ENFORCE_SPARK_PROPERTIES,
     EMR_SERVERLESS_SPARK_PROPERTIES,
+    ENFORCE_SPARK_PROPERTIES,
     LOGGER,
 )
 
@@ -93,7 +93,7 @@ class SparkSessionConfig:
         LOGGER.debug(f"Setting polling_interval: {polling_interval}")
         return float(polling_interval)
 
-    def try_parse_json(self, config) -> dict:
+    def try_parse_json(self, config: Any) -> Any:
         if isinstance(config, str):
             try:
                 config = json.loads(config)
@@ -201,13 +201,10 @@ class EmrServerlessSparkSessionConfig(SparkSessionConfig):
             KeyError: If the s3_staging_dir value is not found in either `self.config`
                 or `self.session_kwargs`.
         """
-        try:
-            return self.config["s3_staging_dir"]
-        except KeyError:
-            try:
-                return self.session_kwargs["s3_staging_dir"]
-            except KeyError:
-                raise ValueError("s3_staging_dir is required configuration")
+        s3_staging_dir = self.config.get("s3_staging_dir") or self.session_kwargs.get("s3_staging_dir")
+        if not s3_staging_dir:
+            raise ValueError("s3_staging_dir is required configuration")
+        return str(s3_staging_dir)
 
     def get_emr_job_execution_role_arn(self) -> str:
         """
@@ -220,15 +217,14 @@ class EmrServerlessSparkSessionConfig(SparkSessionConfig):
             KeyError: If the emr_job_execution_role_arn value is not found in either `self.config`
                 or `self.session_kwargs`.
         """
-        try:
-            return self.config["emr_job_execution_role_arn"]
-        except KeyError:
-            try:
-                return self.session_kwargs["emr_job_execution_role_arn"]
-            except KeyError:
-                raise ValueError("emr_job_execution_role_arn is required configuration for EMR serverless job")
+        emr_job_execution_role_arn = self.config.get("emr_job_execution_role_arn") or self.session_kwargs.get(
+            "emr_job_execution_role_arn"
+        )
+        if not emr_job_execution_role_arn:
+            raise ValueError("emr_job_execution_role_arn is required configuration for EMR serverless job")
+        return str(emr_job_execution_role_arn)
 
-    def get_emr_application(self) -> dict:
+    def get_emr_application(self) -> Dict[str, str]:
         """
         Get the emr_application_id or emr_application_name for the configuration.
 
@@ -273,14 +269,13 @@ class EmrServerlessSparkSessionConfig(SparkSessionConfig):
 
         provided_spark_properties = self.config.get("spark_properties", None)
         provided_spark_properties = self.try_parse_json(provided_spark_properties)
-
         if provided_spark_properties:
             spark_jars = provided_spark_properties.get("spark.jars", None)
             if spark_jars:
                 jar_list = spark_jars.split(",")
                 def_spark_jars = default_spark_properties.get("spark.jars", "")
                 def_jar_list = def_spark_jars.split(",")
-                jar_updated_list = list(set([item.strip() for item in jar_list + def_jar_list if item.strip()]))
+                jar_updated_list = list({item.strip() for item in jar_list + def_jar_list if item.strip()})
                 final_jars = ", ".join(jar_updated_list)
                 provided_spark_properties["spark.jars"] = final_jars
             default_spark_properties.update(provided_spark_properties)
@@ -289,4 +284,3 @@ class EmrServerlessSparkSessionConfig(SparkSessionConfig):
                 if key in default_spark_properties:
                     default_spark_properties[key] = ENFORCE_SPARK_PROPERTIES[key]
         return default_spark_properties
-

@@ -16,6 +16,9 @@ from .unit.constants import (
     AWS_REGION,
     DATA_CATALOG_NAME,
     DATABASE_NAME,
+    EMR_APPLICATION_ID,
+    EMR_APPLICATION_NAME,
+    EMR_JOB_EXECUTION_ROLE_ARN,
     S3_STAGING_DIR,
     SPARK_WORKGROUP,
 )
@@ -42,6 +45,9 @@ def dbt_profile_target():
         "work_group": os.getenv("DBT_TEST_ATHENA_WORK_GROUP"),
         "aws_profile_name": os.getenv("DBT_TEST_ATHENA_AWS_PROFILE_NAME") or None,
         "spark_work_group": os.getenv("DBT_TEST_ATHENA_SPARK_WORK_GROUP"),
+        "emr_application_id": os.getenv("DBT_TEST_EMR_APPLICATION_ID") or None,
+        "emr_application_name": os.getenv("DBT_TEST_EMR_APPLICATION_NAME") or None,
+        "emr_job_execution_role_arn": os.getenv("DBT_TEST_EMR_JOB_EXECUTION_ROLE_ARN") or None,
     }
 
 
@@ -86,4 +92,7 @@ def athena_credentials():
         region_name=AWS_REGION,
         work_group=ATHENA_WORKGROUP,
         spark_work_group=SPARK_WORKGROUP,
+        emr_application_id=EMR_APPLICATION_ID,
+        emr_application_name=EMR_APPLICATION_NAME,
+        emr_job_execution_role_arn=EMR_JOB_EXECUTION_ROLE_ARN,
     )

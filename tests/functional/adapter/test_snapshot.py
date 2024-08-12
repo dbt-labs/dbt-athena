@@ -7,6 +7,7 @@ tests to update the input seeds.
 
 This file also includes test suites for the iceberg tables.
 """
+
 import pytest
 
 from dbt.tests.adapter.basic.files import (
