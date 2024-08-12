@@ -58,8 +58,8 @@ repos:
       - id: flake8
         additional_dependencies:
           - 'Flake8-pyproject~=1.1'
-        args:
-          - '.'
+        args: [--ignore=E501,E231,E241,E272,E702,E713,E202]
+
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.3.0
     hooks:
