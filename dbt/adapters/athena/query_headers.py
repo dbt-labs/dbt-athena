@@ -25,7 +25,7 @@ class _AthenaQueryComment(_QueryComment):
 
         # alter or vacuum statements don't seem to support properly query comments
         # let's just exclude them
-        if any(map(sql.lower().__contains__, ["alter", "drop", "optimize", "vacuum", "msck"])):
+        if any(sql.lower().startswith(keyword) for keyword in ["alter", "drop", "optimize", "vacuum", "msck"]):
             return sql
 
         cleaned_query_comment = self.query_comment.strip().replace("\n", " ")
