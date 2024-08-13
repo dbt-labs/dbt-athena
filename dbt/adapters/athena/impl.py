@@ -1344,13 +1344,13 @@ class AthenaAdapter(SQLAdapter):
             raise ValueError(f"Unsupported column type: {column_type}")
 
     @available
-    def run_optimize_with_partition_limit_catching(self, optimize_query: str) -> None:
+    def run_operation_with_potential_multiple_runs(self, query: str, op: str) -> None:
         while True:
             try:
-                self._run_query(optimize_query, catch_partitions_limit=False)
+                self._run_query(query, catch_partitions_limit=False)
                 break
             except OperationalError as e:
-                if "ICEBERG_OPTIMIZE_MORE_RUNS_NEEDED" not in str(e):
+                if f"ICEBERG_{op.upper()}_MORE_RUNS_NEEDED" not in str(e):
                     raise e
 
     def _run_query(self, sql: str, catch_partitions_limit: bool) -> AthenaCursor:
