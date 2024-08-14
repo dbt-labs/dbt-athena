@@ -80,3 +80,9 @@ class TestQueryHeaders:
         self.query_header.comment.append = True
         sql = "    VACUUM table"
         assert self.query_header.add(sql) == "VACUUM table"
+
+    def test_no_query_comment_on_vacuum_with_lowercase(self):
+        self.query_header.comment.query_comment = "executed by dbt"
+        self.query_header.comment.append = True
+        sql = "vacuum table"
+        assert self.query_header.add(sql) == sql
