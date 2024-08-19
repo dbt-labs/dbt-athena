@@ -25,6 +25,7 @@ class _AthenaQueryComment(_QueryComment):
 
         # alter or vacuum statements don't seem to support properly query comments
         # let's just exclude them
+        sql = sql.lstrip()
         if any(sql.lower().startswith(keyword) for keyword in ["alter", "drop", "optimize", "vacuum", "msck"]):
             return sql
 
