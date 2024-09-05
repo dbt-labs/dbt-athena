@@ -79,6 +79,7 @@ class AthenaConfig(AdapterConfig):
 
     Args:
         work_group: Identifier of Athena workgroup.
+        work_group_enforced: Assummed value of the WorkGroup location enforcement.
         s3_staging_dir: S3 location to store Athena query results and metadata.
         external_location: If set, the full S3 path in which the table will be saved.
         partitioned_by: An array list of columns by which the table will be partitioned.
@@ -102,6 +103,7 @@ class AthenaConfig(AdapterConfig):
     """
 
     work_group: Optional[str] = None
+    work_group_enforced: Optional[bool] = None
     s3_staging_dir: Optional[str] = None
     external_location: Optional[str] = None
     partitioned_by: Optional[str] = None
@@ -240,7 +242,7 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         creds = conn.credentials
 
-        if creds.work_group:
+        if creds.work_group and creds.work_group_enforced is None:
             work_group = self._get_work_group(creds.work_group)
             output_location = (
                 work_group.get("WorkGroup", {})
