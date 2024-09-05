@@ -243,7 +243,7 @@ class AthenaAdapter(SQLAdapter):
         creds = conn.credentials
 
         if creds.work_group_enforced is not None:
-            return creds.work_group_enforced
+            return creds.work_group_enforced is True
 
         if creds.work_group:
             work_group = self._get_work_group(creds.work_group)
