@@ -242,7 +242,10 @@ class AthenaAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         creds = conn.credentials
 
-        if creds.work_group and creds.work_group_enforced is None:
+        if creds.work_group_enforced is not None:
+            return creds.work_group_enforced
+
+        if creds.work_group:
             work_group = self._get_work_group(creds.work_group)
             output_location = (
                 work_group.get("WorkGroup", {})
