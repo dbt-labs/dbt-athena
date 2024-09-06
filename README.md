@@ -133,6 +133,7 @@ A dbt profile can be configured to run against AWS Athena using the following co
 | aws_secret_access_key | Secret access key of the user performing requests                                        | Optional  | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
 | aws_profile_name      | Profile to use from your AWS shared credentials file                                     | Optional  | `my-profile`                               |
 | work_group            | Identifier of Athena workgroup                                                           | Optional  | `my-custom-workgroup`                      |
+| skip_workgroup_check  | Indicates if the WorkGroup check (additional AWS call) can be skipped                    | Optional  | `true`                                     |
 | num_retries           | Number of times to retry a failing query                                                 | Optional  | `3`                                        |
 | num_boto3_retries     | Number of times to retry boto3 requests (e.g. deleting S3 files for materialized tables) | Optional  | `5`                                        |
 | num_iceberg_retries   | Number of times to retry iceberg commit queries to fix ICEBERG_COMMIT_ERROR              | Optional  | `3`                                        |
