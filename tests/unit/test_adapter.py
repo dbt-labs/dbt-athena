@@ -71,14 +71,16 @@ class TestAthenaAdapter:
         profile_cfg = {
             "outputs": {
                 "test": {
-                    "type": "athena",
-                    "s3_staging_dir": S3_STAGING_DIR,
-                    "region_name": AWS_REGION,
-                    "database": DATA_CATALOG_NAME,
-                    "work_group": ATHENA_WORKGROUP,
-                    "schema": DATABASE_NAME,
+                    **{
+                        "type": "athena",
+                        "s3_staging_dir": S3_STAGING_DIR,
+                        "region_name": AWS_REGION,
+                        "database": DATA_CATALOG_NAME,
+                        "work_group": ATHENA_WORKGROUP,
+                        "schema": DATABASE_NAME,
+                    },
+                    **settings,
                 }
-                | settings
             },
             "target": "test",
         }
