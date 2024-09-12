@@ -33,9 +33,9 @@ jobs:
       group: ${{ inputs.concurrency-group }}
       cancel-in-progress: false
     env:
-      DBT_TEST_ATHENA_S3_STAGING_DIR: s3://dbt-athena-query-results-${{ inputs.aws-region }}/staging/
-      DBT_TEST_ATHENA_S3_TMP_TABLE_DIR: s3://dbt-athena-query-results-${{ inputs.aws-region }}/tmp_tables/
-      DBT_TEST_ATHENA_REGION_NAME: ${{ inputs.aws-region }}
+      DBT_TEST_ATHENA_S3_STAGING_DIR: ${{ vars.DBT_TEST_ATHENA_S3_BUCKET }}/staging/
+      DBT_TEST_ATHENA_S3_TMP_TABLE_DIR: ${{ vars.DBT_TEST_ATHENA_S3_BUCKET }}/tmp_tables/
+      DBT_TEST_ATHENA_REGION_NAME: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -53,7 +53,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
-          aws-region: ${{ inputs.aws-region }}
+          aws-region: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
       - name: Functional Test
         run: |
           pytest -n 8 tests/functional
