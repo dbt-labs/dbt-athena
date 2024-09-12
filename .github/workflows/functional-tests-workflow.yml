@@ -10,12 +10,23 @@ on:
       checkout-repository:
         required: true
         type: string
-      aws-region:
-        required: true
-        type: string
       concurrency-group:
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      checkout-ref:
+        required: false
+        default: ${{ github.ref }}
+        type: string
+      checkout-repository:
+        required: false
+        type: string
+        default: ${{ github.repository }}
+      concurrency-group:
+        required: true
+        type: string
+        default: ${{ github.repository }}-${{ github.ref }}-${{ github.actor }}
 
 env:
   DBT_TEST_ATHENA_DATABASE: awsdatacatalog
