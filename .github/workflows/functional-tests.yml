@@ -23,9 +23,6 @@ jobs:
     if: contains(github.event.pull_request.labels.*.name, 'enable-functional-tests')
     uses: ./.github/workflows/functional-tests-workflow.yml
     secrets: inherit
-    strategy:
-      matrix:
-        aws-region: ['us-east-1', 'eu-central-1']
     permissions:
       id-token: write
       contents: read
