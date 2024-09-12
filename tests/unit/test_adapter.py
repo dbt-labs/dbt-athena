@@ -39,28 +39,7 @@ from .utils import TestAdapterConversions, config_from_parts_or_dicts, inject_ad
 
 class TestAthenaAdapter:
     def setup_method(self, _):
-        project_cfg = {
-            "name": "X",
-            "version": "0.1",
-            "profile": "test",
-            "project-root": "/tmp/dbt/does-not-exist",
-            "config-version": 2,
-        }
-        profile_cfg = {
-            "outputs": {
-                "test": {
-                    "type": "athena",
-                    "s3_staging_dir": S3_STAGING_DIR,
-                    "region_name": AWS_REGION,
-                    "database": DATA_CATALOG_NAME,
-                    "work_group": ATHENA_WORKGROUP,
-                    "schema": DATABASE_NAME,
-                }
-            },
-            "target": "test",
-        }
-
-        self.config = config_from_parts_or_dicts(project_cfg, profile_cfg)
+        self.config = TestAthenaAdapter._config_from_settings()
         self._adapter = None
         self.used_schemas = frozenset(
             {
@@ -78,6 +57,35 @@ class TestAthenaAdapter:
             self._adapter = AthenaAdapter(self.config, get_context("spawn"))
             inject_adapter(self._adapter, AthenaPlugin)
         return self._adapter
+
+    @staticmethod
+    def _config_from_settings(settings={}):
+        project_cfg = {
+            "name": "X",
+            "version": "0.1",
+            "profile": "test",
+            "project-root": "/tmp/dbt/does-not-exist",
+            "config-version": 2,
+        }
+
+        profile_cfg = {
+            "outputs": {
+                "test": {
+                    **{
+                        "type": "athena",
+                        "s3_staging_dir": S3_STAGING_DIR,
+                        "region_name": AWS_REGION,
+                        "database": DATA_CATALOG_NAME,
+                        "work_group": ATHENA_WORKGROUP,
+                        "schema": DATABASE_NAME,
+                    },
+                    **settings,
+                }
+            },
+            "target": "test",
+        }
+
+        return config_from_parts_or_dicts(project_cfg, profile_cfg)
 
     @mock.patch("dbt.adapters.athena.connections.AthenaConnection")
     def test_acquire_connection_validations(self, connection_cls):
@@ -930,6 +938,17 @@ class TestAthenaAdapter:
         mock_aws_service.create_work_group_with_output_location_enforced(ATHENA_WORKGROUP)
         work_group_location_enforced = self.adapter.is_work_group_output_location_enforced()
         assert work_group_location_enforced
+
+    def test_get_work_group_output_location_if_workgroup_check_is_skipepd(self):
+        settings = {
+            "skip_workgroup_check": True,
+        }
+
+        self.config = TestAthenaAdapter._config_from_settings(settings)
+        self.adapter.acquire_connection("dummy")
+
+        work_group_location_enforced = self.adapter.is_work_group_output_location_enforced()
+        assert not work_group_location_enforced
 
     @mock_aws
     def test_get_work_group_output_location_no_location(self, mock_aws_service):
