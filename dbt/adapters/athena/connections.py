@@ -56,6 +56,7 @@ class AthenaCredentials(Credentials):
     region_name: str
     endpoint_url: Optional[str] = None
     work_group: Optional[str] = None
+    skip_workgroup_check: bool = False
     aws_profile_name: Optional[str] = None
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
@@ -91,6 +92,7 @@ class AthenaCredentials(Credentials):
         return (
             "s3_staging_dir",
             "work_group",
+            "skip_workgroup_check",
             "region_name",
             "database",
             "schema",
