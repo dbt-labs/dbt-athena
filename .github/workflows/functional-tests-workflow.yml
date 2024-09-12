@@ -1,5 +1,6 @@
 # reusable workflow to be called from the main workflow
 name: functional-tests-workflow
+run-name: "${{ (contains(github.event_name, 'workflow_') && inputs.name) || github.event_name }}: ${{ (contains(github.event_name, 'workflow_') &&  inputs.adapter_branch) || github.ref_name }} by @${{ github.actor }}"
 
 on:
   workflow_call:
@@ -10,23 +11,9 @@ on:
       checkout-repository:
         required: true
         type: string
-      concurrency-group:
-        required: true
-        type: string
-  workflow_dispatch:
-    inputs:
-      checkout-ref:
-        required: false
-        default: ${{ github.ref }}
-        type: string
-      checkout-repository:
-        required: false
-        type: string
-        default: ${{ github.repository }}
-      concurrency-group:
-        required: true
-        type: string
-        default: ${{ github.repository }}-${{ github.ref }}-${{ github.actor }}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ contains(github.event_name, 'pull_request') && github.event.pull_request.head.ref || github.sha }}
+  cancel-in-progress: true
 
 env:
   DBT_TEST_ATHENA_DATABASE: awsdatacatalog
@@ -40,9 +27,6 @@ jobs:
   functional-tests:
     name: Functional Tests
     runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ inputs.concurrency-group }}
-      cancel-in-progress: false
     env:
       DBT_TEST_ATHENA_S3_STAGING_DIR: ${{ vars.DBT_TEST_ATHENA_S3_BUCKET }}/staging/
       DBT_TEST_ATHENA_S3_TMP_TABLE_DIR: ${{ vars.DBT_TEST_ATHENA_S3_BUCKET }}/tmp_tables/
