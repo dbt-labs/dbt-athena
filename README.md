@@ -1,6 +1,6 @@
 <!-- markdownlint-disable-next-line MD041 -->
 <p align="center">
-    <img src="https://raw.githubusercontent.com/dbt-athena/dbt-athena/main/static/images/dbt-athena-long.png" />
+    <h1>dbt-athena</h1>
     <a href="https://pypi.org/project/dbt-athena-community/">
       <img src="https://badge.fury.io/py/dbt-athena-community.svg" />
     </a>
