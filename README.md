@@ -1,7 +1,10 @@
-
 <!-- markdownlint-disable-next-line MD041 -->
 <p align="center">
-    <img src="https://raw.githubusercontent.com/dbt-labs/dbt/ec7dee39f793aa4f7dd3dae37282cc87664813e4/etc/dbt-logo-full.svg" alt="dbt logo" width="500"/>
+    <img
+    src="https://raw.githubusercontent.com/dbt-labs/dbt/ec7dee39f793aa4f7dd3dae37282cc87664813e4/etc/dbt-logo-full.svg"
+      alt="dbt logo" width="500"/>
+</p>
+<p align="center">
     <a href="https://pypi.org/project/dbt-athena-community/">
       <img src="https://badge.fury.io/py/dbt-athena-community.svg" />
     </a>
