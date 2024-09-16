@@ -1,5 +1,6 @@
 # reusable workflow to be called from the main workflow
 name: functional-tests-workflow
+run-name: "${{ (contains(github.event_name, 'workflow_') && inputs.name) || github.event_name }}: ${{ (contains(github.event_name, 'workflow_') &&  inputs.adapter_branch) || github.ref_name }} by @${{ github.actor }}"
 
 on:
   workflow_call:
@@ -10,12 +11,9 @@ on:
       checkout-repository:
         required: true
         type: string
-      aws-region:
-        required: true
-        type: string
-      concurrency-group:
-        required: true
-        type: string
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ contains(github.event_name, 'pull_request') && github.event.pull_request.head.ref || github.sha }}
+  cancel-in-progress: true
 
 env:
   DBT_TEST_ATHENA_DATABASE: awsdatacatalog
@@ -29,13 +27,10 @@ jobs:
   functional-tests:
     name: Functional Tests
     runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ inputs.concurrency-group }}
-      cancel-in-progress: false
     env:
-      DBT_TEST_ATHENA_S3_STAGING_DIR: s3://dbt-athena-query-results-${{ inputs.aws-region }}/staging/
-      DBT_TEST_ATHENA_S3_TMP_TABLE_DIR: s3://dbt-athena-query-results-${{ inputs.aws-region }}/tmp_tables/
-      DBT_TEST_ATHENA_REGION_NAME: ${{ inputs.aws-region }}
+      DBT_TEST_ATHENA_S3_STAGING_DIR: ${{ vars.DBT_TEST_ATHENA_S3_BUCKET }}/staging/
+      DBT_TEST_ATHENA_S3_TMP_TABLE_DIR: ${{ vars.DBT_TEST_ATHENA_S3_BUCKET }}/tmp_tables/
+      DBT_TEST_ATHENA_REGION_NAME: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -53,7 +48,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
-          aws-region: ${{ inputs.aws-region }}
+          aws-region: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
       - name: Functional Test
         run: |
           pytest -n 8 tests/functional

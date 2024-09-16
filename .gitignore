@@ -146,3 +146,6 @@ test.py
 
 # OS
 .DS_Store
+
+# Environment variables
+*.env

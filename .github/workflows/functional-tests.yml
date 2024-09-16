@@ -6,6 +6,15 @@ on:
     types: [opened, reopened, synchronize, labeled]
   push:
     branches: [main]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      checkout-ref:
+        required: true
+        type: string
+      checkout-repository:
+        required: true
+        type: string
 
 jobs:
   # workflow that is invoked when for PRs with labels 'enable-functional-tests'
@@ -14,9 +23,6 @@ jobs:
     if: contains(github.event.pull_request.labels.*.name, 'enable-functional-tests')
     uses: ./.github/workflows/functional-tests-workflow.yml
     secrets: inherit
-    strategy:
-      matrix:
-        aws-region: ['us-east-1', 'eu-central-1']
     permissions:
       id-token: write
       contents: read
@@ -25,23 +31,19 @@ jobs:
       checkout-ref: ${{ github.event.pull_request.head.ref }}
       # this allows to work on fork
       checkout-repository: ${{ github.event.pull_request.head.repo.full_name }}
-      aws-region: ${{ matrix.aws-region }}
-      concurrency-group: functional_tests_pr_${{ matrix.aws-region }}
 
   # workflow that is invoked when a push to main happens
   functional-tests-main:
     name: Functional Tests - main
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: |
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
+      || github.event_name == 'workflow_dispatch'
+      || github.event_name == 'workflow_call'
     uses: ./.github/workflows/functional-tests-workflow.yml
     secrets: inherit
-    strategy:
-      matrix:
-        aws-region: ['us-east-1', 'eu-central-1']
     permissions:
       id-token: write
       contents: read
     with:
       checkout-ref: ${{ github.ref }}
       checkout-repository: ${{ github.repository }}
-      aws-region: ${{ matrix.aws-region }}
-      concurrency-group: functional_tests_main_${{ matrix.aws-region }}
