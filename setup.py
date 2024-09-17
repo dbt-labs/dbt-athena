@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 from pathlib import Path
+from typing import Dict
 
 from setuptools import find_namespace_packages, setup
 
@@ -16,7 +17,7 @@ VERSION = Path(__file__).parent / "dbt/adapters/athena/__version__.py"
 
 
 def _get_package_version() -> str:
-    attributes = {}
+    attributes: Dict[str, str] = {}
     exec(VERSION.read_text(), attributes)
     return attributes["version"]
 
