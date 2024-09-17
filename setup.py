@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import os
-import re
-from typing import Any, Dict
+from pathlib import Path
 
 from setuptools import find_namespace_packages, setup
 
@@ -12,30 +11,17 @@ with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
 
 package_name = "dbt-athena-community"
 
-
-# get version from a separate file
-def _get_plugin_version_dict() -> Dict[str, Any]:
-    _version_path = os.path.join(this_directory, "dbt", "adapters", "athena", "__version__.py")
-    _semver = r"""(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"""
-    _pre = r"""((?P<prekind>a|b|rc)(?P<pre>\d+))?"""
-    _version_pattern = rf"""version\s*=\s*["']{_semver}{_pre}["']"""
-    with open(_version_path) as f:
-        match = re.search(_version_pattern, f.read().strip())
-        if match is None:
-            raise ValueError(f"invalid version at {_version_path}")
-        return match.groupdict()
+# used for this adapter's version
+VERSION = Path(__file__).parent / "dbt/adapters/athena/__version__.py"
 
 
 def _get_package_version() -> str:
-    parts = _get_plugin_version_dict()
-    version = "{major}.{minor}.{patch}".format(**parts)
-    if parts["prekind"] and parts["pre"]:
-        version += parts["prekind"] + parts["pre"]
-    return version
+    attributes = {}
+    exec(VERSION.read_text(), attributes)
+    return attributes["version"]
 
 
 description = "The athena adapter plugin for dbt (data build tool)"
-
 
 setup(
     name=package_name,
