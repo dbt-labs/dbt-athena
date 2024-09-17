@@ -1,7 +1,7 @@
 autoflake~=2.3
 black~=24.8
 boto3-stubs[s3]~=1.35
-dbt-tests-adapter~=1.9.2
+dbt-tests-adapter~=1.10.1
 flake8~=7.1
 Flake8-pyproject~=1.2
 isort~=5.13
