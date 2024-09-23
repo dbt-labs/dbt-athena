@@ -44,7 +44,7 @@ setup(
         "boto3>=1.28",
         "boto3-stubs[athena,glue,lakeformation,sts]>=1.28",
         "pyathena>=2.25,<4.0",
-        "mmh3>=4.0.1,<4.2.0",
+        "mmh3>=4.0.1,<5.1.0",
         "pydantic>=1.10,<3.0",
         "tenacity>=8.2,<10.0",
     ],
