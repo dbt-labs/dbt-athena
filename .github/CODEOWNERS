@@ -1,1 +1,3 @@
-* @jessedobbelaere @Jrmyy @mattiamatrix @nicor88 @svdimchenko
+# This codeowners file is used to ensure all PRs require reviews from the adapters team
+
+* @dbt-labs/adapters
