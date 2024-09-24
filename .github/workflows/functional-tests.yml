@@ -20,7 +20,6 @@ jobs:
   # workflow that is invoked when for PRs with labels 'enable-functional-tests'
   functional-tests-pr:
     name: Functional Tests - PR
-    if: contains(github.event.pull_request.labels.*.name, 'enable-functional-tests')
     uses: ./.github/workflows/functional-tests-workflow.yml
     secrets: inherit
     permissions:
