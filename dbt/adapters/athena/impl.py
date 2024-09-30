@@ -1098,7 +1098,7 @@ class AthenaAdapter(SQLAdapter):
         """
         Check if a column is explicitly set as not current. If not, it is considered as current.
         """
-        return col.get("Parameters", {}).get("iceberg.field.current") != "false"
+        return bool(col.get("Parameters", {}).get("iceberg.field.current") != "false")
 
     @available
     def get_columns_in_relation(self, relation: AthenaRelation) -> List[AthenaColumn]:
