@@ -55,6 +55,7 @@ def custom_verify_catalog_athena(project, expected_catalog, start_time):
                 assert node_key in found_node
                 # the value of found_node[node_key] is not exactly expected_node[node_key]
 
+
 class TestDocsGenerate(BaseDocsGenerate):
     """
     Override of BaseDocsGenerate to make it working with Athena
