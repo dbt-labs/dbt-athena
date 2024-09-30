@@ -51,7 +51,7 @@ class TestDocsGenerate(BaseDocsGenerate):
     """
 
     @pytest.fixture(scope="class")
-    def expected_catalog(self, project, profile_user):
+    def expected_catalog(self, project):
         return base_expected_catalog(
             project,
             role="test",
