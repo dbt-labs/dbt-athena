@@ -548,8 +548,7 @@ class AthenaAdapter(SQLAdapter):
         response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
         return True if "Contents" in response else False
 
-    @staticmethod
-    def _get_one_table_for_catalog(table: TableTypeDef, database: str) -> List[Dict[str, Any]]:
+    def _get_one_table_for_catalog(self, table: TableTypeDef, database: str) -> List[Dict[str, Any]]:
         table_catalog = {
             "table_database": database,
             "table_schema": table["DatabaseName"],
@@ -568,6 +567,7 @@ class AthenaAdapter(SQLAdapter):
                 },
             }
             for idx, col in enumerate(table["StorageDescriptor"]["Columns"] + table.get("PartitionKeys", []))
+            if self._is_current_column(col)
         ]
 
     @staticmethod
@@ -1098,9 +1098,7 @@ class AthenaAdapter(SQLAdapter):
         """
         Check if a column is explicitly set as not current. If not, it is considered as current.
         """
-        if col.get("Parameters", {}).get("iceberg.field.current") == "false":
-            return False
-        return True
+        return col.get("Parameters", {}).get("iceberg.field.current") != "false"
 
     @available
     def get_columns_in_relation(self, relation: AthenaRelation) -> List[AthenaColumn]:
