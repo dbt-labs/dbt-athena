@@ -1,9 +1,9 @@
-{% macro create_table_as(temporary, relation, compiled_code, language='sql', skip_partitioning=false) -%}
-  {{ adapter.dispatch('create_table_as', 'athena')(temporary, relation, compiled_code, language, skip_partitioning) }}
+{% macro create_table_as(temporary, relation, compiled_code, language='sql', skip_partitioning=false, with_no_data=false) -%}
+  {{ adapter.dispatch('create_table_as', 'athena')(temporary, relation, compiled_code, language, skip_partitioning, with_no_data) }}
 {%- endmacro %}
 
 
-{% macro athena__create_table_as(temporary, relation, compiled_code, language='sql', skip_partitioning=false) -%}
+{% macro athena__create_table_as(temporary, relation, compiled_code, language='sql', skip_partitioning=false, with_no_data=false) -%}
   {%- set materialized = config.get('materialized', default='table') -%}
   {%- set external_location = config.get('external_location', default=none) -%}
   {%- do log("Skip partitioning: " ~ skip_partitioning) -%}
@@ -142,7 +142,15 @@
     {% endif %}
     )
     as
-      {{ compiled_code }}
+      SELECT *
+      FROM (
+        {{ compiled_code }}
+      )
+
+      {% if with_no_data %}
+      WITH NO DATA;
+      {% endif %}
+
   {%- endif -%}
 {%- endmacro -%}
 
@@ -170,27 +178,24 @@
     {%- set dest_columns = adapter.get_columns_in_relation(tmp_relation) -%}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
+    {%- set create_target_relation_sql -%}
+    select {{ dest_cols_csv }}
+    from {{ tmp_relation }}
+    where {{ batch }}
+    {%- endset -%}
+    {%- do run_query(create_table_as(temporary, relation, create_target_relation_sql, language, with_no_data=true)) -%}
+
     {%- for batch in partitions_batches -%}
         {%- do log('BATCH PROCESSING: ' ~ loop.index ~ ' OF ' ~ partitions_batches | length) -%}
 
-        {%- if loop.index == 1 -%}
-            {%- set create_target_relation_sql -%}
-                select {{ dest_cols_csv }}
-                from {{ tmp_relation }}
-                where {{ batch }}
-            {%- endset -%}
-            {%- do run_query(create_table_as(temporary, relation, create_target_relation_sql, language)) -%}
-        {%- else -%}
-            {%- set insert_batch_partitions_sql -%}
-                insert into {{ relation }} ({{ dest_cols_csv }})
-                select {{ dest_cols_csv }}
-                from {{ tmp_relation }}
-                where {{ batch }}
-            {%- endset -%}
+        {%- set insert_batch_partitions_sql -%}
+            insert into {{ relation }} ({{ dest_cols_csv }})
+            select {{ dest_cols_csv }}
+            from {{ tmp_relation }}
+            where {{ batch }}
+        {%- endset -%}
 
-            {%- do run_query(insert_batch_partitions_sql) -%}
-        {%- endif -%}
-
+        {%- do run_query(insert_batch_partitions_sql) -%}
 
     {%- endfor -%}
 
