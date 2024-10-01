@@ -11,6 +11,9 @@ on:
       checkout-repository:
         required: true
         type: string
+      python-version:
+        type: string
+        default: '3.8'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ contains(github.event_name, 'pull_request') && github.event.pull_request.head.ref || github.sha }}
   cancel-in-progress: true
@@ -40,7 +43,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.8'
+          python-version: ${{ inputs.python-version }}
       - name: Install dependencies
         run: |
           make install_deps
