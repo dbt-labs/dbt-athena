@@ -7,13 +7,20 @@
   {%- set lf_grants = config.get('lf_grants') -%}
 
   {%- set table_type = config.get('table_type', default='hive') | lower -%}
+  {%- set temp_schema = config.get('temp_schema') -%}
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
   {%- set old_tmp_relation = adapter.get_relation(identifier=identifier ~ '__ha',
                                              schema=schema,
                                              database=database) -%}
+  {%- if temp_schema is not none and old_tmp_relation is not none-%}
+    {%- set old_tmp_relation = set_table_relation_schema(relation=old_tmp_relation, schema=temp_schema) -%}
+  {%- endif -%}
   {%- set old_bkp_relation = adapter.get_relation(identifier=identifier ~ '__bkp',
                                              schema=schema,
                                              database=database) -%}
+  {%- if temp_schema is not none and old_bkp_relation is not none-%}
+    {%- set old_bkp_relation = set_table_relation_schema(relation=old_bkp_relation, schema=temp_schema) -%}
+  {%- endif -%}
   {%- set is_ha = config.get('ha', default=false) -%}
   {%- set s3_data_dir = config.get('s3_data_dir', default=target.s3_data_dir) -%}
   {%- set s3_data_naming = config.get('s3_data_naming', default='table_unique') -%}
@@ -31,6 +38,9 @@
                                              database=database,
                                              s3_path_table_part=target_relation.identifier,
                                              type='table') -%}
+  {%- if temp_schema is not none -%}
+    {%- set tmp_relation = set_table_relation_schema(relation=tmp_relation, schema=temp_schema) -%}
+  {%- endif -%}
 
   {%- if (
     table_type == 'hive'
@@ -137,6 +147,9 @@
         -- we cannot use old_bkp_relation, because it returns None if the relation doesn't exist
         -- we need to create a python object via the make_temp_relation instead
         {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
+        {%- if temp_schema is not none -%}
+          {%- set old_relation_bkp = set_table_relation_schema(relation=old_relation_bkp, schema=temp_schema) -%}
+        {%- endif -%}
 
         {%- if old_relation_table_type == 'iceberg_table' -%}
           {{ rename_relation(old_relation, old_relation_bkp) }}

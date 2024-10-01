@@ -2,7 +2,7 @@ import pytest
 import yaml
 from tests.functional.adapter.utils.parse_dbt_run_output import (
     extract_create_statement_table_names,
-    extract_running_create_statements,
+    extract_running_ddl_statements,
 )
 
 from dbt.contracts.results import RunStatus
@@ -61,7 +61,7 @@ class TestIncrementalTmpSchema:
         assert records_count_first_run == 1
 
         out, _ = capsys.readouterr()
-        athena_running_create_statements = extract_running_create_statements(out, relation_name)
+        athena_running_create_statements = extract_running_ddl_statements(out, relation_name, "create table")
 
         assert len(athena_running_create_statements) == 1
 
@@ -95,7 +95,7 @@ class TestIncrementalTmpSchema:
         assert records_count_incremental_run == 2
 
         out, _ = capsys.readouterr()
-        athena_running_create_statements = extract_running_create_statements(out, relation_name)
+        athena_running_create_statements = extract_running_ddl_statements(out, relation_name, "create table")
 
         assert len(athena_running_create_statements) == 1
 

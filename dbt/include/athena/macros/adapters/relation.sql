@@ -36,6 +36,14 @@
   {%- endcall %}
 {%- endmacro %}
 
+{% macro set_table_relation_schema(relation, schema) %}
+  {%- if temp_schema is not none -%}
+    {%- set relation = relation.incorporate(path={"schema": schema}) -%}
+    {%- do create_schema(relation) -%}
+  {% endif %}
+  {{ return(relation) }}
+{% endmacro %}
+
 {% macro make_temp_relation(base_relation, suffix='__dbt_tmp', temp_schema=none) %}
   {%- set temp_identifier = base_relation.identifier ~ suffix -%}
   {%- set temp_relation = base_relation.incorporate(path={"identifier": temp_identifier}) -%}
