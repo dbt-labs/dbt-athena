@@ -14,7 +14,7 @@ from mypy_boto3_lakeformation.type_defs import (
     RemoveLFTagsFromResourceResponseTypeDef,
     ResourceTypeDef,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator
 
 from dbt.adapters.athena.relation import AthenaRelation
 from dbt.adapters.events.logging import AdapterLogger
@@ -28,6 +28,15 @@ class LfTagsConfig(BaseModel):
     tags_columns: Optional[Dict[str, Dict[str, List[str]]]] = None
     inherited_tags: Optional[List[str]] = None
 
+    @root_validator(pre=True)
+    def alias_tags_table(cls, values):
+        # Allow for compatibility with dbt-glue (tags_table)
+        # https://github.com/aws-samples/dbt-glue/blob/ee2aa88663fd51ffc1ad1a1dbe04321206453386/dbt/adapters/glue/lakeformation.py#L12
+        tags_table = values.get('tags_table')
+        if tags_table:
+            values['tags'] = tags_table
+            del values['tags_table']
+        return values
 
 class LfTagsManager:
     def __init__(self, lf_client: LakeFormationClient, relation: AthenaRelation, lf_tags_config: LfTagsConfig):
