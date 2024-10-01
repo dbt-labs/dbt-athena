@@ -91,7 +91,6 @@ jobs:
           echo "name=$archive_name" >> $GITHUB_OUTPUT
 
       - name: "Upload artifacts"
-        if: ${{ inputs.archive-name != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.archive.outputs.name }}
@@ -99,7 +98,7 @@ jobs:
           retention-days: 3
 
   pypi-release:
-    name: "PyPI release"
+    name: "PyPI release - ${{ matrix.project.url }}"
     if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     needs: build-release
@@ -118,7 +117,7 @@ jobs:
       id-token: write
     steps:
       - name: "Publish to PyPI"
-        if: ${{ matrix.project-url != 'https://test.pypi.org/p/dbt-athena' }}  # we still need to transfer this
+        if: ${{ !(matrix.project-url == 'https://test.pypi.org/p/dbt-athena') }}  # we still need to transfer this
         uses: dbt-labs/dbt-adapters/.github/actions/publish-pypi@main
         with:
           repository-url: ${{ vars.PYPI_REPOSITORY_URL }}
