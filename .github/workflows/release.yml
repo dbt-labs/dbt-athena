@@ -54,11 +54,11 @@ jobs:
       matrix:
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
     uses: ./.github/workflows/functional-tests-workflow.yml@actions/public-pypi-deploy
+    secrets: inherit
     with:
       checkout-ref: ${{ inputs.branch }}
       checkout-repository: ${{ github.repository }}
       python-version: ${{ matrix.python-version }}
-    secrets: inherit
 
   build-release:
     name: "Build release"
