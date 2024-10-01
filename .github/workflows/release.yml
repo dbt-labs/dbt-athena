@@ -50,9 +50,6 @@ jobs:
 
   integration-tests:
     name: "Run integration tests"
-    strategy:
-      matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
     uses: ./.github/workflows/functional-tests-workflow.yml
     secrets: inherit
     permissions:
@@ -61,7 +58,6 @@ jobs:
     with:
       checkout-ref: ${{ inputs.branch }}
       checkout-repository: ${{ github.repository }}
-      python-version: ${{ matrix.python-version }}
 
   build-release:
     name: "Build release"
