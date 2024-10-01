@@ -15,7 +15,7 @@ on:
       deploy-to:
         description: "Deploy to test or prod"
         type: environment
-        default: prod
+        default: test
       python-version:
         description: "Python version for building and testing the build"
         type: string
