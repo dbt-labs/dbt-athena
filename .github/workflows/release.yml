@@ -1,20 +1,21 @@
 name: "Release"
 
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       branch:
         description: "The branch to release from"
         type: string
-        default: "main"
+        default: "actions/public-pypi-deploy"
       version:
         description: "The version to release"
-        required: true
         type: string
+        default: "1.8.5a1"  # just making this run for now, this should be required
       deploy-to:
         description: "Deploy to test or prod"
         type: environment
-        default: prod
+        default: test
       python-version:
         description: "Python version for building and testing the build"
         type: string
