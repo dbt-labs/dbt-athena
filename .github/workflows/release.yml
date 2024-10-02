@@ -6,15 +6,15 @@ on:
       branch:
         description: "The branch to release from"
         type: string
-        default: "actions/public-pypi-deploy"
+        default: "main"
       version:
         description: "The version to release"
         type: string
-        default: "1.8.5a1"  # just making this run for now, this should be required
+        required: true
       deploy-to:
         description: "Deploy to test or prod"
         type: environment
-        default: test
+        default: prod
       python-version:
         description: "Python version for building and testing the build"
         type: string
@@ -37,7 +37,7 @@ jobs:
           ref: ${{ inputs.branch }}
 
       - name: "Setup Python ${{ matrix.python-version }}"
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -72,7 +72,7 @@ jobs:
           persist-credentials: false
 
       - name: "Setup Python ${{ inputs.python-version }}"
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python-version }}
 
@@ -98,26 +98,19 @@ jobs:
           retention-days: 3
 
   pypi-release:
-    name: "PyPI release - ${{ matrix.project.url }}"
+    name: "PyPI release"
     if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     needs: build-release
-    strategy:
-      fail-fast: false
-      matrix:
-        project-url:
-          - ${{ vars.PYPI_PROJECT_URL }}
-          - ${{ vars.PYPI_PROJECT_URL_LEGACY }}
     environment:
       name: ${{ inputs.deploy-to }}
-      url: ${{ strategy.matrix.project-url }}
+      url: ${{ vars.PYPI_PROJECT_URL }}
     permissions:
       # this permission is required for trusted publishing
       # see https://github.com/marketplace/actions/pypi-publish
       id-token: write
     steps:
       - name: "Publish to PyPI"
-        if: ${{ !(matrix.project-url == 'https://test.pypi.org/p/dbt-athena') }}  # we still need to transfer this
         uses: dbt-labs/dbt-adapters/.github/actions/publish-pypi@main
         with:
           repository-url: ${{ vars.PYPI_REPOSITORY_URL }}
