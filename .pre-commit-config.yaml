@@ -1,82 +1,106 @@
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
+-   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
-      # Identify invalid files
-      - id: check-ast
-      - id: check-yaml
-        args: ['--unsafe']
-      - id: check-json
-      - id: check-toml
+    # Identify invalid files
+    -   id: check-ast
+    -   id: check-yaml
+        args:
+        -   --unsafe
+    -   id: check-json
+    -   id: check-toml
+    # git checks
+    -   id: check-merge-conflict
+    -   id: check-added-large-files
+    -   id: detect-private-key
+    -   id: check-case-conflict
+    # Python checks
+    -   id: check-docstring-first
+    -   id: debug-statements
+    -   id: requirements-txt-fixer
+    -   id: fix-byte-order-marker
+    # General quality checks
+    -   id: mixed-line-ending
+    -   id: trailing-whitespace
+        args:
+        -   --markdown-linebreak-ext=md
+    -   id: end-of-file-fixer
 
-      # git checks
-      - id: check-merge-conflict
-      - id: check-added-large-files
-      - id: detect-private-key
-      - id: check-case-conflict
+-   repo: https://github.com/dbt-labs/pre-commit-hooks
+    rev: v0.1.0a1
+    hooks:
+    -   id: dbt-core-in-adapters-check
 
-      # Python checks
-      - id: check-docstring-first
-      - id: debug-statements
-      - id: requirements-txt-fixer
-      - id: fix-byte-order-marker
-
-      # General quality checks
-      - id: mixed-line-ending
-      - id: trailing-whitespace
-        args: [--markdown-linebreak-ext=md]
-      - id: end-of-file-fixer
-
-  - repo: https://github.com/PyCQA/autoflake
+-   repo: https://github.com/PyCQA/autoflake
     rev: v2.0.1
     hooks:
-      - id: autoflake
-
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.1
-    hooks:
-      - id: pyupgrade
+    -   id: autoflake
         args:
-          - '--py37-plus'
+        -   --in-place
+        -   --recursive
+        -   --remove-all-unused-imports
+        -   --remove-unused-variables
 
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
-        name: isort
-        args:
-          - '.'
-
-  - repo: https://github.com/psf/black
+-   repo: https://github.com/psf/black
     rev: 23.1.0
     hooks:
-      - id: black
+    -   id: black
+        args:
+        -   --line-length=99
+        -   --target-version=py38
+        -   --target-version=py39
+        -   --target-version=py310
+        -   --target-version=py311
+        -   --target-version=py312
 
-  - repo: https://github.com/pycqa/flake8
+-   repo: https://github.com/pycqa/flake8
     rev: 6.0.0
     hooks:
-      - id: flake8
-        additional_dependencies:
-          - 'Flake8-pyproject~=1.1'
+    -   id: flake8
+        exclude: tests/
         args:
-          - '.'
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.3.0
-    hooks:
-      - id: mypy
-        args:
-          - --strict
-          - --ignore-missing-imports
-          - --install-types
-          - --allow-subclassing-any
-          - --allow-untyped-decorators
-        additional_dependencies:
-          - types-setuptools==67.8.0.0
-        exclude: ^tests/
+        -   '.'
+        -   --max-line-length=99
+        -   --select=E,F,W
+        -   --ignore=E203,E501,E741,W503,W504
+        -   --per-file-ignores=*/__init__.py:F401
 
-  - repo: https://github.com/igorshubovych/markdownlint-cli
+-   repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+    -   id: isort
+        name: isort
+        args:
+        -   --src=**/src/dbt
+        -   --src=**/tests
+
+-   repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.37.0
     hooks:
-    - id: markdownlint
-      args:
-        - --fix
+    -   id: markdownlint
+        args:
+        -   --fix
+
+-   repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.3.0
+    hooks:
+    -   id: mypy
+        args:
+        -   --strict
+        -   --ignore-missing-imports
+        -   --install-types
+        -   --allow-subclassing-any
+        -   --allow-untyped-decorators
+        files: ^*/src/dbt/adapters/**/*.py
+        additional_dependencies:
+        -   boto3-stubs[athena,glue,lakeformation,s3,sts]
+        -   types-PyYAML
+        -   types-protobuf
+        -   types-pytz
+
+-   repo: https://github.com/asottile/pyupgrade
+    rev: v3.3.1
+    hooks:
+    -   id: pyupgrade
+        args:
+        -   --py37-plus
