@@ -36,7 +36,11 @@ def is_valid_table_parameter_key(key: str) -> bool:
 
 
 def get_catalog_id(catalog: Optional[DataCatalogTypeDef]) -> Optional[str]:
-    return catalog["Parameters"]["catalog-id"] if catalog and catalog["Type"] == AthenaCatalogType.GLUE.value else None
+    return (
+        catalog["Parameters"]["catalog-id"]
+        if catalog and catalog["Type"] == AthenaCatalogType.GLUE.value
+        else None
+    )
 
 
 class AthenaCatalogType(Enum):

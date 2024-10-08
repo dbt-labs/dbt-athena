@@ -30,18 +30,28 @@ class TestTableFromHiveToIceberg:
 
     def test__table_creation(self, project):
         relation_name = "table_hive_to_iceberg"
-        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
+        model_run_result_row_count_query = (
+            f"select count(*) as records from {project.test_schema}.{relation_name}"
+        )
 
-        model_run_hive = run_dbt(["run", "--select", relation_name, "--vars", '{"table_type":"hive"}'])
+        model_run_hive = run_dbt(
+            ["run", "--select", relation_name, "--vars", '{"table_type":"hive"}']
+        )
         model_run_result_hive = model_run_hive.results[0]
         assert model_run_result_hive.status == RunStatus.Success
-        models_records_count_hive = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
+        models_records_count_hive = project.run_sql(model_run_result_row_count_query, fetch="all")[
+            0
+        ][0]
         assert models_records_count_hive == 2
 
-        model_run_iceberg = run_dbt(["run", "--select", relation_name, "--vars", '{"table_type":"iceberg"}'])
+        model_run_iceberg = run_dbt(
+            ["run", "--select", relation_name, "--vars", '{"table_type":"iceberg"}']
+        )
         model_run_result_iceberg = model_run_iceberg.results[0]
         assert model_run_result_iceberg.status == RunStatus.Success
-        models_records_count_iceberg = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
+        models_records_count_iceberg = project.run_sql(
+            model_run_result_row_count_query, fetch="all"
+        )[0][0]
         assert models_records_count_iceberg == 2
 
 
@@ -52,16 +62,26 @@ class TestTableFromIcebergToHive:
 
     def test__table_creation(self, project):
         relation_name = "table_iceberg_to_hive"
-        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
+        model_run_result_row_count_query = (
+            f"select count(*) as records from {project.test_schema}.{relation_name}"
+        )
 
-        model_run_iceberg = run_dbt(["run", "--select", relation_name, "--vars", '{"table_type":"iceberg"}'])
+        model_run_iceberg = run_dbt(
+            ["run", "--select", relation_name, "--vars", '{"table_type":"iceberg"}']
+        )
         model_run_result_iceberg = model_run_iceberg.results[0]
         assert model_run_result_iceberg.status == RunStatus.Success
-        models_records_count_iceberg = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
+        models_records_count_iceberg = project.run_sql(
+            model_run_result_row_count_query, fetch="all"
+        )[0][0]
         assert models_records_count_iceberg == 2
 
-        model_run_hive = run_dbt(["run", "--select", relation_name, "--vars", '{"table_type":"hive"}'])
+        model_run_hive = run_dbt(
+            ["run", "--select", relation_name, "--vars", '{"table_type":"hive"}']
+        )
         model_run_result_hive = model_run_hive.results[0]
         assert model_run_result_hive.status == RunStatus.Success
-        models_records_count_hive = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
+        models_records_count_hive = project.run_sql(model_run_result_row_count_query, fetch="all")[
+            0
+        ][0]
         assert models_records_count_hive == 2

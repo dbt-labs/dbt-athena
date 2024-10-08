@@ -24,7 +24,10 @@ def extract_running_create_statements(dbt_run_capsys_output: str, relation_name:
                 if "create table" in base_msg:
                     sql_create_statements.append(base_msg)
 
-            if base_msg_data.get("conn_name") == f"model.test.{relation_name}" and "sql" in base_msg_data:
+            if (
+                base_msg_data.get("conn_name") == f"model.test.{relation_name}"
+                and "sql" in base_msg_data
+            ):
                 if "create table" in base_msg_data.get("sql"):
                     sql_create_statements.append(base_msg_data.get("sql"))
 

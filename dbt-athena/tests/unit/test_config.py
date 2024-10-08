@@ -44,7 +44,8 @@ class TestAthenaSparkSessionConfig:
             "timeout": request.param.get("timeout", 7200),
             "polling_interval": request.param.get("polling_interval", 5),
             "engine_config": request.param.get(
-                "engine_config", {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1}
+                "engine_config",
+                {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1},
             ),
         }
 
@@ -94,8 +95,20 @@ class TestAthenaSparkSessionConfig:
     @pytest.mark.parametrize(
         "spark_config",
         [
-            {"engine_config": {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1}},
-            {"engine_config": {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 2}},
+            {
+                "engine_config": {
+                    "CoordinatorDpuSize": 1,
+                    "MaxConcurrentDpus": 2,
+                    "DefaultExecutorDpuSize": 1,
+                }
+            },
+            {
+                "engine_config": {
+                    "CoordinatorDpuSize": 1,
+                    "MaxConcurrentDpus": 2,
+                    "DefaultExecutorDpuSize": 2,
+                }
+            },
             {},
             pytest.param({"engine_config": {"CoordinatorDpuSize": 1}}, marks=pytest.mark.xfail),
             pytest.param({"engine_config": [1, 1, 1]}, marks=pytest.mark.xfail),

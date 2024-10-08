@@ -39,6 +39,8 @@ class TestDetailedTableType:
         assert len(run_results) == 1  # Ensure model ran successfully
 
         args_str = f'{{"schema": "{project.test_schema}"}}'
-        run_macro, stdout = run_dbt_and_capture(["run-operation", "get_detailed_table_type", "--args", args_str])
+        run_macro, stdout = run_dbt_and_capture(
+            ["run-operation", "get_detailed_table_type", "--args", args_str]
+        )
         iceberg_table_type = re.search(r"Detailed Table Type: (\w+)", stdout).group(1)
         assert iceberg_table_type == "ICEBERG"

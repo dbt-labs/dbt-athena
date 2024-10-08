@@ -93,7 +93,9 @@ class TestIncrementalIcebergMergeNoUpdates:
         # 4. incremental test model(s) should be updated
         assert expected_fields.inc_test_model_count == test_case_fields.inc_test_model_count
         # 5. result table should match intended result set (itself a relation)
-        check_relations_equal(project.adapter, [expected_fields.relation, test_case_fields.relation])
+        check_relations_equal(
+            project.adapter, [expected_fields.relation, test_case_fields.relation]
+        )
 
     def test__merge_no_updates(self, project):
         """seed should match model after incremental run"""

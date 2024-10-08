@@ -18,7 +18,8 @@ from dbt.adapters.athena.constants import (
 @lru_cache()
 def get_boto3_config(num_retries: int) -> config.Config:
     return config.Config(
-        user_agent_extra="dbt-athena-community/" + importlib.metadata.version("dbt-athena-community"),
+        user_agent_extra="dbt-athena-community/"
+        + importlib.metadata.version("dbt-athena-community"),
         retries={"max_attempts": num_retries, "mode": "standard"},
     )
 
@@ -85,8 +86,13 @@ class AthenaSparkSessionConfig:
             ValueError: If the polling interval is not a positive integer.
         """
         polling_interval = self.get_polling_interval()
-        if not (isinstance(polling_interval, float) or isinstance(polling_interval, int)) or polling_interval <= 0:
-            raise ValueError(f"Polling_interval must be a positive number. Got: {polling_interval}")
+        if (
+            not (isinstance(polling_interval, float) or isinstance(polling_interval, int))
+            or polling_interval <= 0
+        ):
+            raise ValueError(
+                f"Polling_interval must be a positive number. Got: {polling_interval}"
+            )
         LOGGER.debug(f"Setting polling_interval: {polling_interval}")
         return float(polling_interval)
 
@@ -106,12 +112,18 @@ class AthenaSparkSessionConfig:
         spark_requester_pays = self.config.get("spark_requester_pays", False)
 
         default_spark_properties: Dict[str, str] = dict(
-            **DEFAULT_SPARK_PROPERTIES.get(table_type)
+            **DEFAULT_SPARK_PROPERTIES.get(table_type)  # type:ignore
             if table_type.lower() in ["iceberg", "hudi", "delta_lake"]
             else {},
-            **DEFAULT_SPARK_PROPERTIES.get("spark_encryption") if spark_encryption else {},
-            **DEFAULT_SPARK_PROPERTIES.get("spark_cross_account_catalog") if spark_cross_account_catalog else {},
-            **DEFAULT_SPARK_PROPERTIES.get("spark_requester_pays") if spark_requester_pays else {},
+            **DEFAULT_SPARK_PROPERTIES.get("spark_encryption")
+            if spark_encryption
+            else {},  # type:ignore
+            **DEFAULT_SPARK_PROPERTIES.get("spark_cross_account_catalog")  # type:ignore
+            if spark_cross_account_catalog
+            else {},
+            **DEFAULT_SPARK_PROPERTIES.get("spark_requester_pays")
+            if spark_requester_pays
+            else {},  # type:ignore
         )
 
         default_engine_config = {

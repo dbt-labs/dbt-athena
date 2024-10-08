@@ -13,7 +13,14 @@ class TestRelation:
         [
             ({"Name": "n", "TableType": "table"}, TableType.TABLE),
             ({"Name": "n", "TableType": "VIRTUAL_VIEW"}, TableType.VIEW),
-            ({"Name": "n", "TableType": "EXTERNAL_TABLE", "Parameters": {"table_type": "ICEBERG"}}, TableType.ICEBERG),
+            (
+                {
+                    "Name": "n",
+                    "TableType": "EXTERNAL_TABLE",
+                    "Parameters": {"table_type": "ICEBERG"},
+                },
+                TableType.ICEBERG,
+            ),
         ],
     )
     def test__get_relation_type(self, table, expected):

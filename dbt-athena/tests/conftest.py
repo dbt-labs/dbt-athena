@@ -72,7 +72,9 @@ def _setup_custom_caplog(name: str, level: EventLevel):
 
 @pytest.fixture(scope="class")
 def athena_client():
-    with patch.object(boto3.session.Session, "client", return_value=MagicMock()) as mock_athena_client:
+    with patch.object(
+        boto3.session.Session, "client", return_value=MagicMock()
+    ) as mock_athena_client:
         return mock_athena_client
 
 

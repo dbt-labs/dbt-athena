@@ -148,7 +148,9 @@ class AthenaCursor(Cursor):
                 return query_execution
 
             if self.connection.cursor_kwargs.get("debug_query_state", False):
-                LOGGER.debug(f"Query state is: {query_execution.state}. Sleeping for {self._poll_interval}...")
+                LOGGER.debug(
+                    f"Query state is: {query_execution.state}. Sleeping for {self._poll_interval}..."
+                )
             time.sleep(self._poll_interval)
 
     def execute(
@@ -168,7 +170,9 @@ class AthenaCursor(Cursor):
             # Otherwise, Athena throws ICEBERG_FILESYSTEM_ERROR after retry,
             # because not all files are removed immediately after first try to create table
             retry=retry_if_exception(
-                lambda e: False if catch_partitions_limit and "TOO_MANY_OPEN_PARTITIONS" in str(e) else True
+                lambda e: False
+                if catch_partitions_limit and "TOO_MANY_OPEN_PARTITIONS" in str(e)
+                else True
             ),
             stop=stop_after_attempt(self._retry_config.attempt),
             wait=wait_random_exponential(
@@ -204,7 +208,9 @@ class AthenaCursor(Cursor):
 
                 LOGGER.debug(f"Athena query ID {query_id}")
 
-                query_execution = self._executor.submit(self._collect_result_set, query_id).result()
+                query_execution = self._executor.submit(
+                    self._collect_result_set, query_id
+                ).result()
                 if query_execution.state == AthenaQueryExecution.STATE_SUCCEEDED:
                     self.result_set = self._result_set_class(
                         self._connection,
@@ -270,7 +276,11 @@ class AthenaConnectionManager(SQLConnectionManager):
                 session=get_boto3_session(connection),
                 retry_config=RetryConfig(
                     attempt=creds.num_retries + 1,
-                    exceptions=("ThrottlingException", "TooManyRequestsException", "InternalServerException"),
+                    exceptions=(
+                        "ThrottlingException",
+                        "TooManyRequestsException",
+                        "InternalServerException",
+                    ),
                 ),
                 config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
@@ -279,7 +289,9 @@ class AthenaConnectionManager(SQLConnectionManager):
             connection.handle = handle
 
         except Exception as exc:
-            LOGGER.exception(f"Got an error when attempting to open a Athena connection due to {exc}")
+            LOGGER.exception(
+                f"Got an error when attempting to open a Athena connection due to {exc}"
+            )
             connection.handle = None
             connection.state = ConnectionState.FAIL
             raise ConnectionError(str(exc))
@@ -367,5 +379,7 @@ class AthenaParameterFormatter(Formatter):
                         raise TypeError(f"{type(v)} is not defined formatter.")
                     kwargs.append(func(self, escaper, v))
             else:
-                raise ProgrammingError(f"Unsupported parameter (Support for list only): {parameters}")
+                raise ProgrammingError(
+                    f"Unsupported parameter (Support for list only): {parameters}"
+                )
         return (operation % tuple(kwargs)).strip() if kwargs is not None else operation.strip()

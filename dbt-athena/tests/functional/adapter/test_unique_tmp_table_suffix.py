@@ -30,7 +30,9 @@ class TestUniqueTmpTableSuffix:
 
     def test__unique_tmp_table_suffix(self, project, capsys):
         relation_name = "unique_tmp_table_suffix"
-        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
+        model_run_result_row_count_query = (
+            f"select count(*) as records from {project.test_schema}.{relation_name}"
+        )
         expected_unique_table_name_re = (
             r"unique_tmp_table_suffix__dbt_tmp_"
             r"[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}"
@@ -59,12 +61,18 @@ class TestUniqueTmpTableSuffix:
 
         assert len(athena_running_create_statements) == 1
 
-        first_model_run_result_table_name = extract_create_statement_table_names(athena_running_create_statements[0])[0]
+        first_model_run_result_table_name = extract_create_statement_table_names(
+            athena_running_create_statements[0]
+        )[0]
 
         # Run statements logged output should not contain unique table suffix after first run
-        assert not bool(re.search(expected_unique_table_name_re, first_model_run_result_table_name))
+        assert not bool(
+            re.search(expected_unique_table_name_re, first_model_run_result_table_name)
+        )
 
-        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
+        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[
+            0
+        ][0]
 
         assert records_count_first_run == 1
 
@@ -96,7 +104,9 @@ class TestUniqueTmpTableSuffix:
         )[0]
 
         # Run statements logged for subsequent incremental model runs should use unique table suffix
-        assert bool(re.search(expected_unique_table_name_re, incremental_model_run_result_table_name))
+        assert bool(
+            re.search(expected_unique_table_name_re, incremental_model_run_result_table_name)
+        )
 
         assert first_model_run_result_table_name != incremental_model_run_result_table_name
 

@@ -45,13 +45,17 @@ class TestTableIcebergTableUnique:
 
     def test__table_creation(self, project, capsys):
         relation_name = "table_iceberg_table_unique"
-        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
+        model_run_result_row_count_query = (
+            f"select count(*) as records from {project.test_schema}.{relation_name}"
+        )
 
         fist_model_run = run_dbt(["run", "--select", relation_name])
         first_model_run_result = fist_model_run.results[0]
         assert first_model_run_result.status == RunStatus.Success
 
-        first_models_records_count = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
+        first_models_records_count = project.run_sql(
+            model_run_result_row_count_query, fetch="all"
+        )[0][0]
 
         assert first_models_records_count == 2
 
@@ -65,13 +69,13 @@ class TestTableIcebergTableUnique:
             f"alter table `{project.test_schema}`.`{relation_name}` "
             f"rename to `{project.test_schema}`.`{relation_name}__bkp`"
         )
-        delete_bkp_table_log = (
-            f'Deleted table from glue catalog: "awsdatacatalog"."{project.test_schema}"."{relation_name}__bkp"'
-        )
+        delete_bkp_table_log = f'Deleted table from glue catalog: "awsdatacatalog"."{project.test_schema}"."{relation_name}__bkp"'
         assert alter_statement in out
         assert delete_bkp_table_log in out
 
-        second_models_records_count = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
+        second_models_records_count = project.run_sql(
+            model_run_result_row_count_query, fetch="all"
+        )[0][0]
 
         assert second_models_records_count == 2
 

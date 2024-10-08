@@ -23,14 +23,14 @@ jobs:
       matrix:
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: "Checkout repo"
+        uses: actions/checkout@v3
+
+      - name: "Setup `hatch`"
+        uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          make install_deps
-      - name: Test with pytest
-        run: |
-          make unit_test
+
+      - name: "Test with pytest"
+        run: hatch run unit-tests
+        working-directory: ./dbt-athena

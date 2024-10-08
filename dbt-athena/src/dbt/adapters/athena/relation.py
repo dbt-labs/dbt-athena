@@ -38,7 +38,9 @@ class AthenaRelation(BaseRelation):
     quote_character: str = '"'  # Presto quote character
     include_policy: Policy = field(default_factory=lambda: AthenaIncludePolicy())
     s3_path_table_part: Optional[str] = None
-    detailed_table_type: Optional[str] = None  # table_type option from the table Parameters in Glue Catalog
+    detailed_table_type: Optional[
+        str
+    ] = None  # table_type option from the table Parameters in Glue Catalog
 
     def render_hive(self) -> str:
         """
@@ -102,11 +104,15 @@ RELATION_TYPE_MAP = {
 
 
 def get_table_type(table: TableTypeDef) -> TableType:
-    table_full_name = ".".join(filter(None, [table.get("CatalogId"), table.get("DatabaseName"), table["Name"]]))
+    table_full_name = ".".join(
+        filter(None, [table.get("CatalogId"), table.get("DatabaseName"), table["Name"]])
+    )
 
     input_table_type = table.get("TableType")
     if input_table_type and input_table_type not in RELATION_TYPE_MAP:
-        raise ValueError(f"Table type {table['TableType']} is not supported for table {table_full_name}")
+        raise ValueError(
+            f"Table type {table['TableType']} is not supported for table {table_full_name}"
+        )
 
     if table.get("Parameters", {}).get("table_type", "").lower() == "iceberg":
         _type = TableType.ICEBERG

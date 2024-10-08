@@ -37,7 +37,11 @@ class AthenaPythonJobHelper(PythonJobHelper):
             retry_attempts=credentials.num_retries,
         )
         self.spark_connection = AthenaSparkSessionManager(
-            credentials, self.timeout, self.polling_interval, self.engine_config, self.relation_name
+            credentials,
+            self.timeout,
+            self.polling_interval,
+            self.engine_config,
+            self.relation_name,
         )
 
     @cached_property
@@ -145,7 +149,9 @@ class AthenaPythonJobHelper(PythonJobHelper):
                 except Exception as e:
                     raise DbtRuntimeError(f"Unable to start spark python code execution. Got: {e}")
             execution_status = self.poll_until_execution_completion(calculation_execution_id)
-            LOGGER.debug(f"Model {self.relation_name} - Received execution status {execution_status}")
+            LOGGER.debug(
+                f"Model {self.relation_name} - Received execution status {execution_status}"
+            )
             if execution_status == "COMPLETED":
                 try:
                     result = self.athena_client.get_calculation_execution(
@@ -156,7 +162,12 @@ class AthenaPythonJobHelper(PythonJobHelper):
                     result = {}
             return result
         else:
-            return {"ResultS3Uri": "string", "ResultType": "string", "StdErrorS3Uri": "string", "StdOutS3Uri": "string"}
+            return {
+                "ResultS3Uri": "string",
+                "ResultType": "string",
+                "StdErrorS3Uri": "string",
+                "StdOutS3Uri": "string",
+            }
 
     def poll_until_session_idle(self) -> None:
         """
@@ -248,7 +259,9 @@ Stderr s3 path: {execution_stderr_s3_path}
                 time.sleep(polling_interval)
                 timer += polling_interval
                 if timer > self.timeout:
-                    self.athena_client.stop_calculation_execution(CalculationExecutionId=calculation_execution_id)
+                    self.athena_client.stop_calculation_execution(
+                        CalculationExecutionId=calculation_execution_id
+                    )
                     raise DbtRuntimeError(
                         f"Execution {calculation_execution_id} did not complete within {self.timeout} seconds."
                     )

@@ -158,7 +158,9 @@ class MockAWSService:
             parameters = {"catalog-id": catalog_id}
         else:
             parameters = {"catalog": catalog_name}
-        athena.create_data_catalog(Name=catalog_name, Type=catalog_type.value, Parameters=parameters)
+        athena.create_data_catalog(
+            Name=catalog_name, Type=catalog_type.value, Parameters=parameters
+        )
 
     def create_database(self, name: str = DATABASE_NAME, catalog_id: str = CATALOG_ID):
         glue = boto3.client("glue", region_name=AWS_REGION)
@@ -408,12 +410,24 @@ class MockAWSService:
 
     def add_data_in_table(self, table_name: str):
         s3 = boto3.client("s3", region_name=AWS_REGION)
-        s3.create_bucket(Bucket=BUCKET, CreateBucketConfiguration={"LocationConstraint": AWS_REGION})
-        s3.put_object(Body=b"{}", Bucket=BUCKET, Key=f"tables/{table_name}/dt=2022-01-01/data1.parquet")
-        s3.put_object(Body=b"{}", Bucket=BUCKET, Key=f"tables/{table_name}/dt=2022-01-01/data2.parquet")
-        s3.put_object(Body=b"{}", Bucket=BUCKET, Key=f"tables/{table_name}/dt=2022-01-02/data.parquet")
-        s3.put_object(Body=b"{}", Bucket=BUCKET, Key=f"tables/{table_name}/dt=2022-01-03/data1.parquet")
-        s3.put_object(Body=b"{}", Bucket=BUCKET, Key=f"tables/{table_name}/dt=2022-01-03/data2.parquet")
+        s3.create_bucket(
+            Bucket=BUCKET, CreateBucketConfiguration={"LocationConstraint": AWS_REGION}
+        )
+        s3.put_object(
+            Body=b"{}", Bucket=BUCKET, Key=f"tables/{table_name}/dt=2022-01-01/data1.parquet"
+        )
+        s3.put_object(
+            Body=b"{}", Bucket=BUCKET, Key=f"tables/{table_name}/dt=2022-01-01/data2.parquet"
+        )
+        s3.put_object(
+            Body=b"{}", Bucket=BUCKET, Key=f"tables/{table_name}/dt=2022-01-02/data.parquet"
+        )
+        s3.put_object(
+            Body=b"{}", Bucket=BUCKET, Key=f"tables/{table_name}/dt=2022-01-03/data1.parquet"
+        )
+        s3.put_object(
+            Body=b"{}", Bucket=BUCKET, Key=f"tables/{table_name}/dt=2022-01-03/data2.parquet"
+        )
         partition_input_list = [
             {
                 "Values": [dt],
@@ -439,7 +453,9 @@ class MockAWSService:
         ]
         glue = boto3.client("glue", region_name=AWS_REGION)
         glue.batch_create_partition(
-            DatabaseName="test_dbt_athena", TableName=table_name, PartitionInputList=partition_input_list
+            DatabaseName="test_dbt_athena",
+            TableName=table_name,
+            PartitionInputList=partition_input_list,
         )
 
     def add_partitions_to_table(self, database, table_name):

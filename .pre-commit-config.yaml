@@ -1,6 +1,6 @@
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v5.0.0
     hooks:
     # Identify invalid files
     -   id: check-ast
@@ -32,7 +32,7 @@ repos:
     -   id: dbt-core-in-adapters-check
 
 -   repo: https://github.com/PyCQA/autoflake
-    rev: v2.0.1
+    rev: v2.3.1
     hooks:
     -   id: autoflake
         args:
@@ -51,52 +51,44 @@ repos:
         -   --target-version=py39
         -   --target-version=py310
         -   --target-version=py311
-        -   --target-version=py312
+        # -   --target-version=py312
 
 -   repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
+    rev: 7.1.1
     hooks:
     -   id: flake8
         exclude: tests/
         args:
-        -   '.'
         -   --max-line-length=99
         -   --select=E,F,W
         -   --ignore=E203,E501,E741,W503,W504
         -   --per-file-ignores=*/__init__.py:F401
 
--   repo: https://github.com/pycqa/isort
-    rev: 5.12.0
-    hooks:
-    -   id: isort
-        name: isort
-        args:
-        -   --src=**/src/dbt
-        -   --src=**/tests
-
 -   repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.37.0
+    rev: v0.42.0
     hooks:
     -   id: markdownlint
         args:
         -   --fix
+        -   --disable=MD045
 
 -   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.3.0
+    rev: v1.11.2
     hooks:
     -   id: mypy
+        exclude: /tests/
         args:
         -   --strict
         -   --ignore-missing-imports
         -   --install-types
         -   --allow-subclassing-any
         -   --allow-untyped-decorators
-        files: ^*/src/dbt/adapters/**/*.py
         additional_dependencies:
         -   boto3-stubs[athena,glue,lakeformation,s3,sts]
         -   types-PyYAML
         -   types-protobuf
         -   types-pytz
+        -   types-requests
 
 -   repo: https://github.com/asottile/pyupgrade
     rev: v3.3.1

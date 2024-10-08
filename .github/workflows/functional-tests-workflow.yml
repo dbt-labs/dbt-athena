@@ -50,5 +50,4 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
           aws-region: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
       - name: Functional Test
-        run: |
-          pytest -n 8 tests/functional
+        run: pytest -n 8 dbt-athena/tests/functional

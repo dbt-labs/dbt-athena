@@ -96,7 +96,9 @@ class AthenaSparkSessionManager:
             str: The Spark work group. Raises an exception if not found in the profile.
         """
         if not self.credentials.spark_work_group:
-            raise DbtRuntimeError(f"Expected spark_work_group in profile. Got: {self.credentials.spark_work_group}")
+            raise DbtRuntimeError(
+                f"Expected spark_work_group in profile. Got: {self.credentials.spark_work_group}"
+            )
         return str(self.credentials.spark_work_group)
 
     @cached_property
@@ -123,7 +125,9 @@ class AthenaSparkSessionManager:
         Returns:
             str: A concatenated text of dbt invocation_id and engine configuration's md5 hash
         """
-        hash_desc = md5(json.dumps(self.engine_config, sort_keys=True, ensure_ascii=True).encode("utf-8")).hexdigest()
+        hash_desc = md5(
+            json.dumps(self.engine_config, sort_keys=True, ensure_ascii=True).encode("utf-8")
+        ).hexdigest()
         return f"dbt: {invocation_id} - {hash_desc}"
 
     def get_session_id(self, session_query_capacity: int = 1) -> UUID:
@@ -232,7 +236,9 @@ class AthenaSparkSessionManager:
             timer += polling_interval
             if timer > self.timeout:
                 self.remove_terminated_session(session_id)
-                raise DbtRuntimeError(f"Session {session_id} did not create within {self.timeout} seconds.")
+                raise DbtRuntimeError(
+                    f"Session {session_id} did not create within {self.timeout} seconds."
+                )
 
     def get_session_status(self, session_id: str) -> Any:
         """
@@ -260,4 +266,6 @@ class AthenaSparkSessionManager:
         Returns: None
         """
         with self.lock:
-            spark_session_load[UUID(session_id)] = spark_session_load.get(UUID(session_id), 0) + change
+            spark_session_load[UUID(session_id)] = (
+                spark_session_load.get(UUID(session_id), 0) + change
+            )

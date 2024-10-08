@@ -91,6 +91,6 @@ testpaths = [
     "tests/functional",
 ]
 filterwarnings = [
-    "ignore:.*'soft_unicode' has been renamed to 'soft_str'*:DeprecationWarning
-    "ignore:unclosed file .*:ResourceWarning"
+    "ignore:.*'soft_unicode' has been renamed to 'soft_str'*:DeprecationWarning",
+    "ignore:unclosed file .*:ResourceWarning",
 ]
