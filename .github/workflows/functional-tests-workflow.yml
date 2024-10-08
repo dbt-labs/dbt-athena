@@ -32,22 +32,22 @@ jobs:
       DBT_TEST_ATHENA_S3_TMP_TABLE_DIR: ${{ vars.DBT_TEST_ATHENA_S3_BUCKET }}/tmp_tables/
       DBT_TEST_ATHENA_REGION_NAME: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
     steps:
-      - name: Checkout
+      - name: "Checkout repo"
         uses: actions/checkout@v3
         with:
           ref: ${{ inputs.checkout-ref }}
           repository: ${{ inputs.checkout-repository }}
-      - name: Set up Python
-        uses: actions/setup-python@v5
+
+      - name: "Setup `hatch`"
+        uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
         with:
-          python-version: '3.8'
-      - name: Install dependencies
-        run: |
-          make install_deps
-      - name: Configure AWS credentials from Test account
+          python-version: ${{ matrix.python-version }}
+
+      - name: "Configure AWS credentials from Test account"
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
           aws-region: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
-      - name: Functional Test
-        run: pytest -n 8 dbt-athena/tests/functional
+
+      - name: "Functional Test"
+        run: hatch run integration-tests
