@@ -25,9 +25,9 @@ classifiers = [
 ]
 dependencies=["dbt-athena>=1.0.0b2,<2.0"]
 [project.urls]
-Homepage = "https://github.com/dbt-labs/dbt-athena/dbt-athena-community"
+Homepage = "https://github.com/dbt-labs/dbt-athena/dbt-athena"
 Documentation = "https://docs.getdbt.com"
-Repository = "https://github.com/dbt-labs/dbt-athena.git#subdirectory=dbt-athena-community"
+Repository = "https://github.com/dbt-labs/dbt-athena.git#subdirectory=dbt-athena"
 Issues = "https://github.com/dbt-labs/dbt-athena/issues"
 
 [build-system]
@@ -35,10 +35,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
-include = ["dbt"]
+include = ["src/dbt"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["dbt"]
+packages = ["src/dbt"]
 
 [tool.hatch.version]
 path = "src/dbt/adapters/athena/__version__.py"
