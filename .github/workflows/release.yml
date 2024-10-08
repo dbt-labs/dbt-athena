@@ -54,7 +54,6 @@ jobs:
       contents: read
     with:
       checkout-ref: ${{ inputs.branch }}
-      checkout-repository: ${{ github.repository }}
 
   build-release:
     name: "Build release"
