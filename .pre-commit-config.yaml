@@ -83,7 +83,6 @@ repos:
         -   --allow-subclassing-any
         -   --allow-untyped-decorators
         additional_dependencies:
-        -   boto3-stubs[athena,glue,lakeformation,s3,sts]
         -   types-PyYAML
         -   types-protobuf
         -   types-pytz
