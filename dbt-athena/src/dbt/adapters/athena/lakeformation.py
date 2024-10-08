@@ -49,18 +49,16 @@ class LfTagsManager:
         if self.lf_tags:
             database_resource = {"Database": {"Name": self.database}}
             response = self.lf_client.add_lf_tags_to_resource(
-                Resource=database_resource,  # type:ignore
+                Resource=database_resource,
                 LFTags=[{"TagKey": k, "TagValues": [v]} for k, v in self.lf_tags.items()],
             )
             self._parse_and_log_lf_response(response, None, self.lf_tags)
 
     def process_lf_tags(self) -> None:
         table_resource = {"Table": {"DatabaseName": self.database, "Name": self.table}}
-        existing_lf_tags = self.lf_client.get_resource_lf_tags(
-            Resource=table_resource  # type:ignore
-        )
+        existing_lf_tags = self.lf_client.get_resource_lf_tags(Resource=table_resource)
         self._remove_lf_tags_columns(existing_lf_tags)
-        self._apply_lf_tags_table(table_resource, existing_lf_tags)  # type:ignore
+        self._apply_lf_tags_table(table_resource, existing_lf_tags)
         self._apply_lf_tags_columns()
 
     @staticmethod
@@ -103,7 +101,7 @@ class LfTagsManager:
                         }
                     }
                     response = self.lf_client.remove_lf_tags_from_resource(
-                        Resource=resource,  # type:ignore
+                        Resource=resource,
                         LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}],
                     )
                     self._parse_and_log_lf_response(
@@ -131,7 +129,7 @@ class LfTagsManager:
         logger.debug(f"CONFIG TAGS: {self.lf_tags}")
 
         to_remove = LfTagsManager._table_tags_to_remove(
-            lf_tags_table, self.lf_tags, self.lf_inherited_tags  # type:ignore
+            lf_tags_table, self.lf_tags, self.lf_inherited_tags
         )
 
         logger.debug(f"TAGS TO REMOVE: {to_remove}")
@@ -161,7 +159,7 @@ class LfTagsManager:
                         }
                     }
                     response = self.lf_client.add_lf_tags_to_resource(
-                        Resource=resource,  # type:ignore
+                        Resource=resource,
                         LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}],
                     )
                     self._parse_and_log_lf_response(response, columns, {tag_key: tag_value})
@@ -238,8 +236,8 @@ class LfPermissions:
             "Name": self.table,
         }
         return {
-            f["Name"]: f  # type:ignore
-            for f in self.lf_client.list_data_cells_filter(Table=table_resource)[  # type:ignore
+            f["Name"]: f
+            for f in self.lf_client.list_data_cells_filter(Table=table_resource)[
                 "DataCellsFilters"
             ]
         }

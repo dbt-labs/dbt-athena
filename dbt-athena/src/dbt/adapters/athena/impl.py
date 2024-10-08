@@ -235,7 +235,7 @@ class AthenaAdapter(SQLAdapter):
                 config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
 
-        return athena_client.get_work_group(WorkGroup=work_group)  # type:ignore
+        return athena_client.get_work_group(WorkGroup=work_group)
 
     @available
     def is_work_group_output_location_enforced(self) -> bool:
@@ -355,7 +355,7 @@ class AthenaAdapter(SQLAdapter):
                 LOGGER.debug(f"Table {relation.render()} does not exists - Ignoring")
                 return None
             raise e
-        return table  # type:ignore
+        return table
 
     @available
     def get_glue_table_type(self, relation: AthenaRelation) -> Optional[TableType]:
@@ -581,7 +581,7 @@ class AthenaAdapter(SQLAdapter):
             for idx, col in enumerate(
                 table["StorageDescriptor"]["Columns"] + table.get("PartitionKeys", [])
             )
-            if self._is_current_column(col)  # type:ignore
+            if self._is_current_column(col)
         ]
 
     @staticmethod
@@ -606,9 +606,7 @@ class AthenaAdapter(SQLAdapter):
                 },
             }
             # TODO: review this code part as TableTypeDef class does not contain "Columns" attribute
-            for idx, col in enumerate(
-                table["Columns"] + table.get("PartitionKeys", [])  # type:ignore
-            )
+            for idx, col in enumerate(table["Columns"] + table.get("PartitionKeys", []))
         ]
 
     def _get_one_catalog(
@@ -714,7 +712,7 @@ class AthenaAdapter(SQLAdapter):
                     region_name=client.region_name,
                     config=get_boto3_config(num_retries=creds.effective_num_retries),
                 )
-            return athena.get_data_catalog(Name=database)["DataCatalog"]  # type:ignore
+            return athena.get_data_catalog(Name=database)["DataCatalog"]
         return None
 
     @available
@@ -1040,7 +1038,7 @@ class AthenaAdapter(SQLAdapter):
                 need_to_update_table = True
             # Save dbt description
             table_input["Description"] = clean_table_description
-            table_parameters["comment"] = clean_table_description  # type:ignore
+            table_parameters["comment"] = clean_table_description
 
             # Get dbt model meta if available
             meta: Dict[str, Any] = model.get("config", {}).get("meta", {})
@@ -1060,7 +1058,7 @@ class AthenaAdapter(SQLAdapter):
                         if current_meta_value is None or current_meta_value != meta_value:
                             need_to_update_table = True
                         # Save Glue table parameter
-                        table_parameters[meta_key] = meta_value  # type:ignore
+                        table_parameters[meta_key] = meta_value
                     else:
                         LOGGER.warning(
                             f"Meta value for key '{meta_key}' is not supported and will be ignored"
@@ -1106,7 +1104,7 @@ class AthenaAdapter(SQLAdapter):
                                 ):
                                     need_to_update_table = True
                                 # Save Glue column parameter
-                                col_obj["Parameters"][meta_key] = meta_value  # type:ignore
+                                col_obj["Parameters"][meta_key] = meta_value
                             else:
                                 LOGGER.warning(
                                     f"Column meta value for key '{meta_key}' is not supported and will be ignored"
@@ -1363,9 +1361,7 @@ class AthenaAdapter(SQLAdapter):
         This is needed because update_table() does not accept some read-only fields of table dictionary
         returned by get_table() method.
         """
-        return {
-            k: v for k, v in table.items() if k in TableInputTypeDef.__annotations__
-        }  # type:ignore
+        return {k: v for k, v in table.items() if k in TableInputTypeDef.__annotations__}
 
     @available
     def run_query_with_partitions_limit_catching(self, sql: str) -> str:
