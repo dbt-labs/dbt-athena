@@ -17,7 +17,6 @@ repos:
     # Python checks
     -   id: check-docstring-first
     -   id: debug-statements
-    -   id: requirements-txt-fixer
     -   id: fix-byte-order-marker
     # General quality checks
     -   id: mixed-line-ending
