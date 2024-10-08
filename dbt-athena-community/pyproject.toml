@@ -41,7 +41,7 @@ include = ["dbt"]
 packages = ["dbt"]
 
 [tool.hatch.version]
-path = "dbt/adapters/athena/__version__.py"
+path = "src/dbt/adapters/athena/__version__.py"
 
 [tool.hatch.envs.default]
 dependencies = [

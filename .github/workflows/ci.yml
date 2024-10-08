@@ -1,5 +1,5 @@
 name: "CI"
-run-name: "CI - ${{ github.actor }} - ${{ github.event_name }}"
+run-name: "CI - ${{ github.event_name }} - ${{ github.actor }}"
 
 on:
     pull_request:
@@ -39,6 +39,7 @@ jobs:
         name: "Unit tests"
         runs-on: ubuntu-latest
         strategy:
+            fail-fast: false
             matrix:
                 python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
         steps:
