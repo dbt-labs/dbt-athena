@@ -15,7 +15,8 @@ jobs:
         uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
         with:
           python-version: '3.11'
-      - uses: pre-commit/action@v3.0.0
+      - run: hatch run code-quality
+        working-directory: ./dbt-athena
 
   unit_test:
     name: 'Unit tests with coverage'
