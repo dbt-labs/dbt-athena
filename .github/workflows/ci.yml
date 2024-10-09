@@ -14,7 +14,7 @@ on:
 
 jobs:
     code-quality:
-        name: "Code quality checks"
+        name: "Pre-commit checks"
         runs-on: ubuntu-latest
         steps:
         -   name: "Checkout repo - PR"
