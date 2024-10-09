@@ -42,8 +42,7 @@ class LfTagsManager:
         if self.lf_tags:
             database_resource = {"Database": {"Name": self.database}}
             response = self.lf_client.add_lf_tags_to_resource(
-                Resource=database_resource,
-                LFTags=[{"TagKey": k, "TagValues": [v]} for k, v in self.lf_tags.items()],
+                Resource=database_resource, LFTags=[{"TagKey": k, "TagValues": [v]} for k, v in self.lf_tags.items()]
             )
             self._parse_and_log_lf_response(response, None, self.lf_tags)
 
@@ -113,15 +112,13 @@ class LfTagsManager:
         logger.debug(f"TAGS TO REMOVE: {to_remove}")
         if to_remove:
             response = self.lf_client.remove_lf_tags_from_resource(
-                Resource=table_resource,
-                LFTags=[{"TagKey": k, "TagValues": v} for k, v in to_remove.items()],
+                Resource=table_resource, LFTags=[{"TagKey": k, "TagValues": v} for k, v in to_remove.items()]
             )
             self._parse_and_log_lf_response(response, None, self.lf_tags, "remove")
 
         if self.lf_tags:
             response = self.lf_client.add_lf_tags_to_resource(
-                Resource=table_resource,
-                LFTags=[{"TagKey": k, "TagValues": [v]} for k, v in self.lf_tags.items()],
+                Resource=table_resource, LFTags=[{"TagKey": k, "TagValues": [v]} for k, v in self.lf_tags.items()]
             )
             self._parse_and_log_lf_response(response, None, self.lf_tags)
 
