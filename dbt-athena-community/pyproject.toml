@@ -23,7 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies=["dbt-athena>=1.0.0b2,<2.0"]
+dependencies=["dbt-athena @ {root:uri}/../dbt-athena"]
 [project.urls]
 Homepage = "https://github.com/dbt-labs/dbt-athena/dbt-athena"
 Documentation = "https://docs.getdbt.com"
@@ -39,6 +39,9 @@ include = ["src/dbt"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dbt"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.version]
 path = "src/dbt/adapters/athena/__version__.py"
@@ -58,8 +61,8 @@ dependencies = [
 [tool.hatch.envs.default.scripts]
 setup = "pre-commit install"
 code-quality = "pre-commit run --all-files"
-unit-tests = "pytest --cov=dbt --cov-report=html:htmlcov {args:tests/unit}"
-integration-tests = "python -m pytest -n auto {args:tests/functional}"
+unit-tests = "pytest --cov=dbt --cov-report=html:htmlcov {args:../dbt-athena/tests/unit}"
+integration-tests = "python -m pytest -n auto {args:../dbt-athena/tests/functional}"
 
 [tool.hatch.envs.build]
 detached = true
@@ -75,20 +78,20 @@ check-all = [
 ]
 check-wheel = [
     "twine check dist/*",
-    "find ./dist/dbt_athena-*.whl -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
-    "pip freeze | grep dbt-athena",
+    "find ./dist/dbt_athena_community-*.whl -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
+    "pip freeze | grep dbt-athena-community",
 ]
 check-sdist = [
     "check-wheel-contents dist/*.whl --ignore W007,W008",
-    "find ./dist/dbt_athena-*.gz -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
-    "pip freeze | grep dbt-athena",
+    "find ./dist/dbt_athena_community-*.gz -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
+    "pip freeze | grep dbt-athena-community",
 ]
 
 [tool.pytest]
-env_files = ["test.env"]
+env_files = ["../dbt-athena/test.env"]
 testpaths = [
-    "tests/unit",
-    "tests/functional",
+    "../dbt-athena/tests/unit",
+    "../dbt-athena/tests/functional",
 ]
 filterwarnings = [
     "ignore:.*'soft_unicode' has been renamed to 'soft_str'*:DeprecationWarning",
