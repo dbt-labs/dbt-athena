@@ -41,18 +41,13 @@ class TestAthenaColumn:
             else:
                 assert not getattr(column, type_func)()
 
-    @pytest.mark.parametrize(
-        "size,expected", [pytest.param(1, "varchar(1)"), pytest.param(0, "varchar")]
-    )
+    @pytest.mark.parametrize("size,expected", [pytest.param(1, "varchar(1)"), pytest.param(0, "varchar")])
     def test_string_type(self, size, expected):
         assert AthenaColumn.string_type(size) == expected
 
     @pytest.mark.parametrize(
         "table_type,expected",
-        [
-            pytest.param(TableType.TABLE, "timestamp"),
-            pytest.param(TableType.ICEBERG, "timestamp(6)"),
-        ],
+        [pytest.param(TableType.TABLE, "timestamp"), pytest.param(TableType.ICEBERG, "timestamp(6)")],
     )
     def test_timestamp_type(self, table_type, expected):
         column = self.setup_column(table_type=table_type)
@@ -76,9 +71,7 @@ class TestAthenaColumn:
 
     def test_array_inner_type_raises_for_non_array_type(self):
         column = self.setup_column(dtype="varchar")
-        with pytest.raises(
-            DbtRuntimeError, match=r"Called array_inner_type\(\) on non-array field!"
-        ):
+        with pytest.raises(DbtRuntimeError, match=r"Called array_inner_type\(\) on non-array field!"):
             column.array_inner_type()
 
     @pytest.mark.parametrize(
@@ -110,10 +103,6 @@ class TestAthenaColumn:
     )
     def test_data_type(self, dtype, expected):
         column = self.setup_column(
-            table_type=TableType.ICEBERG,
-            dtype=dtype,
-            char_size=10,
-            numeric_precision=1,
-            numeric_scale=2,
+            table_type=TableType.ICEBERG, dtype=dtype, char_size=10, numeric_precision=1, numeric_scale=2
         )
         assert column.data_type == expected

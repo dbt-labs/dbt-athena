@@ -133,16 +133,12 @@ class TestGenericTestsIceberg(BaseGenericTests):
         )
 
 
-@pytest.mark.skip(
-    reason="The in-place update is not supported for seeds. We need our own implementation instead."
-)
+@pytest.mark.skip(reason="The in-place update is not supported for seeds. We need our own implementation instead.")
 class TestSnapshotCheckColsIceberg(BaseSnapshotCheckCols):
     pass
 
 
-@pytest.mark.skip(
-    reason="The in-place update is not supported for seeds. We need our own implementation instead."
-)
+@pytest.mark.skip(reason="The in-place update is not supported for seeds. We need our own implementation instead.")
 class TestSnapshotTimestampIceberg(BaseSnapshotTimestamp):
     pass
 

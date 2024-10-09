@@ -1,96 +1,95 @@
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
     hooks:
-    # Identify invalid files
-    -   id: check-ast
-    -   id: check-yaml
-        args:
-        -   --unsafe
-    -   id: check-json
-    -   id: check-toml
-    # git checks
-    -   id: check-merge-conflict
-    -   id: check-added-large-files
-    -   id: detect-private-key
-    -   id: check-case-conflict
-    # Python checks
-    -   id: check-docstring-first
-    -   id: debug-statements
-    -   id: fix-byte-order-marker
-    # General quality checks
-    -   id: mixed-line-ending
-    -   id: trailing-whitespace
-        args:
-        -   --markdown-linebreak-ext=md
-    -   id: end-of-file-fixer
+      # Identify invalid files
+      - id: check-ast
+      - id: check-yaml
+        args: ['--unsafe']
+      - id: check-json
+      - id: check-toml
+      # git checks
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: detect-private-key
+      - id: check-case-conflict
+      # Python checks
+      - id: check-docstring-first
+      - id: debug-statements
+      - id: fix-byte-order-marker
+      # General quality checks
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
 
--   repo: https://github.com/dbt-labs/pre-commit-hooks
+  - repo: https://github.com/dbt-labs/pre-commit-hooks
     rev: v0.1.0a1
     hooks:
-    -   id: dbt-core-in-adapters-check
+      - id: dbt-core-in-adapters-check
 
--   repo: https://github.com/PyCQA/autoflake
-    rev: v2.3.1
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.0.1
     hooks:
-    -   id: autoflake
+      - id: autoflake
         args:
-        -   --in-place
-        -   --recursive
-        -   --remove-all-unused-imports
-        -   --remove-unused-variables
+        - --in-place
+        - --recursive
+        - --remove-all-unused-imports
+        - --remove-unused-variables
 
--   repo: https://github.com/psf/black
-    rev: 23.1.0
-    hooks:
-    -   id: black
-        args:
-        -   --line-length=99
-        -   --target-version=py38
-        -   --target-version=py39
-        -   --target-version=py310
-        -   --target-version=py311
-        # -   --target-version=py312
-
--   repo: https://github.com/pycqa/flake8
-    rev: 7.1.1
-    hooks:
-    -   id: flake8
-        exclude: tests/
-        args:
-        -   --max-line-length=99
-        -   --select=E,F,W
-        -   --ignore=E203,E501,E741,W503,W504
-        -   --per-file-ignores=*/__init__.py:F401
-
--   repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.42.0
-    hooks:
-    -   id: markdownlint
-        args:
-        -   --fix
-        -   --disable=MD045
-
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.2
-    hooks:
-    -   id: mypy
-        exclude: /tests/
-        args:
-        -   --strict
-        -   --ignore-missing-imports
-        -   --install-types
-        -   --allow-subclassing-any
-        -   --allow-untyped-decorators
-        additional_dependencies:
-        -   types-PyYAML
-        -   types-protobuf
-        -   types-pytz
-        -   types-requests
-
--   repo: https://github.com/asottile/pyupgrade
+  - repo: https://github.com/asottile/pyupgrade
     rev: v3.3.1
     hooks:
-    -   id: pyupgrade
+      - id: pyupgrade
         args:
-        -   --py37-plus
+          - '--py37-plus'
+
+  - repo: https://github.com/psf/black
+    rev: 23.1.0
+    hooks:
+      - id: black
+        args:
+          - --line-length=120
+          - --target-version=py38
+          - --target-version=py39
+          - --target-version=py310
+          - --target-version=py311
+          # - --target-version=py312
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        exclude: tests/
+        args:
+          - --max-line-length=120
+          - --select=E,F,W
+          - --ignore=E203,E501,E741,W503,W504
+          - --per-file-ignores=*/__init__.py:F401
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.3.0
+    hooks:
+      - id: mypy
+        exclude: /tests/
+        args:
+          - --strict
+          - --ignore-missing-imports
+          - --install-types
+          - --allow-subclassing-any
+          - --allow-untyped-decorators
+        additional_dependencies:
+          - types-PyYAML
+          - types-protobuf
+          - types-pytz
+          - types-requests
+          - types-setuptools
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.37.0
+    hooks:
+      - id: markdownlint
+        args:
+          - --fix
+          - --disable=MD045

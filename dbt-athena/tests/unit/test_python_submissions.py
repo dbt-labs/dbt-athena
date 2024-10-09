@@ -170,9 +170,7 @@ class TestAthenaPythonJobHelper:
                 pass
 
             monkeypatch.setattr(time, "sleep", mock_sleep)
-            poll_response = athena_job_helper.poll_until_execution_completion(
-                "test_calculation_id"
-            )
+            poll_response = athena_job_helper.poll_until_execution_completion("test_calculation_id")
             assert poll_response == expected_response
 
     @pytest.mark.parametrize(

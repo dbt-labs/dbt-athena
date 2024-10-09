@@ -110,9 +110,7 @@ class TestSplitPart(BaseSplitPart):
     def models(self):
         return {
             "test_split_part.yml": models__test_split_part_yml,
-            "test_split_part.sql": self.interpolate_macro_namespace(
-                models__test_split_part_sql, "split_part"
-            ),
+            "test_split_part.sql": self.interpolate_macro_namespace(models__test_split_part_sql, "split_part"),
         }
 
 
@@ -171,9 +169,7 @@ class TestDateDiff(BaseDateDiff):
     def models(self):
         return {
             "test_datediff.yml": models__test_datediff_yml,
-            "test_datediff.sql": self.interpolate_macro_namespace(
-                models__test_datediff_sql, "datediff"
-            ),
+            "test_datediff.sql": self.interpolate_macro_namespace(models__test_datediff_sql, "datediff"),
         }
 
 

@@ -45,10 +45,7 @@ class TestAthenaParameterFormatter:
             """,
                 {"country": "FR"},
             )
-        assert (
-            exc.value.__str__()
-            == "Unsupported parameter (Support for list only): {'country': 'FR'}"
-        )
+        assert exc.value.__str__() == "Unsupported parameter (Support for list only): {'country': 'FR'}"
 
     def test_query_parameters_unknown_formatter(self):
         with pytest.raises(TypeError) as exc:

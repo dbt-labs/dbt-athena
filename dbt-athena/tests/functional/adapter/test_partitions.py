@@ -104,13 +104,7 @@ join non_random_strings nrnd on true
 class TestHiveTablePartitions:
     @pytest.fixture(scope="class")
     def project_config_update(self):
-        return {
-            "models": {
-                "+table_type": "hive",
-                "+materialized": "table",
-                "+partitioned_by": ["date_column", "doy"],
-            }
-        }
+        return {"models": {"+table_type": "hive", "+materialized": "table", "+partitioned_by": ["date_column", "doy"]}}
 
     @pytest.fixture(scope="class")
     def models(self):
@@ -130,9 +124,7 @@ class TestHiveTablePartitions:
         # check that the model run successfully
         assert first_model_run_result.status == RunStatus.Success
 
-        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[
-            0
-        ][0]
+        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
 
         assert records_count_first_run == 212
 
@@ -156,9 +148,7 @@ class TestIcebergTablePartitions:
 
     def test__check_incremental_run_with_partitions(self, project):
         relation_name = "test_iceberg_partitions"
-        model_run_result_row_count_query = (
-            f"select count(*) as records from {project.test_schema}.{relation_name}"
-        )
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
 
         first_model_run = run_dbt(["run", "--select", relation_name])
         first_model_run_result = first_model_run.results[0]
@@ -166,9 +156,7 @@ class TestIcebergTablePartitions:
         # check that the model run successfully
         assert first_model_run_result.status == RunStatus.Success
 
-        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[
-            0
-        ][0]
+        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
 
         assert records_count_first_run == 212
 
@@ -198,9 +186,7 @@ class TestIcebergIncrementalPartitions:
         """
 
         relation_name = "test_iceberg_partitions_incremental"
-        model_run_result_row_count_query = (
-            f"select count(*) as records from {project.test_schema}.{relation_name}"
-        )
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
 
         first_model_run = run_dbt(["run", "--select", relation_name, "--full-refresh"])
         first_model_run_result = first_model_run.results[0]
@@ -208,9 +194,7 @@ class TestIcebergIncrementalPartitions:
         # check that the model run successfully
         assert first_model_run_result.status == RunStatus.Success
 
-        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[
-            0
-        ][0]
+        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
 
         assert records_count_first_run == 212
 
@@ -221,9 +205,7 @@ class TestIcebergIncrementalPartitions:
         # check that the model run successfully after incremental run
         assert incremental_model_run_result.status == RunStatus.Success
 
-        incremental_records_count = project.run_sql(model_run_result_row_count_query, fetch="all")[
-            0
-        ][0]
+        incremental_records_count = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
 
         assert incremental_records_count == 212
 
@@ -247,11 +229,13 @@ class TestHiveNullValuedPartitions:
 
     def test__check_run_with_partitions(self, project):
         relation_name = "test_nullable_partitions_model"
-        model_run_result_row_count_query = (
-            f"select count(*) as records from {project.test_schema}.{relation_name}"
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
+        model_run_result_null_id_count_query = (
+            f"select count(*) as records from {project.test_schema}.{relation_name} where id is null"
         )
-        model_run_result_null_id_count_query = f"select count(*) as records from {project.test_schema}.{relation_name} where id is null"
-        model_run_result_null_date_count_query = f"select count(*) as records from {project.test_schema}.{relation_name} where date_column is null"
+        model_run_result_null_date_count_query = (
+            f"select count(*) as records from {project.test_schema}.{relation_name} where date_column is null"
+        )
 
         first_model_run = run_dbt(["run", "--select", relation_name])
         first_model_run_result = first_model_run.results[0]
@@ -259,21 +243,15 @@ class TestHiveNullValuedPartitions:
         # check that the model run successfully
         assert first_model_run_result.status == RunStatus.Success
 
-        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[
-            0
-        ][0]
+        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
 
         assert records_count_first_run == 215
 
-        null_id_count_first_run = project.run_sql(
-            model_run_result_null_id_count_query, fetch="all"
-        )[0][0]
+        null_id_count_first_run = project.run_sql(model_run_result_null_id_count_query, fetch="all")[0][0]
 
         assert null_id_count_first_run == 52
 
-        null_date_count_first_run = project.run_sql(
-            model_run_result_null_date_count_query, fetch="all"
-        )[0][0]
+        null_date_count_first_run = project.run_sql(model_run_result_null_date_count_query, fetch="all")[0][0]
 
         assert null_date_count_first_run == 2
 
@@ -297,9 +275,7 @@ class TestHiveSingleNullValuedPartition:
 
     def test__check_run_with_partitions(self, project):
         relation_name = "test_single_nullable_partition_model"
-        model_run_result_row_count_query = (
-            f"select count(*) as records from {project.test_schema}.{relation_name}"
-        )
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
 
         first_model_run = run_dbt(["run", "--select", relation_name])
         first_model_run_result = first_model_run.results[0]
@@ -307,9 +283,7 @@ class TestHiveSingleNullValuedPartition:
         # check that the model run successfully
         assert first_model_run_result.status == RunStatus.Success
 
-        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[
-            0
-        ][0]
+        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
 
         assert records_count_first_run == 202
 
@@ -333,9 +307,7 @@ class TestIcebergTablePartitionsBuckets:
 
     def test__check_run_with_bucket_and_partitions(self, project):
         relation_name = "test_bucket_partitions"
-        model_run_result_row_count_query = (
-            f"select count(*) as records from {project.test_schema}.{relation_name}"
-        )
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
 
         first_model_run = run_dbt(["run", "--select", relation_name])
         first_model_run_result = first_model_run.results[0]
@@ -343,9 +315,7 @@ class TestIcebergTablePartitionsBuckets:
         # check that the model run successfully
         assert first_model_run_result.status == RunStatus.Success
 
-        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[
-            0
-        ][0]
+        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
 
         assert records_count_first_run == 615
 
@@ -369,9 +339,7 @@ class TestIcebergTableBuckets:
 
     def test__check_run_with_bucket_in_partitions(self, project):
         relation_name = "test_bucket_partitions"
-        model_run_result_row_count_query = (
-            f"select count(*) as records from {project.test_schema}.{relation_name}"
-        )
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
 
         first_model_run = run_dbt(["run", "--select", relation_name])
         first_model_run_result = first_model_run.results[0]
@@ -379,8 +347,6 @@ class TestIcebergTableBuckets:
         # check that the model run successfully
         assert first_model_run_result.status == RunStatus.Success
 
-        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[
-            0
-        ][0]
+        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
 
         assert records_count_first_run == 615

@@ -83,9 +83,7 @@ class TestForceBatchInsertParam:
 
     def test__force_batch_param(self, project):
         relation_name = "force_batch"
-        model_run_result_row_count_query = (
-            f"select count(*) as records from {project.test_schema}.{relation_name}"
-        )
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
 
         model_run = run_dbt(["run", "--select", relation_name])
         model_run_result = model_run.results[0]
@@ -103,9 +101,7 @@ class TestAppendForceBatch:
 
     def test__append_force_batch_param(self, project):
         relation_name = "models_append_force_batch"
-        model_run_result_row_count_query = (
-            f"select count(*) as records from {project.test_schema}.{relation_name}"
-        )
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
 
         model_run = run_dbt(["run", "--select", relation_name])
         model_run_result = model_run.results[0]
@@ -122,12 +118,8 @@ class TestMergeForceBatch:
 
     def test__merge_force_batch_param(self, project):
         relation_name = "models_merge_force_batch"
-        model_run_result_row_count_query = (
-            f"select count(*) as records from {project.test_schema}.{relation_name}"
-        )
-        model_run_result_distinct_query = (
-            f"select distinct rnd from {project.test_schema}.{relation_name}"
-        )
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
+        model_run_result_distinct_query = f"select distinct rnd from {project.test_schema}.{relation_name}"
 
         model_run = run_dbt(["run", "--select", relation_name])
         model_run_result = model_run.results[0]
@@ -140,7 +132,5 @@ class TestMergeForceBatch:
         models_records_count = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
         assert models_records_count == 212
 
-        models_distinct_records = project.run_sql(model_run_result_distinct_query, fetch="all")[0][
-            0
-        ]
+        models_distinct_records = project.run_sql(model_run_result_distinct_query, fetch="all")[0][0]
         assert models_distinct_records == 1

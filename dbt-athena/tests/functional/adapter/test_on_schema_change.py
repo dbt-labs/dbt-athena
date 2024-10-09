@@ -30,9 +30,7 @@ class TestOnSchemaChange:
         models = {}
         for table_type in ["hive", "iceberg"]:
             for on_schema_change in ["sync_all_columns", "append_new_columns", "ignore", "fail"]:
-                models[
-                    f"{table_type}_on_schema_change_{on_schema_change}.sql"
-                ] = models__table_base_model
+                models[f"{table_type}_on_schema_change_{on_schema_change}.sql"] = models__table_base_model
         return models
 
     def _column_names(self, project, relation_name):

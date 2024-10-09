@@ -31,9 +31,7 @@ class TestIncrementalTmpSchema:
         relation_name = "schema_tmp"
         temp_schema_name = f"{project.test_schema}_tmp"
         drop_temp_schema = f"drop schema if exists `{temp_schema_name}` cascade"
-        model_run_result_row_count_query = (
-            f"select count(*) as records from {project.test_schema}.{relation_name}"
-        )
+        model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
 
         vars_dict = {
             "temp_schema_name": temp_schema_name,
@@ -58,9 +56,7 @@ class TestIncrementalTmpSchema:
 
         assert first_model_run_result.status == RunStatus.Success
 
-        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[
-            0
-        ][0]
+        records_count_first_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
 
         assert records_count_first_run == 1
 
@@ -94,9 +90,7 @@ class TestIncrementalTmpSchema:
 
         assert incremental_model_run_result.status == RunStatus.Success
 
-        records_count_incremental_run = project.run_sql(
-            model_run_result_row_count_query, fetch="all"
-        )[0][0]
+        records_count_incremental_run = project.run_sql(model_run_result_row_count_query, fetch="all")[0][0]
 
         assert records_count_incremental_run == 2
 

@@ -29,7 +29,7 @@ jobs:
       DBT_TEST_ATHENA_S3_TMP_TABLE_DIR: ${{ vars.DBT_TEST_ATHENA_S3_BUCKET }}/tmp_tables/
       DBT_TEST_ATHENA_REGION_NAME: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
     steps:
-      - name: "Checkout repo"
+      - name: Checkout
         uses: actions/checkout@v3
         with:
           ref: ${{ inputs.checkout-ref }}

@@ -30,20 +30,13 @@ class LfTagsConfig(BaseModel):
 
 
 class LfTagsManager:
-    def __init__(
-        self,
-        lf_client: LakeFormationClient,
-        relation: AthenaRelation,
-        lf_tags_config: LfTagsConfig,
-    ):
+    def __init__(self, lf_client: LakeFormationClient, relation: AthenaRelation, lf_tags_config: LfTagsConfig):
         self.lf_client = lf_client
         self.database = relation.schema
         self.table = relation.identifier
         self.lf_tags = lf_tags_config.tags
         self.lf_tags_columns = lf_tags_config.tags_columns
-        self.lf_inherited_tags = (
-            set(lf_tags_config.inherited_tags) if lf_tags_config.inherited_tags else set()
-        )
+        self.lf_inherited_tags = set(lf_tags_config.inherited_tags) if lf_tags_config.inherited_tags else set()
 
     def process_lf_tags_database(self) -> None:
         if self.lf_tags:
@@ -68,9 +61,7 @@ class LfTagsManager:
         to_remove = {}
 
         for column in lf_tags_columns:
-            non_inherited_tags = [
-                tag for tag in column["LFTags"] if not tag["TagKey"] in lf_inherited_tags
-            ]
+            non_inherited_tags = [tag for tag in column["LFTags"] if not tag["TagKey"] in lf_inherited_tags]
             for tag in non_inherited_tags:
                 tag_key = tag["TagKey"]
                 tag_value = tag["TagValues"][0]
@@ -87,32 +78,21 @@ class LfTagsManager:
         lf_tags_columns = existing_lf_tags.get("LFTagsOnColumns", [])
         logger.debug(f"COLUMNS: {lf_tags_columns}")
         if lf_tags_columns:
-            to_remove = LfTagsManager._column_tags_to_remove(
-                lf_tags_columns, self.lf_inherited_tags
-            )
+            to_remove = LfTagsManager._column_tags_to_remove(lf_tags_columns, self.lf_inherited_tags)
             logger.debug(f"TO REMOVE: {to_remove}")
             for tag_key, tag_config in to_remove.items():
                 for tag_value, columns in tag_config.items():
                     resource = {
-                        "TableWithColumns": {
-                            "DatabaseName": self.database,
-                            "Name": self.table,
-                            "ColumnNames": columns,
-                        }
+                        "TableWithColumns": {"DatabaseName": self.database, "Name": self.table, "ColumnNames": columns}
                     }
                     response = self.lf_client.remove_lf_tags_from_resource(
-                        Resource=resource,
-                        LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}],
+                        Resource=resource, LFTags=[{"TagKey": tag_key, "TagValues": [tag_value]}]
                     )
-                    self._parse_and_log_lf_response(
-                        response, columns, {tag_key: tag_value}, "remove"
-                    )
+                    self._parse_and_log_lf_response(response, columns, {tag_key: tag_value}, "remove")
 
     @staticmethod
     def _table_tags_to_remove(
-        lf_tags_table: List[LFTagPairTypeDef],
-        lf_tags: Optional[Dict[str, str]],
-        lf_inherited_tags: Set[str],
+        lf_tags_table: List[LFTagPairTypeDef], lf_tags: Optional[Dict[str, str]], lf_inherited_tags: Set[str]
     ) -> Dict[str, Sequence[str]]:
         return {
             tag["TagKey"]: tag["TagValues"]
@@ -128,9 +108,7 @@ class LfTagsManager:
         logger.debug(f"EXISTING TABLE TAGS: {lf_tags_table}")
         logger.debug(f"CONFIG TAGS: {self.lf_tags}")
 
-        to_remove = LfTagsManager._table_tags_to_remove(
-            lf_tags_table, self.lf_tags, self.lf_inherited_tags
-        )
+        to_remove = LfTagsManager._table_tags_to_remove(lf_tags_table, self.lf_tags, self.lf_inherited_tags)
 
         logger.debug(f"TAGS TO REMOVE: {to_remove}")
         if to_remove:
@@ -152,11 +130,7 @@ class LfTagsManager:
             for tag_key, tag_config in self.lf_tags_columns.items():
                 for tag_value, columns in tag_config.items():
                     resource = {
-                        "TableWithColumns": {
-                            "DatabaseName": self.database,
-                            "Name": self.table,
-                            "ColumnNames": columns,
-                        }
+                        "TableWithColumns": {"DatabaseName": self.database, "Name": self.table, "ColumnNames": columns}
                     }
                     response = self.lf_client.add_lf_tags_to_resource(
                         Resource=resource,
@@ -166,9 +140,7 @@ class LfTagsManager:
 
     def _parse_and_log_lf_response(
         self,
-        response: Union[
-            AddLFTagsToResourceResponseTypeDef, RemoveLFTagsFromResourceResponseTypeDef
-        ],
+        response: Union[AddLFTagsToResourceResponseTypeDef, RemoveLFTagsFromResourceResponseTypeDef],
         columns: Optional[List[str]] = None,
         lf_tags: Optional[Dict[str, str]] = None,
         verb: str = "add",
@@ -191,9 +163,7 @@ class FilterConfig(BaseModel):
     column_names: List[str] = []
     principals: List[str] = []
 
-    def to_api_repr(
-        self, catalog_id: str, database: str, table: str, name: str
-    ) -> DataCellsFilterTypeDef:
+    def to_api_repr(self, catalog_id: str, database: str, table: str, name: str) -> DataCellsFilterTypeDef:
         return {
             "TableCatalogId": catalog_id,
             "DatabaseName": database,
@@ -205,9 +175,9 @@ class FilterConfig(BaseModel):
         }
 
     def to_update(self, existing: DataCellsFilterTypeDef) -> bool:
-        return self.row_filter != existing["RowFilter"]["FilterExpression"] or set(
-            self.column_names
-        ) != set(existing["ColumnNames"])
+        return self.row_filter != existing["RowFilter"]["FilterExpression"] or set(self.column_names) != set(
+            existing["ColumnNames"]
+        )
 
 
 class DataCellFiltersConfig(BaseModel):
@@ -220,9 +190,7 @@ class LfGrantsConfig(BaseModel):
 
 
 class LfPermissions:
-    def __init__(
-        self, catalog_id: str, relation: AthenaRelation, lf_client: LakeFormationClient
-    ) -> None:
+    def __init__(self, catalog_id: str, relation: AthenaRelation, lf_client: LakeFormationClient) -> None:
         self.catalog_id = catalog_id
         self.relation = relation
         self.database: str = relation.schema
@@ -230,27 +198,14 @@ class LfPermissions:
         self.lf_client = lf_client
 
     def get_filters(self) -> Dict[str, DataCellsFilterTypeDef]:
-        table_resource = {
-            "CatalogId": self.catalog_id,
-            "DatabaseName": self.database,
-            "Name": self.table,
-        }
-        return {
-            f["Name"]: f
-            for f in self.lf_client.list_data_cells_filter(Table=table_resource)[
-                "DataCellsFilters"
-            ]
-        }
+        table_resource = {"CatalogId": self.catalog_id, "DatabaseName": self.database, "Name": self.table}
+        return {f["Name"]: f for f in self.lf_client.list_data_cells_filter(Table=table_resource)["DataCellsFilters"]}
 
     def process_filters(self, config: LfGrantsConfig) -> None:
         current_filters = self.get_filters()
         logger.debug(f"CURRENT FILTERS: {current_filters}")
 
-        to_drop = [
-            f
-            for name, f in current_filters.items()
-            if name not in config.data_cell_filters.filters
-        ]
+        to_drop = [f for name, f in current_filters.items() if name not in config.data_cell_filters.filters]
         logger.debug(f"FILTERS TO DROP: {to_drop}")
         for f in to_drop:
             self.lf_client.delete_data_cells_filter(
@@ -292,23 +247,16 @@ class LfPermissions:
                 }
             )["PrincipalResourcePermissions"]
 
-            current_principals = {
-                p["Principal"]["DataLakePrincipalIdentifier"] for p in current_permissions
-            }
+            current_principals = {p["Principal"]["DataLakePrincipalIdentifier"] for p in current_permissions}
 
             to_revoke = {p for p in current_principals if p not in f.principals}
             if to_revoke:
                 self.lf_client.batch_revoke_permissions(
                     CatalogId=self.catalog_id,
-                    Entries=[
-                        self._permission_entry(name, principal, idx)
-                        for idx, principal in enumerate(to_revoke)
-                    ],
+                    Entries=[self._permission_entry(name, principal, idx) for idx, principal in enumerate(to_revoke)],
                 )
                 revoke_principals_msg = "\n".join(to_revoke)
-                logger.debug(
-                    f"Revoked permissions for filter {name} from principals:\n{revoke_principals_msg}"
-                )
+                logger.debug(f"Revoked permissions for filter {name} from principals:\n{revoke_principals_msg}")
             else:
                 logger.debug(f"No redundant permissions found for filter: {name}")
 
@@ -316,23 +264,16 @@ class LfPermissions:
             if to_add:
                 self.lf_client.batch_grant_permissions(
                     CatalogId=self.catalog_id,
-                    Entries=[
-                        self._permission_entry(name, principal, idx)
-                        for idx, principal in enumerate(to_add)
-                    ],
+                    Entries=[self._permission_entry(name, principal, idx) for idx, principal in enumerate(to_add)],
                 )
                 add_principals_msg = "\n".join(to_add)
-                logger.debug(
-                    f"Granted permissions for filter {name} to principals:\n{add_principals_msg}"
-                )
+                logger.debug(f"Granted permissions for filter {name} to principals:\n{add_principals_msg}")
             else:
                 logger.debug(f"No new permissions added for filter {name}")
 
             logger.debug(f"Permissions are set to be consistent with config for filter: {name}")
 
-    def _permission_entry(
-        self, filter_name: str, principal: str, idx: int
-    ) -> BatchPermissionsRequestEntryTypeDef:
+    def _permission_entry(self, filter_name: str, principal: str, idx: int) -> BatchPermissionsRequestEntryTypeDef:
         return {
             "Id": str(idx),
             "Principal": {"DataLakePrincipalIdentifier": principal},

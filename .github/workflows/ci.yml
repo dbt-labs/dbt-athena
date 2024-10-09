@@ -2,62 +2,56 @@ name: "CI"
 run-name: "CI - ${{ github.event_name }} - ${{ github.actor }}"
 
 on:
-    pull_request:
-    push:
-        branches: [main]
-    workflow_dispatch:
-        inputs:
-            branch:
-                description: "The branch to run CI against"
-                type: string
-                default: "main"
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "The branch to run CI against"
+        type: string
+        default: "main"
 
 jobs:
-    code-quality:
-        name: "Pre-commit checks"
-        runs-on: ubuntu-latest
-        steps:
-        -   name: "Checkout repo - PR"
-            if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
-            uses: actions/checkout@v3
-
-        -   name: "Checkout repo - Dispatch"
-            if: ${{ github.event_name == 'workflow_dispatch' }}
-            uses: actions/checkout@v3
-            with:
-                ref: ${{ inputs.branch }}
-
-        -   name: "Setup `hatch`"
-            uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
-            with:
-                python-version: '3.11'
-
-        -   name: "Run code quality"
-            uses: pre-commit/action@v3.0.0
+  code-quality:
+    name: "Pre-commit checks"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout repo - PR"
+        if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+        uses: actions/checkout@v3
+      - name: "Checkout repo - Dispatch"
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.branch }}
+      - name: "Setup `hatch`"
+        uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
+        with:
+          python-version: '3.11'
+      - name: "Run code quality"
+        uses: pre-commit/action@v3.0.0
 
     unit-tests:
-        name: "Unit tests"
-        runs-on: ubuntu-latest
-        strategy:
-            fail-fast: false
-            matrix:
-                python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
-        steps:
-        -   name: "Checkout repo - PR"
-            if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
-            uses: actions/checkout@v3
-
-        -   name: "Checkout repo - Dispatch"
-            if: ${{ github.event_name == 'workflow_dispatch' }}
-            uses: actions/checkout@v3
-            with:
-                ref: ${{ inputs.branch }}
-
-        -   name: "Setup `hatch`"
-            uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
-            with:
-                python-version: ${{ matrix.python-version }}
-
-        -   name: "Run unit tests"
-            run: hatch run unit-tests
-            working-directory: ./dbt-athena
+      name: "Unit tests"
+      runs-on: ubuntu-latest
+      strategy:
+        fail-fast: false
+        matrix:
+          python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+      steps:
+        - name: "Checkout repo - PR"
+          if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+          uses: actions/checkout@v3
+        - name: "Checkout repo - Dispatch"
+          if: ${{ github.event_name == 'workflow_dispatch' }}
+          uses: actions/checkout@v3
+          with:
+            ref: ${{ inputs.branch }}
+        - name: "Setup `hatch`"
+          uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
+          with:
+            python-version: ${{ matrix.python-version }}
+        - name: "Run unit tests"
+          run: hatch run unit-tests
+          working-directory: ./dbt-athena

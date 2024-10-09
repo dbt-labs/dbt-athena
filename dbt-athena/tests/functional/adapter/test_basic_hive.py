@@ -45,16 +45,12 @@ class TestGenericTestsHive(BaseGenericTests):
     pass
 
 
-@pytest.mark.skip(
-    reason="The in-place update is not supported for seeds. We need our own implementation instead."
-)
+@pytest.mark.skip(reason="The in-place update is not supported for seeds. We need our own implementation instead.")
 class TestSnapshotCheckColsHive(BaseSnapshotCheckCols):
     pass
 
 
-@pytest.mark.skip(
-    reason="The in-place update is not supported for seeds. We need our own implementation instead."
-)
+@pytest.mark.skip(reason="The in-place update is not supported for seeds. We need our own implementation instead.")
 class TestSnapshotTimestampHive(BaseSnapshotTimestamp):
     pass
 
