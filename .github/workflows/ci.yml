@@ -18,19 +18,19 @@ jobs:
           python-version: '3.11'
       - uses: pre-commit/action@v3.0.0
 
-    unit_test:
-      name: 'Unit tests with coverage'
-      runs-on: ubuntu-latest
-      strategy:
-        fail-fast: false
-        matrix:
-          python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
-      steps:
-        - uses: actions/checkout@v3
-        - name: "Setup `hatch`"
-          uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
-          with:
-            python-version: ${{ matrix.python-version }}
-        - name: Test with pytest
-          run: hatch run unit-tests
-          working-directory: ./dbt-athena
+  unit_test:
+    name: 'Unit tests with coverage'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Setup `hatch`"
+        uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Test with pytest
+        run: hatch run unit-tests
+        working-directory: ./dbt-athena

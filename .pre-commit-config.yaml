@@ -64,7 +64,6 @@ repos:
     rev: 6.0.0
     hooks:
       - id: flake8
-        exclude: tests/
         args:
           - --max-line-length=120
           - --select=E,F,W

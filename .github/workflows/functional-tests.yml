@@ -28,6 +28,8 @@ jobs:
     with:
       # this allows to pick the branch from the PR
       checkout-ref: ${{ github.event.pull_request.head.ref }}
+      # this allows to work on fork
+      checkout-repository: ${{ github.event.pull_request.head.repo.full_name }}
 
   # workflow that is invoked when a push to main happens
   functional-tests-main:
@@ -43,4 +45,4 @@ jobs:
       contents: read
     with:
       checkout-ref: ${{ github.ref }}
-      checkout-repository: ${{ github.event.pull_request.head.repo.full_name }}
+      checkout-repository: ${{ github.repository }}
