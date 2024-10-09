@@ -8,6 +8,9 @@ on:
       checkout-ref:
         required: true
         type: string
+      checkout-repository:
+        required: true
+        type: string
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ contains(github.event_name, 'pull_request') && github.event.pull_request.head.ref || github.sha }}
   cancel-in-progress: true
@@ -33,18 +36,16 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ inputs.checkout-ref }}
-
+          repository: ${{ inputs.checkout-repository }}
       - name: "Setup `hatch`"
         uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: "Configure AWS credentials from Test account"
+      - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
           aws-region: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
-
-      - name: "Functional Test"
+      - name: Functional Test
         run: hatch run integration-tests
         working-directory: ./dbt-athena

@@ -12,6 +12,9 @@ on:
       checkout-ref:
         required: true
         type: string
+      checkout-repository:
+        required: true
+        type: string
 
 jobs:
   # workflow that is invoked when for PRs with labels 'enable-functional-tests'
@@ -40,3 +43,4 @@ jobs:
       contents: read
     with:
       checkout-ref: ${{ github.ref }}
+      checkout-repository: ${{ github.event.pull_request.head.repo.full_name }}
