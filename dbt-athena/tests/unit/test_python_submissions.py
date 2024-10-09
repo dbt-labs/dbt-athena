@@ -27,8 +27,7 @@ class TestAthenaPythonJobHelper:
                 "timeout": config["timeout"],
                 "polling_interval": config["polling_interval"],
                 "engine_config": request.param.get(
-                    "engine_config",
-                    {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1},
+                    "engine_config", {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1}
                 ),
             },
         }
@@ -44,12 +43,7 @@ class TestAthenaPythonJobHelper:
 
     @pytest.fixture
     def athena_job_helper(
-        self,
-        athena_credentials,
-        athena_client,
-        athena_spark_session_manager,
-        parsed_model,
-        monkeypatch,
+        self, athena_credentials, athena_client, athena_spark_session_manager, parsed_model, monkeypatch
     ):
         mock_job_helper = AthenaPythonJobHelper(parsed_model, athena_credentials)
         monkeypatch.setattr(mock_job_helper, "athena_client", athena_client)
@@ -94,12 +88,7 @@ class TestAthenaPythonJobHelper:
         indirect=["parsed_model"],
     )
     def test_poll_session_idle(
-        self,
-        session_status_response,
-        expected_response,
-        athena_job_helper,
-        athena_spark_session_manager,
-        monkeypatch,
+        self, session_status_response, expected_response, athena_job_helper, athena_spark_session_manager, monkeypatch
     ):
         with patch.multiple(
             athena_spark_session_manager,

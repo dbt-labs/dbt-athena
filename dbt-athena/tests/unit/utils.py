@@ -439,9 +439,7 @@ class MockAWSService:
         ]
         glue = boto3.client("glue", region_name=AWS_REGION)
         glue.batch_create_partition(
-            DatabaseName="test_dbt_athena",
-            TableName=table_name,
-            PartitionInputList=partition_input_list,
+            DatabaseName="test_dbt_athena", TableName=table_name, PartitionInputList=partition_input_list
         )
 
     def add_partitions_to_table(self, database, table_name):

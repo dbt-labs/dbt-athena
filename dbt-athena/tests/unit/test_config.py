@@ -44,8 +44,7 @@ class TestAthenaSparkSessionConfig:
             "timeout": request.param.get("timeout", 7200),
             "polling_interval": request.param.get("polling_interval", 5),
             "engine_config": request.param.get(
-                "engine_config",
-                {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1},
+                "engine_config", {"CoordinatorDpuSize": 1, "MaxConcurrentDpus": 2, "DefaultExecutorDpuSize": 1}
             ),
         }
 

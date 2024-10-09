@@ -37,11 +37,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
             retry_attempts=credentials.num_retries,
         )
         self.spark_connection = AthenaSparkSessionManager(
-            credentials,
-            self.timeout,
-            self.polling_interval,
-            self.engine_config,
-            self.relation_name,
+            credentials, self.timeout, self.polling_interval, self.engine_config, self.relation_name
         )
 
     @cached_property
