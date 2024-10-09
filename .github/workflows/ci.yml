@@ -1,5 +1,4 @@
 name: ci
-run-name: "CI - ${{ github.event_name }} - ${{ github.actor }}"
 
 on:
   pull_request:
