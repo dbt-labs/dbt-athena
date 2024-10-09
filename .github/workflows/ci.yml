@@ -22,7 +22,7 @@ jobs:
         working-directory: ./${{ matrix.package }}
 
   unit_test:
-    name: 'Unit tests - ${{ matrix.package }} - ${{ matrix.python-version }}'
+    name: 'Unit tests with coverage - ${{ matrix.package }} - ${{ matrix.python-version }}'
     runs-on: ubuntu-latest
     strategy:
       matrix:
