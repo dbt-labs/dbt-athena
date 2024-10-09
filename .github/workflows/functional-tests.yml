@@ -21,6 +21,9 @@ jobs:
   functional-tests-pr:
     name: Functional Tests - PR
     uses: ./.github/workflows/functional-tests-workflow.yml
+    strategy:
+      matrix:
+        package: ['dbt-athena', 'dbt-athena-community']
     secrets: inherit
     permissions:
       id-token: write
@@ -30,6 +33,7 @@ jobs:
       checkout-ref: ${{ github.event.pull_request.head.ref }}
       # this allows to work on fork
       checkout-repository: ${{ github.event.pull_request.head.repo.full_name }}
+      package: ${{ matrix.package }}
 
   # workflow that is invoked when a push to main happens
   functional-tests-main:
@@ -39,6 +43,9 @@ jobs:
       || github.event_name == 'workflow_dispatch'
       || github.event_name == 'workflow_call'
     uses: ./.github/workflows/functional-tests-workflow.yml
+    strategy:
+      matrix:
+        package: ['dbt-athena', 'dbt-athena-community']
     secrets: inherit
     permissions:
       id-token: write
@@ -46,3 +53,4 @@ jobs:
     with:
       checkout-ref: ${{ github.ref }}
       checkout-repository: ${{ github.repository }}
+      package: ${{ matrix.package }}

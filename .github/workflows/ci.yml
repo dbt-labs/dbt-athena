@@ -17,13 +17,16 @@ jobs:
           python-version: '3.11'
       - run: hatch run code-quality
         working-directory: ./dbt-athena
+      - run: hatch run code-quality
+        working-directory: ./dbt-athena-community
 
   unit_test:
-    name: 'Unit tests with coverage'
+    name: 'Unit tests - ${{ matrix.package }} - ${{ matrix.python-version }}'
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        package: ['dbt-athena', 'dbt-athena-community']
     steps:
       - uses: actions/checkout@v3
       - name: "Setup `hatch`"
@@ -32,4 +35,4 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Test with pytest
         run: hatch run unit-tests
-        working-directory: ./dbt-athena
+        working-directory: ./${{ matrix.package }}
