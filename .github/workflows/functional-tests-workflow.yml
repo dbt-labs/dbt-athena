@@ -40,7 +40,7 @@ jobs:
       - name: "Setup `hatch`"
         uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.8'
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v2
         with:
