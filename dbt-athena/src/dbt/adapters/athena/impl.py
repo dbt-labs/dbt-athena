@@ -1227,8 +1227,7 @@ class AthenaAdapter(SQLAdapter):
             """
         )
         staging_sql = self.execute_macro(
-            "create_table_as",
-            kwargs=dict(temporary=True, relation=staging_relation, compiled_code=ctas),
+            "create_table_as", kwargs=dict(temporary=True, relation=staging_relation, compiled_code=ctas)
         )
 
         backup_relation = relation.incorporate(path={"identifier": relation.identifier + "__dbt_tmp_migration_backup"})
