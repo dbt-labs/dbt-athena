@@ -1,0 +1,52 @@
+name: "Pull request checks"
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled]
+
+# only run this once per PR at a time
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  code-quality:
+    uses: ./.github/workflows/unit-tests.yml
+    with:
+      branch: ${{ github.event.pull_request.head.ref }}
+      repository: ${{ github.event.pull_request.head.repo.full_name }}
+
+  unit-tests:
+    uses: ./.github/workflows/unit-tests.yml
+    with:
+      package: ${{ matrix.python-version }}
+      branch: ${{ github.event.pull_request.head.sha }}
+      repository: ${{ github.event.pull_request.head.repo.full_name }}
+    strategy:
+      matrix:
+        package: ['dbt-athena', 'dbt-athena-community']
+
+  integration-tests:
+    if: contains(github.event.pull_request.labels.*.name, 'ci:integration-tests')
+    uses: ./.github/workflows/integration-tests.yml
+    with:
+      package: ${{ matrix.package }}
+      branch: ${{ github.event.pull_request.head.ref }}
+      repository: ${{ github.event.pull_request.head.repo.full_name }}
+    strategy:
+      matrix:
+        package: ['dbt-athena', 'dbt-athena-community']
+
+  # This job does nothing and is only used for branch protection
+  pull-request-checks:
+    if: always()
+    needs:
+    - code-quality
+    - unit-tests
+    - integration-tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
+        allowed-skips: integration-tests

@@ -1,0 +1,20 @@
+name: "Merge checks"
+
+on:
+  push:
+    branches: "main"
+
+# only run this once per branch at a time
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  integration-tests:
+    uses: ./.github/workflows/integration-tests.yml
+    with:
+      package: ${{ matrix.package }}
+      branch: ${{ github.ref }}
+    strategy:
+      matrix:
+        package: ['dbt-athena', 'dbt-athena-community']

@@ -1,0 +1,49 @@
+name: "Publish"
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy-to:
+        description: "Choose whether to deploy to test or prod"
+        type: environment
+        default: "prod"
+      branch:
+        description: "Choose the branch to release from"
+        type: string
+        default: "main"
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    uses: ./.github/workflows/unit-tests.yml
+    with:
+      branch: ${{ inputs.branch }}
+
+  integration-tests:
+    uses: ./.github/workflows/integration-tests.yml
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      branch: ${{ inputs.branch }}
+      repository: ${{ github.repository }}
+
+  publish-dbt-athena:
+    needs: [unit-tests, integration-tests]
+    uses: ./.github/workflows/publish-pypi.yml
+    with:
+      deploy-to: ${{ inputs.deploy-to }}
+      branch: ${{ inputs.branch }}
+
+  publish-dbt-athena-community:
+    # dbt-athena-community is hard pinned to dbt-athena to ensure they are the same
+    # this means we need to finish publishing dbt-athena before starting to build dbt-athena-community
+    needs: publish-dbt-athena
+    uses: ./.github/workflows/publish-pypi.yml
+    with:
+      package: "dbt-athena-community"
+      deploy-to: ${{ inputs.deploy-to }}
+      branch: ${{ inputs.branch }}
