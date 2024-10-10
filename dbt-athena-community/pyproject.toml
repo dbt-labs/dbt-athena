@@ -1,5 +1,4 @@
 [project]
-dynamic = ["version"]
 name = "dbt-athena-community"
 description = "The athena adapter plugin for dbt (data build tool)"
 readme = "../README.md"
@@ -23,7 +22,8 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies=["dbt-athena @ {root:uri}/../dbt-athena"]
+dependencies = ["dbt-athena @ {root:uri}/../dbt-athena"]
+version = "1.8.4"
 [project.urls]
 Homepage = "https://github.com/dbt-labs/dbt-athena/dbt-athena"
 Documentation = "https://docs.getdbt.com"
@@ -42,9 +42,6 @@ packages = ["src/dbt"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
-
-[tool.hatch.version]
-path = "src/dbt/adapters/athena/__version__.py"
 
 [tool.hatch.envs.default]
 dependencies = [
@@ -84,11 +81,13 @@ check-wheel = [
     "twine check dist/*",
     "find ./dist/dbt_athena_community-*.whl -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
     "pip freeze | grep dbt-athena-community",
+    "pip freeze | grep dbt-athena",
 ]
 check-sdist = [
     "check-wheel-contents dist/*.whl --ignore W007,W008",
     "find ./dist/dbt_athena_community-*.gz -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
     "pip freeze | grep dbt-athena-community",
+    "pip freeze | grep dbt-athena",
 ]
 
 [tool.pytest]
