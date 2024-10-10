@@ -94,4 +94,3 @@ repos:
     - id: markdownlint
       args:
         - --fix
-        - --disable=MD045
