@@ -20,7 +20,7 @@ jobs:
     uses: ./.github/workflows/unit-tests.yml
     with:
       package: ${{ matrix.python-version }}
-      branch: ${{ github.event.pull_request.head.sha }}
+      branch: ${{ github.event.pull_request.head.ref }}
       repository: ${{ github.event.pull_request.head.repo.full_name }}
     strategy:
       matrix:

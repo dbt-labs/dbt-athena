@@ -57,4 +57,4 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
           aws-region: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
       - run: hatch run integration-tests
-        working-directory: ./${{ inputs.package }}/
+        working-directory: ./${{ inputs.package }}

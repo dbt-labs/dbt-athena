@@ -54,4 +54,4 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - uses: pypa/hatch@install
       - run: hatch run unit-tests
-        working-directory: ./${{ inputs.package }}/
+        working-directory: ./${{ inputs.package }}
