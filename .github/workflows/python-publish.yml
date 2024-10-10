@@ -1,128 +1,116 @@
 name: Upload Python Package
 
 on:
-    workflow_dispatch:
-        inputs:
-            package:
-                type: choice
-                description: "Choose what to release"
-                options:
-                -   "dbt-athena"
-                -   "dbt-athena-community"
-            branch:
-                description: "Choose the branch to release from"
-                type: string
-                default: "main"
-            version:
-                description: "Choose the version to release"
-                type: string
-                required: true
-            deploy-to:
-                description: "Choose whether to deploy to test or prod"
-                type: environment
-                default: "prod"
-            python-version:
-                description: "Choose the python version to build against"
-                type: string
-                default: "3.12"
+  workflow_dispatch:
+    inputs:
+      package:
+        type: choice
+        description: "Choose what to release"
+        options:
+          - "dbt-athena"
+          - "dbt-athena-community"
+      branch:
+        description: "Choose the branch to release from"
+        type: string
+        default: "main"
+      version:
+        description: "Choose the version to release"
+        type: string
+        required: true
+      deploy-to:
+        description: "Choose whether to deploy to test or prod"
+        type: environment
+        default: "prod"
+      python-version:
+        description: "Choose the python version to build against"
+        type: string
+        default: "3.12"
 
 permissions:
-    contents: read
+  contents: read
 
 # don't attempt to release the same exact target in parallel
 concurrency:
-    group: ${{ github.workflow }}-${{ inputs.package }}-${{ inputs.version }}-${{ inputs.deploy-to }}
-    cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ inputs.package }}-${{ inputs.version }}-${{ inputs.deploy-to }}
+  cancel-in-progress: true
 
 defaults:
-    run:
-        shell: bash
+  run:
+    shell: bash
 
 jobs:
-    unit-tests:
-        name: "Run unit tests for ${{ inputs.package }}@${{ inputs.branch }}"
-        runs-on: ubuntu-latest
-        strategy:
-            matrix:
-                python-version:
-                -   "3.8"
-                -   "3.9"
-                -   "3.10"
-                -   "3.11"
-                -   "3.12"
-        steps:
-        -   name: "Checkout ${{ inputs.package }}@${{ inputs.branch }}"
-            uses: actions/checkout@v4
-            with:
-                ref: ${{ inputs.branch }}
-
-        -   name: "Setup `hatch` on Python ${{ matrix.python-version }}"
-            uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
-            with:
-                python-version: ${{ matrix.python-version }}
-
-        -   name: "Run unit tests"
-            run: hatch run unit-tests
-            working-directory: ./${{ inputs.package }}
-
-    integration-tests:
-        name: "Run integration tests for ${{ inputs.package }}@${{ inputs.branch }}"
-        uses: ./.github/workflows/functional-tests-workflow.yml
-        secrets: inherit
-        permissions:
-            id-token: write
-            contents: read
+  unit-tests:
+    name: "Run unit tests for ${{ inputs.package }}@${{ inputs.branch }}"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - name: "Checkout ${{ inputs.package }}@${{ inputs.branch }}"
+        uses: actions/checkout@v4
         with:
-            checkout-ref: ${{ inputs.branch }}
-            checkout-repository: ${{ github.repository }}
-            package: ${{ inputs.package }}
+          ref: ${{ inputs.branch }}
+      - name: "Setup `hatch` on Python ${{ matrix.python-version }}"
+        uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: "Run unit tests"
+        run: hatch run unit-tests
+        working-directory: ./${{ inputs.package }}
 
-    build-release:
-        name: "Build release for ${{ inputs.package }}==${{ inputs.version }}"
-        needs:
-        -   unit-tests
-        -   integration-tests
-        runs-on: ubuntu-latest
-        outputs:
-            archive-name: ${{ steps.archive.outputs.name }}
-        steps:
-        -   name: "Checkout ${{ inputs.package }}@${{ inputs.branch }}"
-            uses: actions/checkout@v4
-            with:
-                ref: ${{ inputs.branch }}
-                persist-credentials: false
+  integration-tests:
+    name: "Run integration tests for ${{ inputs.package }}@${{ inputs.branch }}"
+    uses: ./.github/workflows/functional-tests-workflow.yml
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      checkout-ref: ${{ inputs.branch }}
+      checkout-repository: ${{ github.repository }}
+      package: ${{ inputs.package }}
 
-        -   name: "Setup `hatch` on Python ${{ matrix.python-version }}"
-            uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
-            with:
-                python-version: ${{ matrix.python-version }}
+  build-release:
+    name: "Build release for ${{ inputs.package }}==${{ inputs.version }}"
+    needs: [unit-tests, integration-tests]
+    runs-on: ubuntu-latest
+    outputs:
+      archive-name: ${{ steps.archive.outputs.name }}
+    steps:
+      - name: "Checkout ${{ inputs.package }}@${{ inputs.branch }}"
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          persist-credentials: false
+      - name: "Setup `hatch` on Python ${{ matrix.python-version }}"
+        uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: "Set archive name"
+        id: archive
+        run: |
+          archive_name=${{ inputs.package }}-${{ inputs.version }}-${{ inputs.deploy-to }}
+          echo "name=$archive_name" >> $GITHUB_OUTPUT
+      - name: "Build ${{ inputs.package }}==${{ inputs.version }} from ${{ inputs.branch }}"
+        uses: dbt-labs/dbt-adapters/.github/actions/build-hatch@main
+        with:
+          working-dir: ./${{ inputs.package }}
+          archive-name: ${{ steps.archive.outputs.name }}
 
-        -   name: "Set archive name"
-            id: archive
-            run: |
-                archive_name=${{ inputs.package }}-${{ inputs.version }}-${{ inputs.deploy-to }}
-                echo "name=$archive_name" >> $GITHUB_OUTPUT
-
-        -   name: "Build ${{ inputs.package }}==${{ inputs.version }} from ${{ inputs.branch }}"
-            uses: dbt-labs/dbt-adapters/.github/actions/build-hatch@main
-            with:
-                working-dir: ./${{ inputs.package }}
-                archive-name: ${{ steps.archive.outputs.name }}
-
-    pypi-release:
-        name: "PyPI release for ${{ inputs.package }}==${{ inputs.version }}"
-        if: ${{ !failure() && !cancelled() }}
-        runs-on: ubuntu-latest
-        needs: build-release
-        environment:
-            name: ${{ inputs.deploy-to }}
-        permissions:
-            # this permission is required for trusted publishing
-            # see https://github.com/marketplace/actions/pypi-publish
-            id-token: write
-        steps:
-        -   name: "Publish to PyPI"
-            uses: dbt-labs/dbt-adapters/.github/actions/publish-pypi@main
-            with:
-                repository-url: ${{ vars.PYPI_REPOSITORY_URL }}
-                archive-name: ${{ needs.build-release.outputs.archive-name }}
+  pypi-release:
+    name: "PyPI release for ${{ inputs.package }}==${{ inputs.version }}"
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    needs: build-release
+    environment:
+      name: ${{ inputs.deploy-to }}
+    permissions:
+      # this permission is required for trusted publishing
+      # see https://github.com/marketplace/actions/pypi-publish
+      id-token: write
+    steps:
+      - name: "Publish to PyPI"
+        uses: dbt-labs/dbt-adapters/.github/actions/publish-pypi@main
+        with:
+          repository-url: ${{ vars.PYPI_REPOSITORY_URL }}
+          archive-name: ${{ needs.build-release.outputs.archive-name }}
