@@ -1,0 +1,64 @@
+name: "Integration tests"
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        description: "Choose the package to test"
+        type: string
+        default: "dbt-athena"
+      branch:
+        description: "Choose the branch to test"
+        type: string
+        default: "main"
+      repository:
+        description: "Choose the repository to test, when using a fork"
+        type: string
+        default: "dbt-labs/dbt-athena"
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Choose the package to test"
+        type: choice
+        options: ["dbt-athena", "dbt-athena-community"]
+      branch:
+        description: "Choose the branch to test"
+        type: string
+        default: "main"
+      repository:
+        description: "Choose the repository to test, when using a fork"
+        type: string
+        default: "dbt-labs/dbt-athena"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    env:
+      DBT_TEST_ATHENA_S3_STAGING_DIR: ${{ vars.DBT_TEST_ATHENA_S3_BUCKET }}/staging/
+      DBT_TEST_ATHENA_S3_TMP_TABLE_DIR: ${{ vars.DBT_TEST_ATHENA_S3_BUCKET }}/tmp_tables/
+      DBT_TEST_ATHENA_REGION_NAME: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
+      DBT_TEST_ATHENA_DATABASE: awsdatacatalog
+      DBT_TEST_ATHENA_SCHEMA: dbt-tests
+      DBT_TEST_ATHENA_WORK_GROUP: athena-dbt-tests
+      DBT_TEST_ATHENA_THREADS: 16
+      DBT_TEST_ATHENA_POLL_INTERVAL: 0.5
+      DBT_TEST_ATHENA_NUM_RETRIES: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          repository: ${{ inputs.repository }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ vars.DEFAULT_PYTHON_VERSION }}
+      - uses: pypa/hatch@install
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
+          aws-region: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
+      - run: hatch run integration-tests
+        working-directory: ./${{ inputs.package }}

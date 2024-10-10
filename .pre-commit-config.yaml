@@ -18,7 +18,6 @@ repos:
       # Python checks
       - id: check-docstring-first
       - id: debug-statements
-      - id: requirements-txt-fixer
       - id: fix-byte-order-marker
 
       # General quality checks
@@ -27,10 +26,20 @@ repos:
         args: [--markdown-linebreak-ext=md]
       - id: end-of-file-fixer
 
+  - repo: https://github.com/dbt-labs/pre-commit-hooks
+    rev: v0.1.0a1
+    hooks:
+      - id: dbt-core-in-adapters-check
+
   - repo: https://github.com/PyCQA/autoflake
     rev: v2.0.1
     hooks:
       - id: autoflake
+        args:
+        - --in-place
+        - --recursive
+        - --remove-all-unused-imports
+        - --remove-unused-variables
 
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.3.1
@@ -39,27 +48,28 @@ repos:
         args:
           - '--py37-plus'
 
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
-        name: isort
-        args:
-          - '.'
-
   - repo: https://github.com/psf/black
     rev: 23.1.0
     hooks:
       - id: black
+        args:
+          - --line-length=120
+          - --target-version=py38
+          - --target-version=py39
+          - --target-version=py310
+          - --target-version=py311
+          # - --target-version=py312
 
   - repo: https://github.com/pycqa/flake8
     rev: 6.0.0
     hooks:
       - id: flake8
-        additional_dependencies:
-          - 'Flake8-pyproject~=1.1'
         args:
-          - '.'
+          - --max-line-length=120
+          - --select=E,F,W
+          - --ignore=E203,E501,E741,W503,W504
+          - --per-file-ignores=*/__init__.py:F401
+
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.3.0
     hooks:
@@ -71,8 +81,12 @@ repos:
           - --allow-subclassing-any
           - --allow-untyped-decorators
         additional_dependencies:
-          - types-setuptools==67.8.0.0
-        exclude: ^tests/
+          - types-PyYAML
+          - types-protobuf
+          - types-pytz
+          - types-requests
+          - types-setuptools
+        exclude: /tests/
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.37.0

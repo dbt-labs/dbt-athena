@@ -1,0 +1,36 @@
+name: "Code quality"
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: "Choose the branch to check"
+        type: string
+        default: "main"
+      repository:
+        description: "Choose the repository to check, when using a fork"
+        type: string
+        default: "dbt-labs/dbt-athena"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Choose the branch to check"
+        type: string
+        default: "main"
+      repository:
+        description: "Choose the repository to check, when using a fork"
+        type: string
+        default: "dbt-labs/dbt-athena"
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          repository: ${{ inputs.repository }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ vars.DEFAULT_PYTHON_VERSION }}
+      - uses: pre-commit/action@v3.0.1

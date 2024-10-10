@@ -1,0 +1,54 @@
+name: "Publish to PyPI"
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        description: "Choose the package to publish"
+        type: string
+        default: "dbt-athena"
+      deploy-to:
+        description: "Choose whether to publish to test or prod"
+        type: string
+        default: "prod"
+      branch:
+        description: "Choose the branch to publish"
+        type: string
+        default: "main"
+
+permissions:
+  contents: read
+
+# don't attempt to release the same target in parallel
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.package }}-${{ inputs.deploy-to }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.deploy-to }}
+      url: ${{ vars.PYPI_PROJECT_URL }}${{ inputs.package }}
+    permissions:
+      # this permission is required for trusted publishing
+      # see https://github.com/marketplace/actions/pypi-publish
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ vars.DEFAULT_PYTHON_VERSION }}
+      - uses: pypa/hatch@install
+      - run: hatch build && hatch run build:check-all
+        working-directory: ./${{ inputs.package }}
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: ${{ vars.vars.PYPI_REPOSITORY_URL }}
+          packages-dir: ${{ inputs.package }}/dist/

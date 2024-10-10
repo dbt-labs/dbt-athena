@@ -1,0 +1,102 @@
+[project]
+name = "dbt-athena-community"
+description = "The athena adapter plugin for dbt (data build tool)"
+readme = "../README.md"
+keywords = ["dbt", "adapter", "adapters", "database", "elt", "dbt-core", "dbt Core", "dbt Cloud", "dbt Labs", "athena"]
+requires-python = ">=3.8.0"
+authors = [
+    { name = "dbt Labs", email = "info@dbtlabs.com" },
+]
+maintainers = [
+    { name = "dbt Labs", email = "info@dbtlabs.com" },
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = ["dbt-athena @ {root:uri}/../dbt-athena"]
+version = "1.8.4"
+[project.urls]
+Homepage = "https://github.com/dbt-labs/dbt-athena/dbt-athena"
+Documentation = "https://docs.getdbt.com"
+Repository = "https://github.com/dbt-labs/dbt-athena.git#subdirectory=dbt-athena"
+Issues = "https://github.com/dbt-labs/dbt-athena/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+include = ["src/dbt"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dbt"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.envs.default]
+dependencies = [
+    "dbt-tests-adapter~=1.9.2",
+    "isort~=5.13",
+    "moto~=5.0.13",
+    "pre-commit~=3.5",
+    "pyparsing~=3.1.4",
+    "pytest~=8.3",
+    "pytest-cov~=5.0",
+    "pytest-dotenv~=0.5",
+    "pytest-xdist~=3.6",
+]
+[tool.hatch.envs.default.scripts]
+setup = [
+    "pre-commit install",
+    "cp -n ../dbt-athena/test.env.example test.env",
+]
+code-quality = "pre-commit run --all-files"
+unit-tests = "pytest --cov=dbt --cov-report=html:htmlcov {args:../dbt-athena/tests/unit}"
+integration-tests = "python -m pytest -n auto {args:../dbt-athena/tests/functional}"
+all-tests = ["unit-tests", "integration-tests"]
+
+[tool.hatch.envs.build]
+detached = true
+dependencies = [
+    "wheel",
+    "twine",
+    "check-wheel-contents",
+]
+[tool.hatch.envs.build.scripts]
+check-all = [
+    "- check-wheel",
+    "- check-sdist",
+]
+check-wheel = [
+    "twine check dist/*",
+    "find ./dist/dbt_athena_community-*.whl -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
+    "pip freeze | grep dbt-athena-community",
+    "pip freeze | grep dbt-athena",
+]
+check-sdist = [
+    "check-wheel-contents dist/*.whl --ignore W007,W008",
+    "find ./dist/dbt_athena_community-*.gz -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
+    "pip freeze | grep dbt-athena-community",
+    "pip freeze | grep dbt-athena",
+]
+
+[tool.pytest]
+env_files = ["../dbt-athena/test.env"]
+testpaths = [
+    "../dbt-athena/tests/unit",
+    "../dbt-athena/tests/functional",
+]
+filterwarnings = [
+    "ignore:.*'soft_unicode' has been renamed to 'soft_str'*:DeprecationWarning",
+    "ignore:unclosed file .*:ResourceWarning",
+]

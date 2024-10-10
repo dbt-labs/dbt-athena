@@ -1,0 +1,51 @@
+name: "Unit tests"
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        description: "Choose the package to test"
+        type: string
+        default: "dbt-athena"
+      branch:
+        description: "Choose the branch to test"
+        type: string
+        default: "main"
+      repository:
+        description: "Choose the repository to test, when using a fork"
+        type: string
+        default: "dbt-labs/dbt-athena"
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Choose the package to test"
+        type: choice
+        options: ["dbt-athena", "dbt-athena-community"]
+      branch:
+        description: "Choose the branch to test"
+        type: string
+        default: "main"
+      repository:
+        description: "Choose the repository to test, when using a fork"
+        type: string
+        default: "dbt-labs/dbt-athena"
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          repository: ${{ inputs.repository }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: pypa/hatch@install
+      - run: hatch run unit-tests
+        shell: bash
+        working-directory: ./${{ inputs.package }}

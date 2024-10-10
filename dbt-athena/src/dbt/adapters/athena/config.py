@@ -18,7 +18,7 @@ from dbt.adapters.athena.constants import (
 @lru_cache()
 def get_boto3_config(num_retries: int) -> config.Config:
     return config.Config(
-        user_agent_extra="dbt-athena-community/" + importlib.metadata.version("dbt-athena-community"),
+        user_agent_extra="dbt-athena/" + importlib.metadata.version("dbt-athena"),
         retries={"max_attempts": num_retries, "mode": "standard"},
     )
 
