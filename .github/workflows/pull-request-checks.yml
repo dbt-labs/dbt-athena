@@ -30,13 +30,11 @@ jobs:
     if: contains(github.event.pull_request.labels.*.name, 'ci:integration-tests')
     uses: ./.github/workflows/integration-tests.yml
     with:
-      package: ${{ matrix.package }}
+      # integration test runs can't run in parallel for now, so only run dbt-athena
+      # both will run post merge and unit tests run for both, so this is sufficient
       branch: ${{ github.event.pull_request.head.ref }}
       repository: ${{ github.event.pull_request.head.repo.full_name }}
     secrets: inherit
-    strategy:
-      matrix:
-        package: ["dbt-athena", "dbt-athena-community"]
 
   # This job does nothing and is only used for branch protection
   results:

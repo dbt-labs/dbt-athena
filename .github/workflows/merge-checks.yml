@@ -10,12 +10,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  integration-tests:
+  integration-tests-dbt-athena:
     uses: ./.github/workflows/integration-tests.yml
     with:
-      package: ${{ matrix.package }}
       branch: ${{ github.ref }}
     secrets: inherit
-    strategy:
-      matrix:
-        package: ["dbt-athena", "dbt-athena-community"]
+
+  # integration test runs can't run in parallel for now, so run them in serial
+  integration-tests-dbt-athena-community:
+    needs: integration-tests-dbt-athena
+    uses: ./.github/workflows/integration-tests.yml
+    with:
+      package: "dbt-athena-community"
+      branch: ${{ github.ref }}
+    secrets: inherit
