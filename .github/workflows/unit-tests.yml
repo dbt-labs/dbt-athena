@@ -30,13 +30,6 @@ on:
         type: string
         default: "dbt-labs/dbt-athena"
 
-permissions:
-  contents: read
-
-defaults:
-  run:
-    shell: bash
-
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
@@ -54,4 +47,5 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - uses: pypa/hatch@install
       - run: hatch run unit-tests
+        shell: bash
         working-directory: ./${{ inputs.package }}

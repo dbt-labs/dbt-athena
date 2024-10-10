@@ -30,6 +30,10 @@ on:
         type: string
         default: "dbt-labs/dbt-athena"
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   integration-tests:
     runs-on: ubuntu-latest
