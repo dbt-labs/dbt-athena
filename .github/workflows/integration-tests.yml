@@ -51,10 +51,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ vars.DEFAULT_PYTHON_VERSION }}
-      - run: python -m pip install hatch
+      - uses: pypa/hatch@install
       - uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
           aws-region: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
       - run: hatch run integration-tests
-        working-directory: ./${{ inputs.package }}
+        working-directory: ./${{ inputs.package }}/
