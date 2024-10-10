@@ -14,8 +14,9 @@ on:
       package:
         type: string
         default: dbt-athena
+
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ contains(github.event_name, 'pull_request') && github.event.pull_request.head.ref || github.sha }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.checkout-ref }}-${{ inputs.checkout-repository }}-${{ inputs.package }}
   cancel-in-progress: true
 
 env:
