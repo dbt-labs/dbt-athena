@@ -23,10 +23,6 @@ jobs:
 
   integration-tests:
     uses: ./.github/workflows/integration-tests.yml
-    secrets: inherit
-    permissions:
-      id-token: write
-      contents: read
     with:
       branch: ${{ inputs.branch }}
       repository: ${{ github.repository }}

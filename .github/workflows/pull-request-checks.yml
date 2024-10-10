@@ -33,13 +33,13 @@ jobs:
       package: ${{ matrix.package }}
       branch: ${{ github.event.pull_request.head.ref }}
       repository: ${{ github.event.pull_request.head.repo.full_name }}
-    secrets: inherit
     strategy:
       matrix:
         package: ["dbt-athena", "dbt-athena-community"]
 
   # This job does nothing and is only used for branch protection
   results:
+    name: "Pull request checks"
     if: always()
     needs:
     - code-quality
