@@ -7,19 +7,21 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-  workflow_call:
     inputs:
       checkout-ref:
-        required: true
+        description: "Use this if running on a feature branch"
         type: string
+        default: "main"
       checkout-repository:
-        required: true
+        description: "Use this if running against a fork"
         type: string
+        default: "dbt-labs/dbt-athena"
 
 jobs:
   # workflow that is invoked when for PRs with labels 'enable-functional-tests'
   functional-tests-pr:
     name: Functional Tests - PR
+    if: github.event_name == 'pull_request'
     uses: ./.github/workflows/functional-tests-workflow.yml
     strategy:
       matrix:
@@ -29,19 +31,15 @@ jobs:
       id-token: write
       contents: read
     with:
-      # this allows to pick the branch from the PR
       checkout-ref: ${{ github.event.pull_request.head.ref }}
-      # this allows to work on fork
+      # this makes the workflow run on a fork
       checkout-repository: ${{ github.event.pull_request.head.repo.full_name }}
       package: ${{ matrix.package }}
 
   # workflow that is invoked when a push to main happens
   functional-tests-main:
     name: Functional Tests - main
-    if: |
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
-      || github.event_name == 'workflow_dispatch'
-      || github.event_name == 'workflow_call'
+    if: github.event_name == 'push'
     uses: ./.github/workflows/functional-tests-workflow.yml
     strategy:
       matrix:
@@ -53,4 +51,21 @@ jobs:
     with:
       checkout-ref: ${{ github.ref }}
       checkout-repository: ${{ github.repository }}
+      package: ${{ matrix.package }}
+
+  # workflow that is invoked when run manually in GitHub
+  functional-tests-dispatch:
+    name: Functional Tests - dispatch
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/functional-tests-workflow.yml
+    strategy:
+      matrix:
+        package: ['dbt-athena', 'dbt-athena-community']
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      checkout-ref: ${{ inputs.checkout-ref }}
+      checkout-repository: ${{ inputs.checkout-repository }}
       package: ${{ matrix.package }}
