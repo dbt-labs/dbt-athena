@@ -15,6 +15,7 @@ jobs:
     with:
       package: ${{ matrix.package }}
       branch: ${{ github.ref }}
+    secrets: inherit
     strategy:
       matrix:
         package: ["dbt-athena", "dbt-athena-community"]
