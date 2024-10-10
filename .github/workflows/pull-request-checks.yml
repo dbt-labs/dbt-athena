@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   code-quality:
-    uses: ./.github/workflows/unit-tests.yml
+    uses: ./.github/workflows/code-quality.yml
     with:
       branch: ${{ github.event.pull_request.head.ref }}
       repository: ${{ github.event.pull_request.head.repo.full_name }}
@@ -24,7 +24,7 @@ jobs:
       repository: ${{ github.event.pull_request.head.repo.full_name }}
     strategy:
       matrix:
-        package: ['dbt-athena', 'dbt-athena-community']
+        package: ["dbt-athena", "dbt-athena-community"]
 
   integration-tests:
     if: contains(github.event.pull_request.labels.*.name, 'ci:integration-tests')
@@ -35,7 +35,7 @@ jobs:
       repository: ${{ github.event.pull_request.head.repo.full_name }}
     strategy:
       matrix:
-        package: ['dbt-athena', 'dbt-athena-community']
+        package: ["dbt-athena", "dbt-athena-community"]
 
   # This job does nothing and is only used for branch protection
   pull-request-checks:

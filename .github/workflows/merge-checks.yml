@@ -17,4 +17,4 @@ jobs:
       branch: ${{ github.ref }}
     strategy:
       matrix:
-        package: ['dbt-athena', 'dbt-athena-community']
+        package: ["dbt-athena", "dbt-athena-community"]

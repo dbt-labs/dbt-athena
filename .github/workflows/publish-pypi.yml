@@ -49,8 +49,8 @@ jobs:
       - run: |
           hatch build
           hatch run build:check-all
-        working-directory: "./${{ inputs.package }}"
+        working-directory: ./${{ inputs.package }}
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: ${{ vars.vars.PYPI_REPOSITORY_URL }}
-          packages-dir: "${{ inputs.package }}/dist/"
+          packages-dir: ${{ inputs.package }}/dist/
