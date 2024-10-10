@@ -26,6 +26,7 @@ jobs:
     with:
       branch: ${{ inputs.branch }}
       repository: ${{ github.repository }}
+    secrets: inherit
 
   publish-dbt-athena:
     needs: [unit-tests, integration-tests]
