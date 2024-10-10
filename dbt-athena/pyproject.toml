@@ -2,7 +2,7 @@
 dynamic = ["version"]
 name = "dbt-athena"
 description = "The athena adapter plugin for dbt (data build tool)"
-readme = "README.md"
+readme = "../README.md"
 keywords = ["dbt", "adapter", "adapters", "database", "elt", "dbt-core", "dbt Core", "dbt Cloud", "dbt Labs", "athena"]
 requires-python = ">=3.8.0"
 authors = [
@@ -66,10 +66,14 @@ dependencies = [
     "pytest-xdist~=3.6",
 ]
 [tool.hatch.envs.default.scripts]
-setup = "pre-commit install"
+setup = [
+    "pre-commit install",
+    "cp -n test.env.example test.env",
+]
 code-quality = "pre-commit run --all-files"
 unit-tests = "pytest --cov=dbt --cov-report=html:htmlcov {args:tests/unit}"
 integration-tests = "python -m pytest -n auto {args:tests/functional}"
+all-tests = ["unit-tests", "integration-tests"]
 
 [tool.hatch.envs.build]
 detached = true
