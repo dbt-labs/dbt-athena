@@ -12,8 +12,10 @@ on:
         type: string
         default: "main"
 
-permissions:
-  contents: read
+# don't attempt to release the same target in parallel
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.deploy-to }}
+  cancel-in-progress: true
 
 jobs:
   unit-tests:

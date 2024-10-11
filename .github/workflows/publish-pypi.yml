@@ -19,15 +19,6 @@ on:
 permissions:
   contents: read
 
-# don't attempt to release the same target in parallel
-concurrency:
-  group: ${{ github.workflow }}-${{ inputs.package }}-${{ inputs.deploy-to }}
-  cancel-in-progress: true
-
-defaults:
-  run:
-    shell: bash
-
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -49,6 +40,7 @@ jobs:
       # hatch will build using test PyPI first and fall back to prod PyPI when deploying to test
       # this is done via environment variables in the test environment in GitHub
       - run: hatch build && hatch run build:check-all
+        shell: bash
         working-directory: ./${{ inputs.package }}
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
