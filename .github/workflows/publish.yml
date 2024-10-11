@@ -1,6 +1,7 @@
 name: "Publish"
 
 on:
+  push:
   workflow_dispatch:
     inputs:
       deploy-to:
