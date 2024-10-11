@@ -10,7 +10,7 @@ on:
       deploy-to:
         description: "Choose whether to publish to test or prod"
         type: string
-        default: "prod"
+        default: "test"
       branch:
         description: "Choose the branch to publish"
         type: string
@@ -46,9 +46,11 @@ jobs:
         with:
           python-version: ${{ vars.DEFAULT_PYTHON_VERSION }}
       - uses: pypa/hatch@install
+      # hatch will build using test PyPI first and fall back to prod PyPI when deploying to test
+      # this is done via environment variables in the test environment in GitHub
       - run: hatch build && hatch run build:check-all
         working-directory: ./${{ inputs.package }}
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          repository-url: ${{ vars.vars.PYPI_REPOSITORY_URL }}
+          repository-url: ${{ vars.PYPI_REPOSITORY_URL }}
           packages-dir: ${{ inputs.package }}/dist/
