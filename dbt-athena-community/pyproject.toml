@@ -45,6 +45,9 @@ packages = ["src/dbt"]
 allow-direct-references = true
 
 [tool.hatch.envs.default]
+# the only build dependency is dbt-athena, which will never be published when running this
+# because the versions need to be identical
+detached = true
 dependencies = [
     "dbt-athena @ {root:uri}/../dbt-athena",
     "dbt-tests-adapter~=1.9.2",
