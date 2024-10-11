@@ -60,11 +60,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.branch }}
-      - run: echo "UPLOADED_VERSION=$(hatch version)" >> $GITHUB_ENV
+      - id: version
+        run: echo "version=$(hatch version)" >> $GITHUB_OUTPUT
         working-directory: ./${{ inputs.package }}
       - uses: nick-fields/retry@v3
         with:
           timeout_seconds: 10
           retry_wait_seconds: 10
           max_attempts: 15  # 5 minutes: (10s timeout + 10s delay) * 15 attempts
-          command: wget ${{ vars.PYPI_PROJECT_URL }}/${{ inputs.package }}/$UPLOADED_VERSION/
+          command: wget ${{ vars.PYPI_PROJECT_URL }}/${{ inputs.package }}/${{ steps.version.outputs.version }}
