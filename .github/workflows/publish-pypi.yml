@@ -14,7 +14,7 @@ on:
       branch:
         description: "Choose the branch to publish"
         type: string
-        default: "main"
+        default: "actions/public-pypi-deploy"
 
 permissions:
   contents: read
