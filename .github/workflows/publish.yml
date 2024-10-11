@@ -6,11 +6,11 @@ on:
       deploy-to:
         description: "Choose whether to deploy to test or prod"
         type: environment
-        default: "test"
+        default: "prod"
       branch:
         description: "Choose the branch to release from"
         type: string
-        default: "actions/public-pypi-deploy"
+        default: "main"
 
 permissions:
   contents: read
