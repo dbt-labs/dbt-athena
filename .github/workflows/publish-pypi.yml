@@ -67,4 +67,4 @@ jobs:
           timeout_seconds: 10
           retry_wait_seconds: 10
           max_attempts: 15  # 5 minutes: (10s timeout + 10s delay) * 15 attempts
-          command: wget ${{ vars.PYPI_PROJECT_URL }}/${{ inputs.package }}/$(UPLOADED_VERSION)/
+          command: wget ${{ vars.PYPI_PROJECT_URL }}/${{ inputs.package }}/$UPLOADED_VERSION/
