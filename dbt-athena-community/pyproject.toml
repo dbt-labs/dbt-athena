@@ -22,8 +22,9 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies = ["dbt-athena @ {root:uri}/../dbt-athena"]
-version = "1.8.4"
+# these versions should always match and they both should match the local version of dbt-athena
+dependencies = ["dbt-athena==1.8.5b1"]
+version = "1.8.5b1"
 [project.urls]
 Homepage = "https://github.com/dbt-labs/dbt-athena/dbt-athena"
 Documentation = "https://docs.getdbt.com"
@@ -45,6 +46,7 @@ allow-direct-references = true
 
 [tool.hatch.envs.default]
 dependencies = [
+    "dbt-athena @ {root:uri}/../dbt-athena",
     "dbt-tests-adapter~=1.9.2",
     "isort~=5.13",
     "moto~=5.0.13",
