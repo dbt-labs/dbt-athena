@@ -41,9 +41,6 @@ include = ["src/dbt"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/dbt"]
 
-[tool.hatch.metadata]
-allow-direct-references = true
-
 [tool.hatch.envs.default]
 # the only build dependency is dbt-athena, which will never be published when running this
 # because the versions need to be identical
