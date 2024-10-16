@@ -2,7 +2,7 @@
 
 ## Requirements
 
-* Python from 3.8 to 3.12
+* Python from 3.9 to 3.12
 * Virtual Environment or any other Python environment manager
 
 ## Getting started
