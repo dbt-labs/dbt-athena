@@ -2,7 +2,7 @@
 
 ## Requirements
 
-* Python>=3.8 - [docs](https://www.python.org/)
+* Python>=3.9 - [docs](https://www.python.org/)
 * Hatch - [docs](https://hatch.pypa.io/dev/)
 
 ## Getting started

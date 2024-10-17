@@ -54,11 +54,10 @@ repos:
       - id: black
         args:
           - --line-length=120
-          - --target-version=py38
           - --target-version=py39
           - --target-version=py310
           - --target-version=py311
-          # - --target-version=py312
+          # - --target-version=py312  # not supported in 23.1.0
 
   - repo: https://github.com/pycqa/flake8
     rev: 6.0.0
