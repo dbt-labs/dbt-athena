@@ -2,7 +2,7 @@ name: "Pull request checks"
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, labeled]
+    types: [opened, reopened, synchronize]
 
 # only run this once per PR at a time
 concurrency:
@@ -27,7 +27,6 @@ jobs:
         package: ["dbt-athena", "dbt-athena-community"]
 
   integration-tests:
-    if: contains(github.event.pull_request.labels.*.name, 'ci:integration-tests')
     uses: ./.github/workflows/integration-tests.yml
     with:
       # integration test runs can't run in parallel for now, so only run dbt-athena
@@ -49,4 +48,3 @@ jobs:
     - uses: re-actors/alls-green@release/v1
       with:
         jobs: ${{ toJSON(needs) }}
-        allowed-skips: integration-tests
