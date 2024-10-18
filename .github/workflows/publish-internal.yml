@@ -76,7 +76,7 @@ jobs:
           hatch run build:check-all
         working-directory: ./${{ inputs.package }}
       - run: |
-          export HATCH_INDEX_USER=${{ vars.AWS_USER }}
+          export HATCH_INDEX_USER=${{ secrets.AWS_USER }}
 
           export HATCH_INDEX_AUTH=$(aws codeartifact get-authorization-token \
             --domain ${{ vars.AWS_DOMAIN }} \
