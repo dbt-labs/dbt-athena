@@ -1,6 +1,7 @@
 name: "Publish Internally"
 
 on:
+  pull_request:
   workflow_call:
     inputs:
       package:
