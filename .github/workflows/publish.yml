@@ -11,14 +11,14 @@ on:
         description: "Choose the branch to release from"
         type: string
         default: "main"
-      pypi-public:
-        description: "Deploy to PyPI - Public"
-        type: boolean
-        default: false
       pypi-internal:
-        description: "Deploy to PyPI - Internal"
+        description: "Publish Internally"
         type: boolean
         default: true
+      pypi-public:
+        description: "Publish to PyPI"
+        type: boolean
+        default: false
 
 # don't attempt to release the same target in parallel
 concurrency:
@@ -43,6 +43,7 @@ jobs:
     needs: [unit-tests, integration-tests]
     uses: ./.github/workflows/publish-internal.yml
     with:
+      deploy-to: ${{ inputs.deploy-to }}
       branch: ${{ inputs.branch }}
 
   publish-pypi:

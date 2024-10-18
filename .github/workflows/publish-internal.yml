@@ -3,6 +3,10 @@ name: "Publish Internally"
 on:
   workflow_call:
     inputs:
+      package:
+        description: "Choose the package to publish"
+        type: string
+        default: "dbt-athena"
       deploy-to:
         description: "Choose whether to publish to test or prod"
         type: string
@@ -15,7 +19,6 @@ on:
 defaults:
   run:
     shell: bash
-    working-directory: ./dbt-athena
 
 jobs:
   publish:
@@ -37,15 +40,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       - id: package
         run: echo "version=$(hatch version)" >> $GITHUB_OUTPUT
+        working-directory: ./${{ inputs.package }}
       - id: published
         run: |
           versions_published="$(aws codeartifact list-package-versions \
-            --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
             --domain ${{ vars.AWS_DOMAIN }} \
             --repository ${{ vars.AWS_REPOSITORY }} \
-            --region ${{ vars.AWS_REGION }} \
             --format pypi \
-            --package dbt-athena \
+            --package ${{ inputs.package }} \
             --output json \
             --query 'versions[*].version' | jq -r '.[]' | grep "^${{ steps.package.outputs.version }}" || true )"  # suppress pipefail only here
           echo "versions=$(echo "${versions_published[*]}"| tr '\n' ',')" >> $GITHUB_OUTPUT
@@ -60,15 +62,16 @@ jobs:
           hatch run build:check-all
 
           export TWINE_PASSWORD=$(aws codeartifact get-authorization-token \
-            --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
-            --domain dbt-sandbox \
-            --query authorizationToken \
-            --output text)
+            --domain ${{ vars.AWS_DOMAIN }} \
+            --output text \
+            --query authorizationToken)
+
           export TWINE_REPOSITORY_URL=$(aws codeartifact get-repository-endpoint \
-            --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
-            --domain dbt-sandbox \
-            --repository dbt-adapters-releases \
+            --domain ${{ vars.AWS_DOMAIN }} \
+            --repository ${{ vars.AWS_REPOSITORY }} \
             --format pypi \
-            --query repositoryEndpoint \
-            --output text)
+            --output text \
+            --query repositoryEndpoint)
+
           twine upload dist/*
+        working-directory: ./${{ inputs.package }}
