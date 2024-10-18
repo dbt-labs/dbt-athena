@@ -15,6 +15,20 @@ on:
         description: "Choose the branch to publish"
         type: string
         default: "main"
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Choose the package to publish"
+        type: string
+        default: "dbt-athena"
+      deploy-to:
+        description: "Choose whether to publish to test or prod"
+        type: string
+        default: "prod"
+      branch:
+        description: "Choose the branch to publish"
+        type: string
+        default: "main"
 
 defaults:
   run:
@@ -33,7 +47,7 @@ jobs:
         with:
           python-version: ${{ vars.DEFAULT_PYTHON_VERSION }}
       - uses: pypa/hatch@install
-      - uses: aws-actions/configure-aws-credentials@v2
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ vars.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}

@@ -56,7 +56,7 @@ jobs:
         with:
           python-version: ${{ vars.DEFAULT_PYTHON_VERSION }}
       - uses: pypa/hatch@install
-      - uses: aws-actions/configure-aws-credentials@v2
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ASSUMABLE_ROLE_NAME }}
           aws-region: ${{ vars.DBT_TEST_ATHENA_REGION_NAME }}
