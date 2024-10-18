@@ -2,7 +2,7 @@
 dynamic = ["version"]
 name = "dbt-athena"
 description = "The athena adapter plugin for dbt (data build tool)"
-readme = "../README.md"
+readme = "README.md"
 keywords = ["dbt", "adapter", "adapters", "database", "elt", "dbt-core", "dbt Core", "dbt Cloud", "dbt Labs", "athena"]
 requires-python = ">=3.9.0"
 authors = [
@@ -87,12 +87,12 @@ check-all = [
     "- check-sdist",
 ]
 check-wheel = [
-    "twine check dist/*",
+    "check-wheel-contents dist/*.whl --ignore W007,W008",
     "find ./dist/dbt_athena-*.whl -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
     "pip freeze | grep dbt-athena",
 ]
 check-sdist = [
-    "check-wheel-contents dist/*.whl --ignore W007,W008",
+    "twine check dist/*",
     "find ./dist/dbt_athena-*.gz -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
     "pip freeze | grep dbt-athena",
 ]
