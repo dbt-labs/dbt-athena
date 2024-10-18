@@ -24,7 +24,7 @@ on:
       deploy-to:
         description: "Choose whether to publish to test or prod"
         type: string
-        default: "prod"
+        default: "test"
       branch:
         description: "Choose the branch to publish"
         type: string

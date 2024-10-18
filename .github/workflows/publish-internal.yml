@@ -24,7 +24,7 @@ on:
       deploy-to:
         description: "Choose whether to publish to test or prod"
         type: string
-        default: "prod"
+        default: "test"
       branch:
         description: "Choose the branch to publish"
         type: string
@@ -33,6 +33,7 @@ on:
 defaults:
   run:
     shell: bash
+    working-directory: ./${{ inputs.package }}
 
 jobs:
   publish:
@@ -54,7 +55,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       - id: package
         run: echo "version=$(hatch version)" >> $GITHUB_OUTPUT
-        working-directory: ./${{ inputs.package }}
       - id: published
         run: |
           versions_published="$(aws codeartifact list-package-versions \
@@ -74,7 +74,7 @@ jobs:
           hatch version ${{ steps.next.outputs.internal_release_version }}
           hatch build
           hatch run build:check-all
-
+      - run: |
           export TWINE_PASSWORD=$(aws codeartifact get-authorization-token \
             --domain ${{ vars.AWS_DOMAIN }} \
             --output text \
@@ -88,4 +88,3 @@ jobs:
             --query repositoryEndpoint)
 
           twine upload dist/*
-        working-directory: ./${{ inputs.package }}
