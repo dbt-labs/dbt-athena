@@ -72,21 +72,21 @@ jobs:
           versions_published: ${{ steps.published.outputs.versions }}
       - run: |
           hatch version ${{ steps.next.outputs.internal_release_version }}
-          hatch build
+          hatch build --clean
           hatch run build:check-all
         working-directory: ./${{ inputs.package }}
       - run: |
-          export TWINE_PASSWORD=$(aws codeartifact get-authorization-token \
+          export HATCH_INDEX_AUTH=$(aws codeartifact get-authorization-token \
             --domain ${{ vars.AWS_DOMAIN }} \
             --output text \
             --query authorizationToken)
 
-          export TWINE_REPOSITORY_URL=$(aws codeartifact get-repository-endpoint \
+          export HATCH_INDEX_REPO=$(aws codeartifact get-repository-endpoint \
             --domain ${{ vars.AWS_DOMAIN }} \
             --repository ${{ vars.AWS_REPOSITORY }} \
             --format pypi \
             --output text \
             --query repositoryEndpoint)
 
-          twine upload dist/*
+          hatch publish
         working-directory: ./${{ inputs.package }}
