@@ -2,7 +2,7 @@
 dynamic = ["version"]
 name = "dbt-athena"
 description = "The athena adapter plugin for dbt (data build tool)"
-readme = "../README.md"
+readme = "README.md"
 keywords = ["dbt", "adapter", "adapters", "database", "elt", "dbt-core", "dbt Core", "dbt Cloud", "dbt Labs", "athena"]
 requires-python = ">=3.9.0"
 authors = [
