@@ -1,0 +1,74 @@
+name: "Publish Internally"
+
+on:
+  workflow_call:
+    inputs:
+      deploy-to:
+        description: "Choose whether to publish to test or prod"
+        type: string
+        default: "prod"
+      branch:
+        description: "Choose the branch to publish"
+        type: string
+        default: "main"
+
+defaults:
+  run:
+    shell: bash
+    working-directory: ./dbt-athena
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.deploy-to }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ vars.DEFAULT_PYTHON_VERSION }}
+      - uses: pypa/hatch@install
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - id: package
+        run: echo "version=$(hatch version)" >> $GITHUB_OUTPUT
+      - id: published
+        run: |
+          versions_published="$(aws codeartifact list-package-versions \
+            --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
+            --domain ${{ vars.AWS_DOMAIN }} \
+            --repository ${{ vars.AWS_REPOSITORY }} \
+            --region ${{ vars.AWS_REGION }} \
+            --format pypi \
+            --package dbt-athena \
+            --output json \
+            --query 'versions[*].version' | jq -r '.[]' | grep "^${{ steps.package.outputs.version }}" || true )"  # suppress pipefail only here
+          echo "versions=$(echo "${versions_published[*]}"| tr '\n' ',')" >> $GITHUB_OUTPUT
+      - id: next
+        uses: dbt-labs/dbt-release/.github/actions/next-cloud-release-version@main
+        with:
+          version_number: ${{ steps.package.outputs.version }}
+          versions_published: ${{ steps.published.outputs.versions }}
+      - run: |
+          hatch version ${{ steps.next.outputs.internal_release_version }}
+          hatch build
+          hatch run build:check-all
+
+          export TWINE_PASSWORD=$(aws codeartifact get-authorization-token \
+            --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
+            --domain dbt-sandbox \
+            --query authorizationToken \
+            --output text)
+          export TWINE_REPOSITORY_URL=$(aws codeartifact get-repository-endpoint \
+            --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
+            --domain dbt-sandbox \
+            --repository dbt-adapters-releases \
+            --format pypi \
+            --query repositoryEndpoint \
+            --output text)
+          twine upload dist/*
