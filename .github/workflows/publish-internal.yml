@@ -1,0 +1,94 @@
+name: "Publish Internally"
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        description: "Choose the package to publish"
+        type: string
+        default: "dbt-athena"
+      deploy-to:
+        description: "Choose whether to publish to test or prod"
+        type: string
+        default: "prod"
+      branch:
+        description: "Choose the branch to publish"
+        type: string
+        default: "main"
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Choose the package to publish"
+        type: string
+        default: "dbt-athena"
+      deploy-to:
+        description: "Choose whether to publish to test or prod"
+        type: string
+        default: "test"
+      branch:
+        description: "Choose the branch to publish"
+        type: string
+        default: "main"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.deploy-to }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ vars.DEFAULT_PYTHON_VERSION }}
+      - uses: pypa/hatch@install
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - id: package
+        run: echo "version=$(hatch version)" >> $GITHUB_OUTPUT
+        working-directory: ./${{ inputs.package }}
+      - id: published
+        run: |
+          versions_published="$(aws codeartifact list-package-versions \
+            --domain ${{ vars.AWS_DOMAIN }} \
+            --repository ${{ vars.AWS_REPOSITORY }} \
+            --format pypi \
+            --package ${{ inputs.package }} \
+            --output json \
+            --query 'versions[*].version' | jq -r '.[]' | grep "^${{ steps.package.outputs.version }}" || true )"  # suppress pipefail only here
+          echo "versions=$(echo "${versions_published[*]}"| tr '\n' ',')" >> $GITHUB_OUTPUT
+      - id: next
+        uses: dbt-labs/dbt-release/.github/actions/next-cloud-release-version@main
+        with:
+          version_number: ${{ steps.package.outputs.version }}
+          versions_published: ${{ steps.published.outputs.versions }}
+      - run: |
+          hatch version ${{ steps.next.outputs.internal_release_version }}+$(git rev-parse HEAD)
+          hatch build --clean
+          hatch run build:check-all
+        working-directory: ./${{ inputs.package }}
+      - run: |
+          export HATCH_INDEX_USER=${{ secrets.AWS_USER }}
+
+          export HATCH_INDEX_AUTH=$(aws codeartifact get-authorization-token \
+            --domain ${{ vars.AWS_DOMAIN }} \
+            --output text \
+            --query authorizationToken)
+
+          export HATCH_INDEX_REPO=$(aws codeartifact get-repository-endpoint \
+            --domain ${{ vars.AWS_DOMAIN }} \
+            --repository ${{ vars.AWS_REPOSITORY }} \
+            --format pypi \
+            --output text \
+            --query repositoryEndpoint)
+
+          hatch publish
+        working-directory: ./${{ inputs.package }}
