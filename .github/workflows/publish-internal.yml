@@ -77,7 +77,7 @@ jobs:
         run: hatch version ${{ steps.next.outputs.internal_release_version }}+$(git rev-parse HEAD)
         working-directory: ./${{ inputs.package }}
       - name: "Remove dbt-core from build requirements"
-        run: sed -i "" -e "/dbt-core[<>~=]/d" ./pyproject.toml
+        run: sed -i "/dbt-core[<>~=]/d" ./pyproject.toml
         working-directory: ./${{ inputs.package }}
       - run: |
           export HATCH_INDEX_USER=${{ secrets.AWS_USER }}
