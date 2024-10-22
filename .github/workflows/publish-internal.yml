@@ -72,6 +72,7 @@ jobs:
           versions_published: ${{ steps.published.outputs.versions }}
       - run: |
           hatch version ${{ steps.next.outputs.internal_release_version }}+$(git rev-parse HEAD)
+          sed -i "/dbt-core[>=~]=/d" "pyproject.toml"
           hatch build --clean
           hatch run build:check-all
         working-directory: ./${{ inputs.package }}
