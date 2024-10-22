@@ -53,7 +53,9 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       - id: package
-        run: echo "version=$(hatch version)" >> $GITHUB_OUTPUT
+        run: |
+          hatch version release  # strip the pre-release off since we don't use that internally
+          echo "version=$(hatch version)" >> $GITHUB_OUTPUT
         working-directory: ./${{ inputs.package }}
       - id: published
         run: |
