@@ -45,6 +45,7 @@ jobs:
     with:
       deploy-to: ${{ inputs.deploy-to }}
       branch: ${{ inputs.branch }}
+    secrets: inherit
 
   publish-pypi:
     if: ${{ inputs.pypi-public == true }}
