@@ -53,7 +53,10 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       - id: package
-        run: echo "version=$(hatch version)" >> $GITHUB_OUTPUT
+        run: |
+          # strip the pre-release off to find all iterations of this patch
+          hatch version release
+          echo "version=$(hatch version)" >> $GITHUB_OUTPUT
         working-directory: ./${{ inputs.package }}
       - id: published
         run: |
@@ -70,10 +73,13 @@ jobs:
         with:
           version_number: ${{ steps.package.outputs.version }}
           versions_published: ${{ steps.published.outputs.versions }}
-      - run: |
-          hatch version ${{ steps.next.outputs.internal_release_version }}+$(git rev-parse HEAD)
-          hatch build --clean
-          hatch run build:check-all
+      - name: "Update version to internal PyPI format"
+        run: |
+          VERSION=${{ steps.next.outputs.internal_release_version }}+$(git rev-parse HEAD)
+          tee <<< "version = \"$VERSION\"" ./src/dbt/adapters/athena/__version__.py
+        working-directory: ./${{ inputs.package }}
+      - name: "Remove dbt-core from build requirements"
+        run: sed -i "/dbt-core[<>~=]/d" ./pyproject.toml
         working-directory: ./${{ inputs.package }}
       - run: |
           export HATCH_INDEX_USER=${{ secrets.AWS_USER }}
@@ -90,5 +96,7 @@ jobs:
             --output text \
             --query repositoryEndpoint)
 
+          hatch build --clean
+          hatch run build:check-all
           hatch publish
         working-directory: ./${{ inputs.package }}
