@@ -74,7 +74,9 @@ jobs:
           version_number: ${{ steps.package.outputs.version }}
           versions_published: ${{ steps.published.outputs.versions }}
       - name: "Update version to internal PyPI format"
-        run: hatch version ${{ steps.next.outputs.internal_release_version }}+$(git rev-parse HEAD)
+        run: |
+          VERSION=${{ steps.next.outputs.internal_release_version }}+$(git rev-parse HEAD)
+          tee <<< "version = \"$VERSION\"" ./src/dbt/adapters/athena/__version__.py
         working-directory: ./${{ inputs.package }}
       - name: "Remove dbt-core from build requirements"
         run: sed -i "/dbt-core[<>~=]/d" ./pyproject.toml
