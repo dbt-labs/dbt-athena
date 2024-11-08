@@ -429,7 +429,7 @@ class AthenaAdapter(SQLAdapter):
 
     @available
     def generate_unique_temporary_table_suffix(self, suffix_initial: str = "__dbt_tmp") -> str:
-        return f"{suffix_initial}_{str(uuid4())}"
+        return f"{suffix_initial}_{str(uuid4()).replace('-', '')}"
 
     def quote(self, identifier: str) -> str:
         return f"{self.quote_character}{identifier}{self.quote_character}"
