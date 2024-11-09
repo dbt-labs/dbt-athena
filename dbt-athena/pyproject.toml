@@ -98,7 +98,6 @@ check-sdist = [
 ]
 
 [tool.pytest]
-env_files = ["test.env"]
 testpaths = [
     "tests/unit",
     "tests/functional",
