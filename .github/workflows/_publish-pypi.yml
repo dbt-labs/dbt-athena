@@ -1,0 +1,32 @@
+name: "Publish to PyPI"
+
+on:
+    workflow_dispatch:
+        inputs:
+            package:
+                description: "Choose the package to publish"
+                type: string
+                default: "dbt-athena"
+            deploy-to:
+                description: "Choose whether to publish to test or prod"
+                type: string
+                default: "test"
+            branch:
+                description: "Choose the branch to publish"
+                type: string
+                default: "main"
+
+permissions:
+    contents: read
+
+defaults:
+    run:
+        shell: bash
+
+jobs:
+    publish-pypi:
+        uses: dbt-labs/dbt-adapters/.workflows/_publish-pypi.yml@monorepo-prep
+        with:
+            package: ${{ inputs.package }}
+            deploy-to: ${{ inputs.deploy-to }}
+            branch: ${{ inputs.branch }}
