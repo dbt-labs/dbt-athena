@@ -65,6 +65,7 @@ from dbt.adapters.athena.utils import (
 from dbt.adapters.base import ConstraintSupport, PythonJobHelper, available
 from dbt.adapters.base.impl import AdapterConfig
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
+from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
 from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.adapters.contracts.relation import RelationConfig
 from dbt.adapters.sql import SQLAdapter
@@ -145,6 +146,13 @@ class AthenaAdapter(SQLAdapter):
         ConstraintType.primary_key: ConstraintSupport.NOT_SUPPORTED,
         ConstraintType.foreign_key: ConstraintSupport.NOT_SUPPORTED,
     }
+
+    _capabilities = CapabilityDict(
+        {
+            Capability.SchemaMetadataByRelations: CapabilitySupport(support=Support.Full),
+            Capability.TableLastModifiedMetadata: CapabilitySupport(support=Support.Unknown),
+        }
+    )
 
     @classmethod
     def date_function(cls) -> str:
