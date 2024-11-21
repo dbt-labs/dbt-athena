@@ -21,9 +21,12 @@
   {% endif %}
 
   {% if unique_tmp_table_suffix == True and table_type == 'iceberg' %}
-    {% set tmp_table_suffix = adapter.generate_unique_temporary_table_suffix() %}
+    {% set raw_suffix = adapter.generate_unique_temporary_table_suffix() %}
+    {% set tmp_table_suffix = raw_suffix.replace('-', '_') %}
+  {% else %}
+    {% set tmp_table_suffix = '__dbt_tmp' %}
   {% endif %}
-
+  
   {% set old_tmp_relation = adapter.get_relation(identifier=target_relation.identifier ~ tmp_table_suffix,
                                              schema=schema,
                                              database=database) %}
