@@ -33,7 +33,7 @@ class TestUniqueTmpTableSuffix:
         model_run_result_row_count_query = f"select count(*) as records from {project.test_schema}.{relation_name}"
         expected_unique_table_name_re = (
             r"unique_tmp_table_suffix__dbt_tmp_"
-            r"[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}"
+            r"[0-9a-fA-F]{8}_[0-9a-fA-F]{4}_[0-9a-fA-F]{4}_[0-9a-fA-F]{4}_[0-9a-fA-F]{12}"
         )
 
         first_model_run = run_dbt(
