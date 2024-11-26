@@ -4,5 +4,6 @@ from dbt.tests.adapter.empty.test_empty import BaseTestEmpty, BaseTestEmptyInlin
 class TestAthenaEmpty(BaseTestEmpty):
     pass
 
+
 class TestAthenaEmptyInlineSourceRef(BaseTestEmptyInlineSourceRef):
     pass
