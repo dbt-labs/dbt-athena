@@ -429,7 +429,7 @@ class AthenaAdapter(SQLAdapter):
 
     @available
     def generate_unique_temporary_table_suffix(self, suffix_initial: str = "__dbt_tmp") -> str:
-        return f"{suffix_initial}_{str(uuid4())}"
+        return f"{suffix_initial}_{str(uuid4()).replace('-', '_')}"
 
     def quote(self, identifier: str) -> str:
         return f"{self.quote_character}{identifier}{self.quote_character}"
@@ -1209,22 +1209,21 @@ class AthenaAdapter(SQLAdapter):
         - Copy the content of the staging table to the final table
         - Delete the staging table
         """
-        col_csv = f",\n{' ' * 16}".join(table_columns)
+        col_csv = f", \n{' ' * 16}".join(table_columns)
         staging_relation = relation.incorporate(
             path={"identifier": relation.identifier + "__dbt_tmp_migration_staging"}
         )
         ctas = dedent(
             f"""\
             select
-                {col_csv},
+                {col_csv} ,
                 dbt_snapshot_at as dbt_updated_at,
                 dbt_valid_from,
                 if(dbt_valid_to > cast('9000-01-01' as timestamp), null, dbt_valid_to) as dbt_valid_to,
                 dbt_scd_id
             from {relation}
             where dbt_change_type != 'delete'
-            ;
-            """
+            ;"""
         )
         staging_sql = self.execute_macro(
             "create_table_as", kwargs=dict(temporary=True, relation=staging_relation, compiled_code=ctas)

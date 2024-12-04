@@ -20,6 +20,10 @@
     {% set tmp_table_suffix = '__dbt_tmp' %}
   {% endif %}
 
+  {% if unique_tmp_table_suffix == True and table_type == 'iceberg' %}
+    {% set tmp_table_suffix = adapter.generate_unique_temporary_table_suffix() %}
+  {% endif %}
+
   {% set old_tmp_relation = adapter.get_relation(identifier=target_relation.identifier ~ tmp_table_suffix,
                                              schema=schema,
                                              database=database) %}
