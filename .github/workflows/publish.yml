@@ -27,13 +27,13 @@ concurrency:
 
 jobs:
     unit-tests:
-        uses: dbt-labs/dbt-adapters/.github/workflows/_unit-tests.yml@monorepo-prep
+        uses: dbt-labs/dbt-adapters/.github/workflows/_unit-tests.yml@monorepo/shared-workflows
         with:
             package: "dbt-athena"
             branch: ${{ inputs.branch }}
 
     integration-tests:
-        uses: ./.github/workflows/integration-tests.yml
+        uses: ./.github/workflows/_integration-tests.yml
         with:
             branch: ${{ inputs.branch }}
             repository: ${{ github.repository }}
@@ -42,7 +42,7 @@ jobs:
     publish-internal:
         if: ${{ inputs.pypi-internal == true }}
         needs: [unit-tests, integration-tests]
-        uses: dbt-labs/dbt-adapters/.github/workflows/publish-internal.yml@monorepo-prep
+        uses: dbt-labs/dbt-adapters/.github/workflows/_publish-internal.yml@monorepo/shared-workflows
         with:
             package: "dbt-athena"
             deploy-to: ${{ inputs.deploy-to }}
@@ -52,7 +52,7 @@ jobs:
     publish-pypi:
         if: ${{ inputs.pypi-public == true }}
         needs: [unit-tests, integration-tests]
-        uses: dbt-labs/dbt-adapters/.github/workflows/publish-pypi.yml@monorepo-prep
+        uses: dbt-labs/dbt-adapters/.github/workflows/_publish-pypi.yml@monorepo/shared-workflows
         with:
             package: "dbt-athena"
             deploy-to: ${{ inputs.deploy-to }}
@@ -63,7 +63,7 @@ jobs:
         # dbt-athena-community is hard pinned to dbt-athena to ensure they are the same
         # this means we need to finish publishing dbt-athena before starting to build dbt-athena-community
         needs: publish-pypi
-        uses: dbt-labs/dbt-adapters/.github/workflows/publish-pypi.yml@monorepo-prep
+        uses: dbt-labs/dbt-adapters/.github/workflows/_publish-pypi.yml@monorepo/shared-workflows
         with:
             package: "dbt-athena-community"
             deploy-to: ${{ inputs.deploy-to }}

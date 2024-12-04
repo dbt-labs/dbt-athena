@@ -11,18 +11,10 @@ concurrency:
 
 jobs:
     code-quality:
-        uses: dbt-labs/dbt-adapters/.github/workflows/_code-quality.yml@monorepo-prep
-        strategy:
-            matrix:
-                package: ["dbt-athena", "dbt-athena-community"]
-                os: [ubuntu-22.04]
-                python-version: ["3.9", "3.10", "3.11", "3.12"]
+        uses: dbt-labs/dbt-adapters/.github/workflows/_code-quality.yml@monorepo/shared-workflows
         with:
-            package: ${{ matrix.package }}
             branch: ${{ github.event.pull_request.head.ref }}
             repository: ${{ github.event.pull_request.head.repo.full_name }}
-            os: ${{ matrix.os }}
-            python-version: ${{ matrix.python-version }}
 
     changelog:
         uses: dbt-labs/actions/.github/workflows/changelog-existence.yml@main
@@ -32,7 +24,7 @@ jobs:
         secrets: inherit
 
     verify-builds:
-        uses: dbt-labs/dbt-adapters/.github/workflows/_verify-build.yml
+        uses: dbt-labs/dbt-adapters/.github/workflows/_verify-build.yml@monorepo/shared-workflows
         strategy:
             matrix:
                 package: ["dbt-athena", "dbt-athena-community"]
@@ -46,7 +38,7 @@ jobs:
             python-version: ${{ matrix.python-version }}
 
     unit-tests:
-        uses: dbt-labs/dbt-adapters/.github/workflows/_unit-tests.yml@monorepo-prep
+        uses: dbt-labs/dbt-adapters/.github/workflows/_unit-tests.yml@monorepo/shared-workflows
         strategy:
             matrix:
                 package: ["dbt-athena", "dbt-athena-community"]
