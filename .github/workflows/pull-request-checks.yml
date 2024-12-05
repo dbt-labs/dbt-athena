@@ -2,7 +2,7 @@ name: "Pull request checks"
 
 on:
     pull_request_target:
-        types: [opened, reopened, synchronize]
+        types: [opened, reopened, synchronize, labeled, unlabeled]
 
 # only run this once per PR at a time
 concurrency:
@@ -10,6 +10,12 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
+    changelog-entry:
+        uses: dbt-labs/dbt-adapters/.github/workflows/_changelog-entry-check.yml@monorepo/shared-workflows
+        with:
+            package: "dbt-athena"
+            issue: ${{ github.event.pull_request.number }}
+
     code-quality:
         uses: dbt-labs/dbt-adapters/.github/workflows/_code-quality.yml@monorepo/shared-workflows
         with:
