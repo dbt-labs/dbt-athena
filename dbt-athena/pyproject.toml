@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 dynamic = ["version"]
 name = "dbt-athena"
@@ -40,10 +44,6 @@ Documentation = "https://docs.getdbt.com"
 Repository = "https://github.com/dbt-labs/dbt-athena.git#subdirectory=dbt-athena"
 Issues = "https://github.com/dbt-labs/dbt-athena/issues"
 Changelog = "https://github.com/dbt-labs/dbt-athena/blob/main/dbt-athena/CHANGELOG.md"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
 
 [tool.pytest]
 testpaths = ["tests/unit", "tests/functional"]
