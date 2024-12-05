@@ -45,17 +45,6 @@ Changelog = "https://github.com/dbt-labs/dbt-athena/blob/main/dbt-athena/CHANGEL
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.version]
-path = "src/dbt/adapters/athena/__version__.py"
-
-[tool.hatch.build.targets.sdist]
-packages = ["src/dbt/adapters", "src/dbt/include"]
-sources = ["src"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/dbt/adapters", "src/dbt/include"]
-sources = ["src"]
-
 [tool.pytest]
 testpaths = ["tests/unit", "tests/functional"]
 color = true
