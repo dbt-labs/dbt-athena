@@ -1,0 +1,56 @@
+[build.targets.sdist]
+include = ["src/dbt"]
+
+[build.targets.wheel]
+packages = ["src/dbt"]
+
+[envs.default]
+# the only build dependency is dbt-athena, which will never be published when running this
+# because the versions need to be identical
+detached = true
+dependencies = [
+    "dbt-athena @ {root:uri}/../dbt-athena",
+    "dbt-tests-adapter~=1.9.2",
+    "isort~=5.13",
+    "moto~=5.0.13",
+    "pre-commit~=3.5",
+    "pyparsing~=3.1.4",
+    "pytest~=8.3",
+    "pytest-cov~=5.0",
+    "pytest-dotenv~=0.5",
+    "pytest-xdist~=3.6",
+]
+[envs.default.scripts]
+setup = [
+    "pre-commit install",
+    "cp -n ../dbt-athena/test.env.example test.env",
+]
+code-quality = "pre-commit run --all-files"
+unit-tests = "pytest --cov=dbt --cov-report=html:htmlcov {args:../dbt-athena/tests/unit}"
+integration-tests = "python -m pytest -n auto {args:../dbt-athena/tests/functional}"
+all-tests = ["unit-tests", "integration-tests"]
+
+[envs.build]
+detached = true
+dependencies = [
+    "wheel",
+    "twine",
+    "check-wheel-contents",
+]
+[envs.build.scripts]
+check-all = [
+    "- check-wheel",
+    "- check-sdist",
+]
+check-wheel = [
+    "check-wheel-contents dist/*.whl --ignore W007,W008",
+    "find ./dist/dbt_athena_community-*.whl -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
+    "pip freeze | grep dbt-athena-community",
+    "pip freeze | grep dbt-athena",
+]
+check-sdist = [
+    "twine check dist/*",
+    "find ./dist/dbt_athena_community-*.gz -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
+    "pip freeze | grep dbt-athena-community",
+    "pip freeze | grep dbt-athena",
+]
