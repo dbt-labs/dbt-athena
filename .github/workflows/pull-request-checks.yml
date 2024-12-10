@@ -11,13 +11,13 @@ concurrency:
 
 jobs:
     changelog-entry:
-        uses: dbt-labs/dbt-adapters/.github/workflows/_changelog-entry-check.yml@monorepo/shared-workflows
+        uses: dbt-labs/dbt-adapters/.github/workflows/_changelog-entry-check.yml@main
         with:
             package: "dbt-athena"
-            issue: ${{ github.event.pull_request.number }}
+            pull-request: ${{ github.event.pull_request.number }}
 
     code-quality:
-        uses: dbt-labs/dbt-adapters/.github/workflows/_code-quality.yml@monorepo/shared-workflows
+        uses: dbt-labs/dbt-adapters/.github/workflows/_code-quality.yml@main
         with:
             branch: ${{ github.event.pull_request.head.ref }}
             repository: ${{ github.event.pull_request.head.repo.full_name }}
@@ -30,7 +30,7 @@ jobs:
         secrets: inherit
 
     verify-builds:
-        uses: dbt-labs/dbt-adapters/.github/workflows/_verify-build.yml@monorepo/shared-workflows
+        uses: dbt-labs/dbt-adapters/.github/workflows/_verify-build.yml@main
         strategy:
             matrix:
                 package: ["dbt-athena", "dbt-athena-community"]
@@ -44,7 +44,7 @@ jobs:
             python-version: ${{ matrix.python-version }}
 
     unit-tests:
-        uses: dbt-labs/dbt-adapters/.github/workflows/_unit-tests.yml@monorepo/shared-workflows
+        uses: dbt-labs/dbt-adapters/.github/workflows/_unit-tests.yml@main
         strategy:
             matrix:
                 package: ["dbt-athena", "dbt-athena-community"]
