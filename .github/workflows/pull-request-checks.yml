@@ -1,50 +1,84 @@
 name: "Pull request checks"
 
 on:
-  pull_request_target:
-    types: [opened, reopened, synchronize]
+    pull_request_target:
+        types: [opened, reopened, synchronize, labeled, unlabeled]
 
 # only run this once per PR at a time
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.number }}
-  cancel-in-progress: true
+    group: ${{ github.workflow }}-${{ github.event.number }}
+    cancel-in-progress: true
 
 jobs:
-  code-quality:
-    uses: ./.github/workflows/code-quality.yml
-    with:
-      branch: ${{ github.event.pull_request.head.ref }}
-      repository: ${{ github.event.pull_request.head.repo.full_name }}
+    changelog-entry:
+        uses: dbt-labs/dbt-adapters/.github/workflows/_changelog-entry-check.yml@main
+        with:
+            package: "dbt-athena"
+            pull-request: ${{ github.event.pull_request.number }}
 
-  unit-tests:
-    uses: ./.github/workflows/unit-tests.yml
-    with:
-      package: ${{ matrix.package }}
-      branch: ${{ github.event.pull_request.head.ref }}
-      repository: ${{ github.event.pull_request.head.repo.full_name }}
-    strategy:
-      matrix:
-        package: ["dbt-athena", "dbt-athena-community"]
+    code-quality:
+        uses: dbt-labs/dbt-adapters/.github/workflows/_code-quality.yml@main
+        with:
+            branch: ${{ github.event.pull_request.head.ref }}
+            repository: ${{ github.event.pull_request.head.repo.full_name }}
 
-  integration-tests:
-    uses: ./.github/workflows/integration-tests.yml
-    with:
-      # integration test runs can't run in parallel for now, so only run dbt-athena
-      # both will run post merge and unit tests run for both, so this is sufficient
-      branch: ${{ github.event.pull_request.head.ref }}
-      repository: ${{ github.event.pull_request.head.repo.full_name }}
-    secrets: inherit
+    changelog:
+        uses: dbt-labs/actions/.github/workflows/changelog-existence.yml@main
+        with:
+            changelog_comment: 'Thank you for your pull request! We could not find a changelog entry for this change. For details on how to document a change, see [the contributing guide](https://github.com/dbt-labs/dbt-adapters/blob/main/CONTRIBUTING.md#adding-changelog-entry).'
+            skip_label: 'Skip Changelog'
+        secrets: inherit
 
-  # This job does nothing and is only used for branch protection
-  results:
-    name: "Pull request checks"
-    if: always()
-    needs:
-    - code-quality
-    - unit-tests
-    - integration-tests
-    runs-on: ubuntu-latest
-    steps:
-    - uses: re-actors/alls-green@release/v1
-      with:
-        jobs: ${{ toJSON(needs) }}
+    verify-builds:
+        uses: dbt-labs/dbt-adapters/.github/workflows/_verify-build.yml@main
+        strategy:
+            matrix:
+                package: ["dbt-athena", "dbt-athena-community"]
+                os: [ubuntu-22.04]
+                python-version: ["3.9", "3.10", "3.11", "3.12"]
+        with:
+            package: ${{ matrix.package }}
+            branch: ${{ github.event.pull_request.head.ref }}
+            repository: ${{ github.event.pull_request.head.repo.full_name }}
+            os: ${{ matrix.os }}
+            python-version: ${{ matrix.python-version }}
+
+    unit-tests:
+        uses: dbt-labs/dbt-adapters/.github/workflows/_unit-tests.yml@main
+        strategy:
+            matrix:
+                package: ["dbt-athena", "dbt-athena-community"]
+                os: [ubuntu-22.04]
+                python-version: ["3.9", "3.10", "3.11", "3.12"]
+        with:
+            package: ${{ matrix.package }}
+            branch: ${{ github.event.pull_request.head.ref }}
+            repository: ${{ github.event.pull_request.head.repo.full_name }}
+            os: ${{ matrix.os }}
+            python-version: ${{ matrix.python-version }}
+
+    integration-tests:
+        uses: ./.github/workflows/_integration-tests.yml
+        strategy:
+            matrix:
+                package: ["dbt-athena", "dbt-athena-community"]
+                os: [ubuntu-22.04]
+                python-version: ["3.9", "3.10", "3.11", "3.12"]
+        with:
+            package: ${{ matrix.package }}
+            branch: ${{ github.event.pull_request.head.ref }}
+            repository: ${{ github.event.pull_request.head.repo.full_name }}
+            os: ${{ matrix.os }}
+            python-version: ${{ matrix.python-version }}
+        secrets: inherit
+
+    # This job does nothing and is only used for branch protection
+    results:
+        name: "Pull request checks"
+        if: always()
+        needs: [code-quality, changelog, verify-builds, unit-tests, integration-tests]
+        runs-on: ${{ vars.DEFAULT_RUNNER }}
+        steps:
+        -   uses: re-actors/alls-green@release/v1
+            with:
+                jobs: ${{ toJSON(needs) }}

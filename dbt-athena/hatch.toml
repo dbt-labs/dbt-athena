@@ -1,0 +1,57 @@
+[version]
+path = "src/dbt/adapters/athena/__version__.py"
+
+[build.targets.sdist]
+packages = ["src/dbt/adapters", "src/dbt/include"]
+sources = ["src"]
+
+[build.targets.wheel]
+packages = ["src/dbt/adapters", "src/dbt/include"]
+sources = ["src"]
+
+[envs.default]
+dependencies = [
+    "dbt-adapters @ git+https://github.com/dbt-labs/dbt-adapters.git",
+    "dbt-common @ git+https://github.com/dbt-labs/dbt-common.git",
+    "dbt-tests-adapter @ git+https://github.com/dbt-labs/dbt-adapters.git#subdirectory=dbt-tests-adapter",
+    "dbt-core @ git+https://github.com/dbt-labs/dbt-core.git#subdirectory=core",
+    "moto~=5.0.13",
+    "pre-commit~=3.5",
+    "pyparsing~=3.1.4",
+    "pytest~=8.3",
+    "pytest-cov~=5.0",
+    "pytest-dotenv~=0.5",
+    "pytest-xdist~=3.6",
+]
+[envs.default.scripts]
+setup = [
+    "pre-commit install",
+    "cp -n test.env.example test.env",
+]
+code-quality = "pre-commit run --all-files"
+unit-tests = "pytest --cov=dbt --cov-report=html:htmlcov {args:tests/unit}"
+integration-tests = "python -m pytest -n auto {args:tests/functional}"
+all-tests = ["unit-tests", "integration-tests"]
+
+[envs.build]
+detached = true
+dependencies = [
+    "wheel",
+    "twine",
+    "check-wheel-contents",
+]
+[envs.build.scripts]
+check-all = [
+    "- check-wheel",
+    "- check-sdist",
+]
+check-wheel = [
+    "check-wheel-contents dist/*.whl --ignore W007,W008",
+    "find ./dist/dbt_athena-*.whl -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
+    "pip freeze | grep dbt-athena",
+]
+check-sdist = [
+    "twine check dist/*",
+    "find ./dist/dbt_athena-*.gz -maxdepth 1 -type f | xargs python -m pip install --force-reinstall --find-links=dist/",
+    "pip freeze | grep dbt-athena",
+]
