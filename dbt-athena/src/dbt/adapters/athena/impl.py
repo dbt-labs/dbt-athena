@@ -9,7 +9,7 @@ from datetime import date, datetime
 from functools import lru_cache
 from textwrap import dedent
 from threading import Lock
-from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type
+from typing import TYPE_CHECKING, Any, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -68,6 +68,10 @@ from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.adapters.contracts.relation import RelationConfig
 from dbt.adapters.sql import SQLAdapter
+
+
+if TYPE_CHECKING:
+    from mypy_boto3_glue.client import GlueClient
 
 boto3_client_lock = Lock()
 
@@ -1172,6 +1176,20 @@ class AthenaAdapter(SQLAdapter):
             else:
                 LOGGER.error(e)
                 raise e
+
+    @available
+    def drop_glue_database(self, database_name: str, catalog_id: Optional[str] = None) -> None:
+        conn = self.connections.get_thread_connection()
+        creds = conn.credentials
+        client = conn.handle
+
+        with boto3_client_lock:
+            glue_client: GlueClient = client.session.client(
+                "glue",
+                region_name=client.region_name,
+                config=get_boto3_config(num_retries=creds.effective_num_retries),
+            )
+            glue_client.delete_database(Name=database_name, CatalogId=catalog_id)
 
     @available.parse_none
     def valid_snapshot_target(self, relation: BaseRelation) -> None:
