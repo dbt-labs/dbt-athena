@@ -12,6 +12,7 @@ from dbt_common.clients import agate_helper
 from dbt_common.exceptions import ConnectionError, DbtRuntimeError
 from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
+from mypy_boto3_glue.client import GlueClient
 
 from dbt.adapters.athena import AthenaAdapter
 from dbt.adapters.athena import Plugin as AthenaPlugin
@@ -1251,6 +1252,17 @@ class TestAthenaAdapter:
     def test_format_unsupported_type(self):
         with pytest.raises(ValueError):
             self.adapter.format_value_for_partition("test", "unsupported_type")
+
+    @mock_aws
+    def test_drop_glue_database(self, mock_aws_service):
+        glue_client: GlueClient = boto3.client("glue", region_name=AWS_REGION)
+        test_input = {"Name": "test"}
+        glue_client.create_database(DatabaseInput=test_input)
+        database_list = glue_client.get_databases()["DatabaseList"]
+        assert [test_input["Name"]] == [db["Name"] for db in database_list]
+        self.adapter.acquire_connection("dummy")
+        self.adapter.drop_glue_database(database_name=test_input["Name"])
+        assert glue_client.get_databases()["DatabaseList"] == []
 
 
 class TestAthenaFilterCatalog:
