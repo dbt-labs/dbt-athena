@@ -1178,10 +1178,12 @@ class AthenaAdapter(SQLAdapter):
                 raise e
 
     @available
-    def drop_glue_database(self, database_name: str, catalog_id: Optional[str] = None) -> None:
+    def drop_glue_database(self, database_name: str, catalog_name: str = "awsdatacatalog") -> None:
         conn = self.connections.get_thread_connection()
         creds = conn.credentials
         client = conn.handle
+        catalog = self._get_data_catalog(catalog_name)
+        catalog_id = get_catalog_id(catalog)
 
         with boto3_client_lock:
             glue_client: GlueClient = client.session.client(
@@ -1190,6 +1192,7 @@ class AthenaAdapter(SQLAdapter):
                 config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
             glue_client.delete_database(Name=database_name, CatalogId=catalog_id)
+            LOGGER.info(f"Glue database successfully deleted: {catalog_name}.{database_name}")
 
     @available.parse_none
     def valid_snapshot_target(self, relation: BaseRelation) -> None:
