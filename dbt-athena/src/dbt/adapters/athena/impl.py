@@ -1192,7 +1192,7 @@ class AthenaAdapter(SQLAdapter):
                 config=get_boto3_config(num_retries=creds.effective_num_retries),
             )
             glue_client.delete_database(Name=database_name, CatalogId=catalog_id)
-            LOGGER.info(f"Glue database successfully deleted: {catalog_name}.{database_name}")
+            LOGGER.debug(f"Glue database successfully deleted: {catalog_name}.{database_name}")
 
     @available.parse_none
     def valid_snapshot_target(self, relation: BaseRelation) -> None:
