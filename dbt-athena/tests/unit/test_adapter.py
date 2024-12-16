@@ -1254,7 +1254,7 @@ class TestAthenaAdapter:
             self.adapter.format_value_for_partition("test", "unsupported_type")
 
     @mock_aws
-    def test_drop_glue_database(self, mock_aws_service):
+    def test_drop_glue_database(self):
         glue_client: GlueClient = boto3.client("glue", region_name=AWS_REGION)
         test_input = {"Name": "test"}
         glue_client.create_database(DatabaseInput=test_input)
