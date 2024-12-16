@@ -18,11 +18,11 @@ on:
             os:
                 description: "Choose the OS to test against"
                 type: string
-                default: ${{ vars.DEFAULT_RUNNER }}
+                default: "ubuntu-22.04"
             python-version:
                 description: "Choose the Python version to test against"
                 type: string
-                default: ${{ vars.DEFAULT_PYTHON_VERSION }}
+                default: "3.9"
     workflow_dispatch:
         inputs:
             package:
@@ -40,7 +40,7 @@ on:
             os:
                 description: "Choose the OS to test against"
                 type: string
-                default: ${{ vars.DEFAULT_RUNNER }}
+                default: "ubuntu-22.04"
             python-version:
                 description: "Choose the Python version to test against"
                 type: choice
