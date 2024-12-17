@@ -1,7 +1,7 @@
 name: Other
 description: Anything that is not a bug or a feature
 title: "<title>"
-labels: []
+labels: ["triage"]
 body:
 - type: checkboxes
   attributes:
