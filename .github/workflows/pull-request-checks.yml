@@ -15,6 +15,7 @@ jobs:
         with:
             package: "dbt-athena"
             pull-request: ${{ github.event.pull_request.number }}
+        secrets: inherit
 
     code-quality:
         uses: dbt-labs/dbt-adapters/.github/workflows/_code-quality.yml@main
@@ -22,16 +23,10 @@ jobs:
             branch: ${{ github.event.pull_request.head.ref }}
             repository: ${{ github.event.pull_request.head.repo.full_name }}
 
-    changelog:
-        uses: dbt-labs/actions/.github/workflows/changelog-existence.yml@main
-        with:
-            changelog_comment: 'Thank you for your pull request! We could not find a changelog entry for this change. For details on how to document a change, see [the contributing guide](https://github.com/dbt-labs/dbt-adapters/blob/main/CONTRIBUTING.md#adding-changelog-entry).'
-            skip_label: 'Skip Changelog'
-        secrets: inherit
-
     verify-builds:
         uses: dbt-labs/dbt-adapters/.github/workflows/_verify-build.yml@main
         strategy:
+            fail-fast: false
             matrix:
                 package: ["dbt-athena", "dbt-athena-community"]
                 os: [ubuntu-22.04]
@@ -46,6 +41,7 @@ jobs:
     unit-tests:
         uses: dbt-labs/dbt-adapters/.github/workflows/_unit-tests.yml@main
         strategy:
+            fail-fast: false
             matrix:
                 package: ["dbt-athena", "dbt-athena-community"]
                 os: [ubuntu-22.04]
@@ -60,6 +56,7 @@ jobs:
     integration-tests:
         uses: ./.github/workflows/_integration-tests.yml
         strategy:
+            fail-fast: false
             matrix:
                 package: ["dbt-athena", "dbt-athena-community"]
                 os: [ubuntu-22.04]
