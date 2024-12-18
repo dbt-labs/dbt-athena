@@ -1,0 +1,6 @@
+kind: Features
+body: Implement drop_glue_database macro and method
+time: 2024-12-17T00:12:38.943084+01:00
+custom:
+    Author: svdimchenko
+    Issue: "768"
