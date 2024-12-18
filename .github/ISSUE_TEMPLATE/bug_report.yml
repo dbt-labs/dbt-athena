@@ -1,7 +1,7 @@
 name: 🐞 Bug
 description: Report a bug or an issue you've found in dbt-athena
 title: "[Bug] <title>"
-labels: ["bug"]
+labels: ["bug","triage"]
 body:
 - type: markdown
   attributes:
