@@ -13,3 +13,8 @@
     drop schema if exists {{ relation.without_identifier().render_hive() }} cascade
   {% endcall %}
 {% endmacro %}
+
+
+{% macro drop_glue_database(database_name, catalog_name='awsdatacatalog') -%}
+  {{ adapter.drop_glue_database(database_name, catalog_name) }}
+{% endmacro %}
