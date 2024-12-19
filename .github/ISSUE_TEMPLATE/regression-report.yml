@@ -1,5 +1,5 @@
 name: ☣️ Regression
-description: Report a regression you've observed in a newer version of dbt-snowflake
+description: Report a regression you've observed in a newer version of dbt-athena
 title: "[Regression] <title>"
 labels: ["bug", "regression", "triage"]
 body:
@@ -9,12 +9,12 @@ body:
         Thanks for taking the time to fill out this regression report!
   - type: checkboxes
     attributes:
-      label: Is this a regression in a recent version of dbt-snowflake?
+      label: Is this a regression in a recent version of dbt-athena?
       description: >
-        A regression is when documented functionality works as expected in an older version of dbt-snowflake,
-        and no longer works after upgrading to a newer version of dbt-snowflake
+        A regression is when documented functionality works as expected in an older version of dbt-athena,
+        and no longer works after upgrading to a newer version of dbt-athena
       options:
-        - label: I believe this is a regression in dbt-snowflake functionality
+        - label: I believe this is a regression in dbt-athena functionality
           required: true
         - label: I have searched the existing issues, and I could not find an existing issue for this regression
           required: true
@@ -58,16 +58,16 @@ body:
           - **OS**: Ubuntu 20.04
           - **Python**: 3.9.12 (`python3 --version`)
           - **dbt-core (working version)**: 1.1.1 (`dbt --version`)
-          - **dbt-snowflake (working version)**: 1.1.0 (`dbt --version`)
+          - **dbt-athena (working version)**: 1.1.0 (`dbt --version`)
           - **dbt-core (regression version)**: 1.2.0 (`dbt --version`)
-          - **dbt-snowflake (regression version)**: 1.2.0 (`dbt --version`)
+          - **dbt-athena (regression version)**: 1.2.0 (`dbt --version`)
       value: |
         - OS:
         - Python:
         - dbt-core (working version):
-        - dbt-snowflake (working version):
+        - dbt-athena (working version):
         - dbt-core (regression version):
-        - dbt-snowflake (regression version):
+        - dbt-athena (regression version):
       render: markdown
     validations:
       required: true
