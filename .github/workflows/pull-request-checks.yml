@@ -73,7 +73,7 @@ jobs:
     results:
         name: "Pull request checks"
         if: always()
-        needs: [code-quality, changelog, verify-builds, unit-tests, integration-tests]
+        needs: [code-quality, changelog-entry, verify-builds, unit-tests, integration-tests]
         runs-on: ${{ vars.DEFAULT_RUNNER }}
         steps:
         -   uses: re-actors/alls-green@release/v1

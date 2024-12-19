@@ -1,7 +1,7 @@
 name: ✨ Feature
 description: Propose a straightforward extension of dbt functionality
 title: "[Feature] <title>"
-labels: ["feature"]
+labels: ["feature", "triage"]
 body:
 - type: markdown
   attributes:
