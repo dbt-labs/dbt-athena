@@ -13,17 +13,14 @@
   {% set temp_schema = config.get('temp_schema') %}
   {% set target_relation = this.incorporate(type='table') %}
   {% set existing_relation = load_relation(this) %}
-  -- If using insert_overwrite on Hive table, allow to set a unique tmp table suffix
-  {% if unique_tmp_table_suffix == True and strategy == 'insert_overwrite' and table_type == 'hive' %}
-    {% set tmp_table_suffix = adapter.generate_unique_temporary_table_suffix() %}
+  -- Generate a unique tmp table suffix if required
+  {% if unique_tmp_table_suffix == True %}
+    {% set raw_suffix = adapter.generate_unique_temporary_table_suffix() %}
+    {% set tmp_table_suffix = raw_suffix.replace('-', '_') %}
   {% else %}
     {% set tmp_table_suffix = '__dbt_tmp' %}
   {% endif %}
-
-  {% if unique_tmp_table_suffix == True and table_type == 'iceberg' %}
-    {% set tmp_table_suffix = adapter.generate_unique_temporary_table_suffix() %}
-  {% endif %}
-
+  
   {% set old_tmp_relation = adapter.get_relation(identifier=target_relation.identifier ~ tmp_table_suffix,
                                              schema=schema,
                                              database=database) %}
